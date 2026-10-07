@@ -33,13 +33,13 @@ Only HTTPS port 443 is allowed. URL credentials, fragments and private/reserved 
 
 Credentials, webhook URL paths and signing secrets are encrypted with AES-256-GCM using an owner/quiz/connection binding. `INTEGRATION_SECRET` is the preferred stable server key (32+ characters); otherwise an HKDF-derived key from `SESSION_SECRET` is used. Changing the active encryption key requires reconnecting destinations. Raw credentials never return from configuration APIs.
 
-The hosted deployment uses Supabase `pg_cron` and `pg_net` to invoke `/api/integrations/dispatch` every minute. The worker token is generated inside Postgres and encrypted in Vault; only its SHA-256 verifier is stored in the server-only `hq_records` metadata. Ordinary users cannot read Vault, queue metadata or scheduler schemas. No public RPC function is added. The scheduler is named `heyquiz-delivery-retries`; its token entry is `heyquiz_delivery_worker`. These resources are project-local.
+The hosted deployment now uses Supabase `pg_cron` and `pg_net` to invoke `/api/integrations/dispatch` every minute. The worker token is generated inside Postgres and encrypted in Vault; only its SHA-256 verifier is stored in the server-only `hq_records` metadata. Ordinary app users cannot read Vault or queue metadata through the app. Supabase gives trusted database login roles access to pg_net request tables, so queued authorization headers can be read by those roles. The `net` schema must remain unexposed through the Data API. The production API check returned PGRST106 for `net` (only `public` and `graphql_public` exposed). No public RPC function is added. The scheduler is named `heyquiz-delivery-retries`; its token entry is `heyquiz_delivery_worker`. These resources are project-local.
 
 Alternative installations can set `CRON_SECRET` (32+ random characters) and call the same route with `Authorization: Bearer <secret>`. Vercel Hobby cron is daily only; use a minute-level scheduler for prompt retries. No unauthenticated worker execution is permitted. The Integrate screen reports scheduler configuration.
 
 To pause hosted unattended retries, set `cron.job.active=false` for `jobname='heyquiz-delivery-retries'` and set `payload.enabled=false` on the `hq_records` row with `kind='meta'` and `id='integration-worker-auth'`. New submission callbacks still run. Pausing each connection stops its delivery. Rotate the Vault token and stored SHA-256 verifier together; never paste the token into logs or the repository.
 
-Cloud extension migrations recorded for this release: `enable_heyquiz_delivery_scheduler` and `restrict_delivery_scheduler_network_access`. Existing `hq_records` remains protected by RLS with no anon/authenticated grants.
+Cloud extension migrations recorded for this release: `enable_heyquiz_delivery_scheduler` and `restrict_delivery_scheduler_network_access`. Verification showed that pg_net grants made by supabase_admin cannot be revoked by the project postgres role; the attempted revocations did not change those default grants. No untrusted database login roles were found. See [Supabase’s pg_net permission constraint](https://supabase.com/docs/guides/troubleshooting/revoking-access-to-pg_net-objects-has-no-effect-0bbc16). Existing `hq_records` remains protected by RLS with no anon/authenticated grants.
 
 ## Verification
 
@@ -50,3 +50,6 @@ Cloud extension migrations recorded for this release: `enable_heyquiz_delivery_s
 Live HighLevel account delivery still requires a customer's valid token/location and an authorized destination test. Passing mocked adapter tests is not proof of live account permissions or downstream automation behavior.
 
 References: [HighLevel upsert](https://marketplace.gohighlevel.com/docs/2021-04-15/ghl/contacts/upsert-contact/index.html), [HighLevel additive tags](https://marketplace.gohighlevel.com/docs/2021-04-15/ghl/contacts/add-tags/index.html), [Supabase pg_net](https://supabase.com/docs/guides/database/extensions/pg_net), [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+
+Hosted activation verification: zero saved connections and zero delivery jobs were confirmed before enabling the scheduler, with a transaction guard enforcing that condition. The active job runs every minute and remains idle until a user configures/enables a destination or queues a test. The public worker endpoint rejects unauthenticated calls with HTTP 401.
