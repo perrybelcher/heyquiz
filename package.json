@@ -16,7 +16,10 @@
     "test:browser-contacts": "node tests/browser-contacts.cjs",
     "test:cloud-pagination": "node tests/cloud-pagination.cjs",
     "test:browser-journeys": "node tests/browser-journeys.cjs",
-    "test:owner-isolation": "node tests/owner-isolation.cjs"
+    "test:owner-isolation": "node tests/owner-isolation.cjs",
+    "test:integrations": "node tests/integrations.cjs",
+    "test:integrations-api": "node tests/integrations-api.cjs",
+    "test:browser-integrations": "node tests/browser-integrations.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -128,7 +128,7 @@ import ResultsChart from "./ResultsChart";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
 import MarketingResultCard from "./MarketingResultCard";
-import Connections from "./Connections";
+import IntegrationStudio from "./IntegrationStudio";
 
 interface EditorStudioProps {
   initialForm: FormSchemaType;
@@ -4071,7 +4071,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
 
       {activeNavTab === "integrate" && (
         <div className="flex-1 overflow-auto">
-          <Connections />
+          <IntegrationStudio form={form} />
         </div>
       )}
 

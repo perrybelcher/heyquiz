@@ -1,3 +1,4 @@
+import { scheduleDeliveries } from "@/lib/integrations/after-submit";
 import type { QuizSubmissionResult } from "@/lib/schema";
 import { parseContact } from "@/lib/contacts";
 import { evaluateMarketing } from "@/lib/marketing";
@@ -24,10 +25,21 @@ export async function POST(
       a = r.payload,
       form = a.form;
     if (a.result) {
-      const stored = !a.preview ? await readRecord<QuizSubmissionResult>("submissions", r.id) : null;
-      return Response.json(publicResult(stored?.owner_id === r.owner_id ? stored.payload : a.result, form));
+      const stored = !a.preview
+        ? await readRecord<QuizSubmissionResult>("submissions", r.id)
+        : null;
+      if (!a.preview) scheduleDeliveries(r.owner_id, id);
+      return Response.json(
+        publicResult(
+          stored?.owner_id === r.owner_id ? stored.payload : a.result,
+          form,
+        ),
+      );
     }
-    const contact = form.capture?.placement === "before_results" ? parseContact(form.capture, b.contact, form.revision) : undefined;
+    const contact =
+      form.capture?.placement === "before_results"
+        ? parseContact(form.capture, b.contact, form.revision)
+        : undefined;
     const answers: Answers = record(b.answers);
     const path = resolvePath(form, answers);
     const timedOut = Boolean(
@@ -114,6 +126,7 @@ export async function POST(
       completed: true,
       result: saved,
     });
+    if (!a.preview) scheduleDeliveries(r.owner_id, id);
     return Response.json(publicResult(saved, form));
   } catch (e) {
     return apiError(e);

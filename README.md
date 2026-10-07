@@ -70,7 +70,7 @@ npm run test:browser-journeys
 - The 51-field schema is preserved. A meeting preference captures a requested time; it does not reserve a calendar slot. Signature is typed, not a drawing pad or an e-signature service. Attachments are one file per answer, capped at 10 MB (or a lower configured limit). Voice recording requires browser microphone permission.
 - The media library is a curated, filtered image list plus URL insertion and real uploads, not a live stock-photo search service.
 - Question shuffling is suppressed on forms with branching rules to preserve dependency order. JSON `theme.layout=scroll` and keyboard-shortcut configuration are legacy metadata; this release uses the step player. Matrix answer keys can be set in JSON; matrices without keys are treated as survey fields.
-- The Integrate panel reports real connection status. CRM/webhook integrations, payments, calendar booking, team roles, and collaboration are not implemented.
+- The Integrate panel reports real connection status. GoHighLevel token connections and outgoing webhooks are available in each quiz’s Integrate tab. Payments, calendar booking, team roles, and collaboration are not implemented. See [lead integration setup and limits](docs/integrations.md).
 - Supabase-backed create/save/publish/submit and Contacts have been exercised on the hosted deployment. Gemini and Turnstile have not been exercised with live credentials. This is a substantial local product upgrade, not a verified claim of full Fillout feature parity or production security certification.
 
 ## Marketing MVP milestone
@@ -79,4 +79,7 @@ The dashboard now offers Product finder, Buyer segmentation, and Category scorec
 
 Recommendations and category scores are computed on the server, saved with submissions, visible in response details, and included in CSV export. Exclusions override points; ties follow result order. Scorecard unknowns do not become zeros, and insufficient coverage has an explicit result. Questions now have a brief entry transition that respects reduced-motion preferences.
 
-Run `npm run test:marketing-api` against the local preview to verify all three modes. The existing conventional Gemini generator has not yet been adapted to generate these marketing configurations. Dedicated lead capture and consent records are implemented and tested; hosted core workflows have been verified. Webhook delivery and offer-click tracking remain pending; this milestone is not the full MVP. See the accompanying `heyquiz-mvp-status.md` acceptance tracker.
+Run `npm run test:marketing-api` against the local preview to verify all three modes. The existing conventional Gemini generator has not yet been adapted to generate these marketing configurations. Dedicated lead capture and consent records are implemented and tested; hosted core workflows have been verified. Lead delivery now supports GoHighLevel and webhooks; offer-click tracking remains pending; this milestone is not the full MVP. See the accompanying `heyquiz-mvp-status.md` acceptance tracker.
+
+
+Run `npm run test:integrations`, `npm run test:integrations-api`, and `npm run test:browser-integrations` for the lead delivery acceptance suites. See [integration operations](docs/integrations.md) for retries, consent, secrets, scheduling, and live-account verification requirements.
