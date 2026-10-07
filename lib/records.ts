@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 export const cloudEnabled = () =>
-  Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
+  Boolean(
+    process.env.SUPABASE_URL &&
+      (process.env.SUPABASE_SECRET_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY),
+  );
 export const dataDirectory = () =>
   path.resolve(process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data");
 const safe = (v: string) => {
@@ -17,7 +21,8 @@ export interface StoredRecord<T> {
   payload: T;
 }
 export async function supabaseFetch(endpoint: string, init: RequestInit = {}) {
-  const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const key =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!process.env.SUPABASE_URL || !key)
     throw new Error("Cloud storage is not configured.");
   const res = await fetch(`${process.env.SUPABASE_URL}${endpoint}`, {
@@ -25,7 +30,9 @@ export async function supabaseFetch(endpoint: string, init: RequestInit = {}) {
     cache: "no-store",
     headers: {
       apikey: key,
-      ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
+      ...(key.startsWith("sb_secret_")
+        ? {}
+        : { Authorization: `Bearer ${key}` }),
       "Content-Type": "application/json",
       ...init.headers,
     },
@@ -67,12 +74,25 @@ export async function listRecords<T>(
   owner?: string,
 ): Promise<StoredRecord<T>[]> {
   safe(kind);
-  if (cloudEnabled())
-    return (
-      await supabaseFetch(
-        `/rest/v1/hq_records?kind=eq.${kind}${owner ? `&owner_id=eq.${encodeURIComponent(owner)}` : ""}&select=*`,
-      )
-    ).json();
+  if (cloudEnabled()) {
+    const records: StoredRecord<T>[] = [];
+    let cursor = "";
+    // The server can cap a response below our requested limit. Continue until
+    // an empty page, using stable IDs rather than offsets that shift on deletion.
+    for (;;) {
+      const page: StoredRecord<T>[] = await (
+        await supabaseFetch(
+          `/rest/v1/hq_records?kind=eq.${kind}${owner ? `&owner_id=eq.${encodeURIComponent(owner)}` : ""}&select=*&order=id.asc&limit=500${cursor ? `&id=gt.${encodeURIComponent(cursor)}` : ""}`,
+        )
+      ).json();
+      if (!page.length) return records;
+      const next = page[page.length - 1].id;
+      if (next === cursor)
+        throw new Error("Cloud storage pagination did not advance.");
+      records.push(...page);
+      cursor = next;
+    }
+  }
   let names: string[];
   try {
     names = await fs.readdir(path.join(dataDirectory(), kind));

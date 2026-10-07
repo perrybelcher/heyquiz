@@ -11,7 +11,11 @@
     "test:api": "node tests/api.mjs",
     "setup:local": "node scripts/setup-local.mjs",
     "test:marketing-api": "node tests/marketing-api.cjs",
-    "test:contacts-api": "node tests/contacts-api.cjs"
+    "test:contacts-api": "node tests/contacts-api.cjs",
+    "test:browser-fields": "node tests/browser-matrix.cjs",
+    "test:browser-contacts": "node tests/browser-contacts.cjs",
+    "test:cloud-pagination": "node tests/cloud-pagination.cjs",
+    "test:browser-journeys": "node tests/browser-journeys.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
