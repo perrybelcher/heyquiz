@@ -1,4 +1,7 @@
-const { chromium } = require("playwright");
+const { chromium, firefox, webkit } = require("playwright");
+const browserType = process.env.QA_BROWSER || "chrome";
+const engine = { chrome: chromium, firefox, webkit }[browserType];
+if (!engine) throw new Error("Unsupported QA_BROWSER");
 const fs = require("node:fs"),
   assert = require("node:assert/strict"),
   ts = require("typescript");
@@ -19,7 +22,10 @@ const { defaultCapture } = require("../lib/contacts.ts");
   const base = "http://127.0.0.1:3130",
     id = "browser-contacts-" + Date.now(),
     checks = [];
-  const b = await chromium.launch({ channel: "chrome", headless: true });
+  const b = await engine.launch({
+    ...(browserType === "chrome" ? { channel: "chrome" } : {}),
+    headless: true,
+  });
   const owner = await b.newContext({ acceptDownloads: true });
   const visitor = await b.newContext({ viewport: { width: 390, height: 844 } });
   try {

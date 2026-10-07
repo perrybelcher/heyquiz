@@ -1,4 +1,7 @@
-const { chromium } = require("playwright");
+const { chromium, firefox, webkit } = require("playwright");
+const browserType = process.env.QA_BROWSER || "chrome";
+const engine = { chrome: chromium, firefox, webkit }[browserType];
+if (!engine) throw new Error("Unsupported QA_BROWSER");
 const fs = require("node:fs"),
   assert = require("node:assert/strict"),
   ts = require("typescript");
@@ -16,7 +19,10 @@ require.extensions[".ts"] = (m, f) =>
 const { marketingTemplate } = require("../lib/marketing-templates.ts");
 (async () => {
   const base = "http://127.0.0.1:3130",
-    b = await chromium.launch({ channel: "chrome", headless: true }),
+    b = await engine.launch({
+      ...(browserType === "chrome" ? { channel: "chrome" } : {}),
+      headless: true,
+    }),
     owner = await b.newContext(),
     visitor = await b.newContext();
   let ids = [],
@@ -27,19 +33,19 @@ const { marketingTemplate } = require("../lib/marketing-templates.ts");
   });
   const p = await visitor.newPage();
   p.setDefaultTimeout(10000);
-  async function publish(f) {
+  async function publish(f, query = "") {
     ids.push(f.id);
     let r = await owner.request.post(base + "/api/forms", {
       data: f,
       headers: { Origin: base },
     });
-    assert.equal(r.status(), 201);
+    assert.equal(r.status(), 201, await r.text());
     r = await owner.request.post(base + `/api/forms/${f.id}/publish`, {
       data: {},
       headers: { Origin: base },
     });
     assert.equal(r.status(), 200);
-    await p.goto(base + "/play/" + f.id);
+    await p.goto(base + "/play/" + f.id + query);
     await p.getByRole("button", { name: "Let’s begin", exact: true }).click();
   }
   try {
@@ -129,9 +135,50 @@ const { marketingTemplate } = require("../lib/marketing-templates.ts");
       .getByRole("button", { name: "Take it again", exact: true })
       .waitFor();
     checks.push("Revised branch completes");
+    const hiddenId = "browser-journey-hidden-" + Date.now();
+    await publish(
+      {
+        id: hiddenId,
+        title: "QA campaign attribution",
+        mode: "survey",
+        settings: { showReviewBeforeSubmit: true },
+        questions: [
+          {
+            id: "campaign",
+            title: "Campaign",
+            type: "hidden",
+            hiddenParamName: "utm_campaign",
+          },
+          {
+            id: "visible",
+            title: "Your answer",
+            type: "short_answer",
+            required: true,
+          },
+        ],
+      },
+      "?utm_campaign=qa-summer",
+    );
+    await p.getByLabel("Your answer", { exact: true }).fill("QA attribution");
+    await p
+      .getByRole("button", { name: "Review answers", exact: true })
+      .click();
+    await p
+      .getByRole("button", { name: "Submit response", exact: true })
+      .click();
+    await p
+      .getByText("Your answers have been saved successfully.", { exact: true })
+      .waitFor();
+    const hiddenRows = await (
+      await owner.request.get(base + `/api/forms/${hiddenId}/submissions`)
+    ).json();
+    assert.equal(hiddenRows.submissions[0].answers.campaign, "qa-summer");
+    checks.push(
+      "Hidden campaign query parameter persists with visible response",
+    );
     console.log(JSON.stringify(checks, null, 2));
     fs.writeFileSync(
-      "../../outputs/browser-matrix/journeys.json",
+      "../../outputs/browser-matrix/journeys-" + browserType + ".json",
       JSON.stringify(checks, null, 2),
     );
   } finally {

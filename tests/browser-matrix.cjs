@@ -1,4 +1,7 @@
-const { chromium } = require("playwright");
+const { chromium, firefox, webkit } = require("playwright");
+const browserType = process.env.QA_BROWSER || "chrome";
+const engine = { chrome: chromium, firefox, webkit }[browserType];
+if (!engine) throw new Error("Unsupported QA_BROWSER");
 const fs = require("node:fs");
 const assert = require("node:assert/strict");
 const ts = require("typescript");
@@ -21,7 +24,10 @@ const base = "http://127.0.0.1:3130",
 const dir = require("node:path").resolve("../../outputs/browser-matrix");
 fs.mkdirSync(dir, { recursive: true });
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: "chrome" });
+  const browser = await engine.launch({
+    headless: true,
+    ...(browserType === "chrome" ? { channel: "chrome" } : {}),
+  });
   const owner = await browser.newContext();
   const login = await owner.request.post(base + "/api/auth", {
     data: { local: true },
@@ -155,20 +161,18 @@ fs.mkdirSync(dir, { recursive: true });
         ) {
           const img = type === "image_upload",
             audio = type === "audio_recorder";
-          await p
-            .locator("input[type=file]")
-            .setInputFiles({
-              name: img ? "qa.png" : audio ? "qa.wav" : "qa.txt",
-              mimeType: img ? "image/png" : audio ? "audio/wav" : "text/plain",
-              buffer: img
-                ? Buffer.from(
-                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=",
-                    "base64",
-                  )
-                : audio
-                  ? Buffer.from("RIFF0000WAVEfmt ")
-                  : Buffer.from("QA attachment"),
-            });
+          await p.locator("input[type=file]").setInputFiles({
+            name: img ? "qa.png" : audio ? "qa.wav" : "qa.txt",
+            mimeType: img ? "image/png" : audio ? "audio/wav" : "text/plain",
+            buffer: img
+              ? Buffer.from(
+                  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=",
+                  "base64",
+                )
+              : audio
+                ? Buffer.from("RIFF0000WAVEfmt ")
+                : Buffer.from("QA attachment"),
+          });
           await p
             .getByText(img ? "qa.png" : audio ? "qa.wav" : "qa.txt", {
               exact: true,
@@ -228,7 +232,7 @@ fs.mkdirSync(dir, { recursive: true });
       });
     await browser.close();
     fs.writeFileSync(
-      dir + "/report.json",
+      dir + "/report-" + browserType + ".json",
       JSON.stringify({ results, errors }, null, 2),
     );
   }

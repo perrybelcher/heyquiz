@@ -26,12 +26,6 @@ Existing forms and responses from `data/` are imported once on the first local l
 
 On mobile, Fields and Question settings open drawers. The respondent player supports required validation, branching, review before submission, resuming in the same browser tab, timed attempts, retakes, and configured immediate feedback.
 
-## Marketing MVP
-
-The dashboard includes fictional product finder, buyer segmentation, and category scorecard templates. The Marketing tab configures recommendations and score rules. Contacts configures lead capture before or after results, optional or required details, and separate marketing consent. Contacts can be searched, filtered, inspected, and exported.
-
-The current milestone is tested locally, not production-ready. Webhook delivery, email/CRM integrations, persuasive AI generation, hosted-account verification, and broader device/accessibility testing remain. See [MVP status](docs/heyquiz-mvp-status.md).
-
 ## AI generation
 
 Set `GEMINI_API_KEY` in server configuration. Optionally override `GEMINI_MODEL` (default `gemini-2.5-flash`). Generation calls Gemini with a structured response schema, validates the answer, and reports failures. Prompts are sent to Google only when Generate is selected. No canned quiz is substituted when the key is missing.
@@ -61,6 +55,12 @@ npm run build
 npm run test:api
 npm run test:marketing-api
 npm run test:contacts-api
+npm run test:owner-isolation
+npm run test:cloud-pagination
+npm run test:browser-fields
+npm run test:browser-contacts
+npm run test:browser-journeys
+# Use QA_BROWSER=firefox or QA_BROWSER=webkit for additional engines.
 ```
 
 `test:api` creates its own fixture and removes the fixture form. Historical scripts in `scripts/test-*` and `scripts/qc-*` predate the new authenticated API and are retained as reference, not the current acceptance suite.
@@ -71,7 +71,7 @@ npm run test:contacts-api
 - The media library is a curated, filtered image list plus URL insertion and real uploads, not a live stock-photo search service.
 - Question shuffling is suppressed on forms with branching rules to preserve dependency order. JSON `theme.layout=scroll` and keyboard-shortcut configuration are legacy metadata; this release uses the step player. Matrix answer keys can be set in JSON; matrices without keys are treated as survey fields.
 - The Integrate panel reports real connection status. CRM/webhook integrations, payments, calendar booking, team roles, and collaboration are not implemented.
-- Gemini, Supabase, and Turnstile adapters are implemented but have not been exercised against live credentials in this workspace. This is a substantial local product upgrade, not a verified claim of full Fillout feature parity or production security certification.
+- Supabase-backed create/save/publish/submit and Contacts have been exercised on the hosted deployment. Gemini and Turnstile have not been exercised with live credentials. This is a substantial local product upgrade, not a verified claim of full Fillout feature parity or production security certification.
 
 ## Marketing MVP milestone
 
@@ -79,4 +79,4 @@ The dashboard now offers Product finder, Buyer segmentation, and Category scorec
 
 Recommendations and category scores are computed on the server, saved with submissions, visible in response details, and included in CSV export. Exclusions override points; ties follow result order. Scorecard unknowns do not become zeros, and insufficient coverage has an explicit result. Questions now have a brief entry transition that respects reduced-motion preferences.
 
-Run `npm run test:marketing-api` against the local preview to verify all three modes. The existing conventional Gemini generator has not yet been adapted to generate these marketing configurations. Dedicated lead capture, consent records, webhook delivery, offer-click tracking, and live cloud verification remain pending; this milestone is not the full MVP. See the accompanying `heyquiz-mvp-status.md` acceptance tracker.
+Run `npm run test:marketing-api` against the local preview to verify all three modes. The existing conventional Gemini generator has not yet been adapted to generate these marketing configurations. Dedicated lead capture and consent records are implemented and tested; hosted core workflows have been verified. Webhook delivery and offer-click tracking remain pending; this milestone is not the full MVP. See the accompanying `heyquiz-mvp-status.md` acceptance tracker.
