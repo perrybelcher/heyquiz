@@ -1,3 +1,4 @@
+import { nangoProviders } from "@/lib/integrations/providers";
 import { schedulerStatus } from "@/lib/integrations/scheduler";
 import { nangoConfigured } from "@/lib/integrations/nango";
 import { after } from "next/server";
@@ -32,6 +33,7 @@ export async function GET(_req: Request, { params }: Context) {
         schedulerCadence: scheduler.cadence,
         deliveryAllowed: deliveryAllowed(),
         nangoConfigured: nangoConfigured(),
+        configuredProviders: nangoProviders.filter(p => nangoConfigured(p)),
       },
       { headers: { "Cache-Control": "private, no-store" } },
     );

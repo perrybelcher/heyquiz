@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nangoProviders, isNangoProvider, validMapping, providers } from "./providers";
 const identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/);
 const source = z
   .string()
@@ -11,7 +12,8 @@ export const IntegrationInput = z
     id: identifier.optional(),
     revision: z.number().int().min(0).default(0),
     name: z.string().trim().min(1).max(100),
-    provider: z.enum(["webhook", "gohighlevel", "hubspot"]),
+    provider: z.enum(["webhook", "gohighlevel", ...nangoProviders]),
+    audienceId: z.string().regex(/^[a-zA-Z0-9_-]*$/).max(128).optional(),
     enabled: z.boolean().default(false),
     consentOnly: z.boolean().default(true),
     url: z.string().trim().max(2048).optional(),
@@ -56,15 +58,11 @@ export const IntegrationInput = z
         code: "custom",
         message: "CRM delivery requires marketing opt-in in this version.",
       });
-    if (
-      v.provider === "hubspot" &&
-      v.mappings.some((m) => !/^heyquiz_[a-z0-9_]+$/.test(m.target))
-    )
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Map HubSpot quiz data to custom properties beginning with heyquiz_.",
-      });
+    if (isNangoProvider(v.provider) && v.mappings.some((m) => !validMapping(v.provider as typeof nangoProviders[number], m.target)))
+      ctx.addIssue({ code: "custom", message: providers[v.provider].mappingHelp });
+    if (v.provider === "mailchimp" && !v.audienceId)
+      ctx.addIssue({ code: "custom", message: "Enter the Mailchimp audience ID." });
+
   });
 export type IntegrationDraft = z.infer<typeof IntegrationInput>;
 export interface IntegrationConfig

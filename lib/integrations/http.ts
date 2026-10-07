@@ -59,7 +59,7 @@ export type Sender = (
   url: string,
   body: string,
   headers: Record<string, string>,
-  method?: "POST" | "PATCH" | "GET",
+  method?: "POST" | "PATCH" | "GET" | "PUT",
 ) => Promise<HttpResult>;
 export const sendHttps: Sender = async (
   value,

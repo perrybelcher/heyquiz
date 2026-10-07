@@ -1,3 +1,4 @@
+import { providers, type NangoProvider } from "./providers";
 import { createHash, randomUUID } from "node:crypto";
 import { HttpError } from "../auth";
 import { listRecords, readRecord, writeRecord } from "../records";
@@ -6,21 +7,18 @@ import { sendHttps, type Sender, type HttpResult } from "./http";
 import type { IntegrationConfig, LeadEvent } from "./schema";
 
 // Only server code imports this module. Never expose the environment API key.
-export const nangoConfigured = () =>
-  Boolean(
-    process.env.NANGO_SECRET_KEY && process.env.NANGO_HUBSPOT_INTEGRATION_ID,
-  );
+export const integrationEnv = (provider: NangoProvider) => `NANGO_${provider.toUpperCase()}_INTEGRATION_ID`;
+export const nangoConfigured = (provider: NangoProvider = "hubspot") =>
+  Boolean(process.env.NANGO_SECRET_KEY && process.env[integrationEnv(provider)]);
 export function nangoKey() {
-  if (!nangoConfigured())
-    throw new HttpError(
-      503,
-      "HubSpot setup is pending. Configure the Nango environment key and HubSpot integration ID on the server.",
-    );
-  return process.env.NANGO_SECRET_KEY!;
+  if (!process.env.NANGO_SECRET_KEY)
+    throw new HttpError(503, "Nango setup is pending. Configure the environment key on the server.");
+  return process.env.NANGO_SECRET_KEY;
 }
 const ownerTag = (owner: string) =>
   createHash("sha256").update(`heyquiz:${owner}`).digest("hex");
 interface ConnectAttempt {
+  provider?: NangoProvider;
   formId: string;
   providerKey: string;
   expiresAt: number;
@@ -55,27 +53,29 @@ async function control(
     throw new HttpError(502, "Nango returned an invalid response.");
   }
 }
-export async function startHubspot(
+export async function startProvider(
+  provider: NangoProvider,
   formId: string,
   owner: string,
   sender: Sender = sendHttps,
 ) {
   nangoKey();
+  if (!nangoConfigured(provider)) throw new HttpError(503, `${providers[provider].name} setup is pending. Configure its Nango integration ID on the server.`);
   const id = randomUUID(),
-    providerKey = process.env.NANGO_HUBSPOT_INTEGRATION_ID!;
+    providerKey = process.env[integrationEnv(provider)]!;
   const data = await control(
     "/connect/sessions",
     "POST",
     {
       allowed_integrations: [providerKey],
-      integrations_config_defaults: {
+      integrations_config_defaults: providers[provider].scopes ? {
         [providerKey]: {
           connection_config: {
             oauth_scopes_override:
-              "oauth crm.objects.contacts.read crm.objects.contacts.write",
+              providers[provider].scopes,
           },
         },
-      },
+      } : undefined,
       tags: {
         heyquiz_owner: ownerTag(owner),
         heyquiz_form: formId,
@@ -108,14 +108,15 @@ export async function startHubspot(
     "meta",
     `nango-${id}`,
     owner,
-    { formId, providerKey, expiresAt },
+    { formId, provider, providerKey, expiresAt },
     0,
   );
   return { attemptId: id, connectLink: link.href, expiresAt };
 }
 // The client never chooses the Nango connection ID. Discover it using the
 // server-issued nonce and verify every ownership tag again before binding it.
-export async function finishHubspot(
+export async function finishProvider(
+  provider: NangoProvider,
   formId: string,
   owner: string,
   attemptId: string,
@@ -128,7 +129,8 @@ export async function finishHubspot(
   if (
     !attempt ||
     attempt.owner_id !== owner ||
-    attempt.payload.formId !== formId
+    attempt.payload.formId !== formId ||
+    (attempt.payload.provider || "hubspot") !== provider
   )
     throw new HttpError(404, "Connection request not found.");
   const existing = await readRecord<IntegrationConfig>(
@@ -157,7 +159,7 @@ export async function finishHubspot(
     throw new HttpError(502, "Nango returned an invalid connection list.");
   const matches = (body.connections as RemoteConnection[]).filter(
     (c) =>
-      c.provider === "hubspot" &&
+      c.provider === providers[provider].nangoProvider &&
       c.provider_config_key === attempt.payload.providerKey &&
       Object.entries(tags).every(([k, v]) => c.tags?.[k] === v),
   );
@@ -171,7 +173,7 @@ export async function finishHubspot(
   if (remote.errors?.length)
     throw new HttpError(
       422,
-      "HubSpot authorization needs attention. Reconnect your account.",
+      `${providers[provider].name} authorization needs attention. Reconnect your account.`,
     );
   if (!/^[a-zA-Z0-9_-]{1,256}$/.test(remote.connection_id))
     throw new HttpError(502, "Nango returned an invalid connection ID.");
@@ -179,15 +181,15 @@ export async function finishHubspot(
   const config: IntegrationConfig = {
     id: attemptId,
     formId,
-    provider: "hubspot",
-    name: "HubSpot",
+    provider,
+    name: providers[provider].name,
     enabled: false,
     consentOnly: true,
     locationId: "",
     tags: [],
     resultTag: false,
     mappings: [],
-    destination: "HubSpot via Nango",
+    destination: `${providers[provider].name} via Nango`,
     createdAt: now,
     updatedAt: now,
     activeFrom: now,
@@ -260,3 +262,7 @@ export async function sendHubspot(
   }
   return response;
 }
+
+// Preserve the original pilot endpoint and callers.
+export const startHubspot = (formId: string, owner: string, sender: Sender = sendHttps) => startProvider("hubspot", formId, owner, sender);
+export const finishHubspot = (formId: string, owner: string, attemptId: string, sender: Sender = sendHttps) => finishProvider("hubspot", formId, owner, attemptId, sender);

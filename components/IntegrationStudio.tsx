@@ -16,6 +16,7 @@ import type {
   IntegrationView,
   DeliveryJob,
 } from "@/lib/integrations/schema";
+import { nangoProviders, providers, isNangoProvider, type NangoProvider } from "@/lib/integrations/providers";
 import Connections from "./Connections";
 type History = Omit<DeliveryJob, "event"> & { responseId: string };
 type Data = {
@@ -25,6 +26,7 @@ type Data = {
   schedulerCadence: string;
   deliveryAllowed: boolean;
   nangoConfigured: boolean;
+  configuredProviders?: NangoProvider[];
 };
 const empty = (provider: "webhook" | "gohighlevel"): IntegrationDraft => ({
   provider,
@@ -49,6 +51,7 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
     [notice, setNotice] = useState("");
   const [testId, setTestId] = useState<string | null>(null);
   const [hubspotAttempt, setHubspotAttempt] = useState<{
+    provider: NangoProvider;
     attemptId: string;
     connectLink: string;
     expiresAt: number;
@@ -118,29 +121,29 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
       setBusy(false);
     }
   }
-  async function hubspot(action: "start" | "finish") {
+  async function hubspot(action: "start" | "finish", provider: NangoProvider = "hubspot") {
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const r = await fetch(`${endpoint}/hubspot`, {
+      const r = await fetch(provider === "hubspot" ? `${endpoint}/hubspot` : `${endpoint}/connect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, attemptId: hubspotAttempt?.attemptId }),
+        body: JSON.stringify({ action, provider, attemptId: hubspotAttempt?.attemptId }),
       });
       const body = await r.json();
-      if (!r.ok) throw Error(body.error || "Could not connect HubSpot.");
-      if (action === "start") setHubspotAttempt(body);
+      if (!r.ok) throw Error(body.error || `Could not connect ${providers[provider].name}.`);
+      if (action === "start") setHubspotAttempt({ ...body, provider });
       else if (body.connected) {
         setHubspotAttempt(null);
         setDraft(body.connection);
         await refresh();
         setNotice(
-          "HubSpot connected and paused. Map your fields, send a test, then enable delivery.",
+          `${providers[provider].name} connected and paused. Map your fields, send a test, then enable delivery.`,
         );
       } else
         setNotice(
-          "Waiting for HubSpot authorization. Complete the connection in the other tab, then check again.",
+          `Waiting for ${providers[provider].name} authorization. Complete the connection in the other tab, then check again.`,
         );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connection failed.");
@@ -250,64 +253,28 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
           </article>
         ))}
       </div>
-      <section
-        aria-label="HubSpot integration"
-        className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4"
-      >
-        <div>
-          <h2 className="text-lg font-semibold">HubSpot</h2>
-          <p className="text-sm text-slate-500 mt-2">
-            Connect securely through Nango. Create or update contacts and map
-            quiz results to custom properties.
-          </p>
-        </div>
-        {!data?.nangoConfigured && (
-          <p className="text-sm text-amber-800">
-            Server setup pending. Your administrator needs to configure Nango
-            before HubSpot can connect.
-          </p>
-        )}
-        <button
-          className={buttonClass}
-          disabled={busy || !data?.nangoConfigured || !data?.deliveryAllowed}
-          onClick={() => void hubspot("start")}
-        >
-          {hubspotAttempt ? "Start a new connection" : "Connect HubSpot"}
-        </button>
-        {hubspotAttempt && (
-          <div className="rounded-xl bg-indigo-50 p-4 space-y-3 text-sm">
-            <p>
-              Authorize your HubSpot account in a new tab, then return here. The
-              link expires in 30 minutes. No leads are sent until you enable
-              delivery.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                className={buttonClass}
-                href={hubspotAttempt.connectLink}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Authorize HubSpot ↗
-              </a>
-              <button
-                className={buttonClass}
-                disabled={busy}
-                onClick={() => void hubspot("finish")}
-              >
-                Check connection
-              </button>
-              <button
-                className={buttonClass}
-                disabled={busy}
-                onClick={() => setHubspotAttempt(null)}
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+      <div className="grid sm:grid-cols-2 gap-4">
+        {nangoProviders.map(provider => {
+          const ready = data?.configuredProviders?.includes(provider) || (provider === "hubspot" && data?.nangoConfigured);
+          const attempt = hubspotAttempt?.provider === provider ? hubspotAttempt : null;
+          return <section key={provider} aria-label={`${providers[provider].name} integration`} className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+            <h2 className="text-lg font-semibold">{providers[provider].name}</h2>
+            <p className="text-sm text-slate-500">Connect your account, map quiz results, and test contact delivery.</p>
+            {!ready && <p className="text-sm text-amber-800">Server setup pending. Your administrator needs to configure Nango before this provider can connect.</p>}
+            <button className={buttonClass} disabled={busy || !ready || !data?.deliveryAllowed} onClick={() => void hubspot("start", provider)}>
+              {attempt ? "Start a new connection" : `Connect ${providers[provider].name}`}
+            </button>
+            {attempt && <div className="rounded-xl bg-indigo-50 p-4 space-y-3 text-sm">
+              <p>Authorize your account in a new tab, then return here. The link expires in 30 minutes. No leads are sent until you enable delivery.</p>
+              <div className="flex flex-wrap gap-3">
+                <a className={buttonClass} href={attempt.connectLink} target="_blank" rel="noopener noreferrer">Authorize {providers[provider].name} ↗</a>
+                <button className={buttonClass} disabled={busy} onClick={() => void hubspot("finish", provider)}>Check connection</button>
+                <button className={buttonClass} disabled={busy} onClick={() => setHubspotAttempt(null)}>Dismiss</button>
+              </div>
+            </div>}
+          </section>;
+        })}
+      </div>
       {draft && (
         <section
           aria-label="Connection setup"
@@ -318,8 +285,8 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
               {draft.id ? "Edit" : "Connect"}{" "}
               {draft.provider === "gohighlevel"
                 ? "GoHighLevel"
-                : draft.provider === "hubspot"
-                  ? "HubSpot"
+                : isNangoProvider(draft.provider)
+                  ? providers[draft.provider].name
                   : "webhook"}
             </h2>
             <button
@@ -379,13 +346,15 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
                 questions are included in answers.
               </p>
             </>
-          ) : draft.provider === "hubspot" ? (
-            <p className="text-sm text-slate-600">
-              HubSpot authorized through Nango. Email, first/last name, and
-              phone map automatically. Only opted-in leads are sent. HubSpot
-              subscription preferences are preserved; this does not subscribe
-              contacts to email campaigns.
-            </p>
+          ) : isNangoProvider(draft.provider) ? (
+            <>
+              <p className="text-sm text-slate-600">{providers[draft.provider].mappingHelp}</p>
+              <p className="text-xs text-slate-500">Only opted-in leads are sent. Contact delivery does not automatically subscribe people to email campaigns. Existing subscription preferences are preserved.</p>
+              {draft.provider === "mailchimp" && <label className="block text-sm font-medium space-y-2">
+                <span>Mailchimp audience ID</span>
+                <input className={inputClass} value={draft.audienceId || ""} onChange={e => patch({ audienceId: e.target.value })} />
+              </label>}
+            </>
           ) : (
             <>
               <p className="text-sm text-slate-600">
@@ -632,8 +601,8 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
             {data?.connections.find((c) => c.id === testId)?.name}?
           </h3>
           <p className="text-sm text-slate-600">
-            This sends heyquiz-test@example.com and example answers. HighLevel
-            will create or update that test contact, without adding tags.
+            This sends heyquiz-test@example.com and example answers. The destination
+            will create or update that test contact, without adding campaign tags.
             Existing destination automations may still run.
           </p>
           <div className="flex gap-2">

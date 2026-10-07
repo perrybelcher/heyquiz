@@ -20,7 +20,8 @@
     "test:integrations": "node tests/integrations.cjs",
     "test:integrations-api": "node tests/integrations-api.cjs",
     "test:browser-integrations": "node tests/browser-integrations.cjs",
-    "test:nango": "node tests/nango.cjs"
+    "test:nango": "node tests/nango.cjs",
+    "test:providers": "node tests/providers.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

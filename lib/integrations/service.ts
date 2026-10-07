@@ -16,7 +16,8 @@ import {
 } from "../records";
 import type { QuizSubmissionResult, FormSchemaType } from "../schema";
 import { HttpError } from "../auth";
-import { sendHubspot } from "./nango";
+import { sendProvider } from "./adapters";
+import { isNangoProvider, providers } from "./providers";
 const scope = (owner: string, c: Pick<IntegrationConfig, "formId" | "id">) =>
   `${owner}:${c.formId}:${c.id}`;
 export const deliveryAllowed = () =>
@@ -90,7 +91,7 @@ export async function saveConnection(
         "Enter the HighLevel private integration token.",
       );
   } else if (!old || !secrets.connectionId || !secrets.providerKey) {
-    throw new HttpError(422, "Authorize HubSpot using Connect HubSpot first.");
+    throw new HttpError(422, "Authorize this provider using its Connect button first.");
   }
   const config: IntegrationConfig = {
     id,
@@ -101,13 +102,14 @@ export async function saveConnection(
     consentOnly: data.consentOnly,
     locationId: data.locationId,
     tags: data.tags,
+    ...(data.audienceId ? { audienceId: data.audienceId } : {}),
     resultTag: data.resultTag,
     mappings: data.mappings,
     destination:
       data.provider === "webhook"
         ? new URL(secrets.url).hostname
-        : data.provider === "hubspot"
-          ? "HubSpot via Nango"
+        : isNangoProvider(data.provider)
+          ? `${providers[data.provider].name} via Nango`
           : `HighLevel · ${data.locationId}`,
     secretBox: seal(secrets, scope(owner, { id, formId })),
     createdAt: old?.payload.createdAt || now,
@@ -409,8 +411,8 @@ export async function deliver(
       });
       checkResponse(response);
       status = response.status;
-    } else if (c.provider === "hubspot") {
-      const response = await sendHubspot(j.event, secret, sender);
+    } else if (isNangoProvider(c.provider)) {
+      const response = await sendProvider(c.provider, j.event, secret, c, sender);
       checkResponse(response);
       let contactId: string | undefined;
       try {
@@ -418,9 +420,9 @@ export async function deliver(
       } catch {
         /* validated below */
       }
-      if (!contactId || !/^[0-9]+$/.test(contactId))
+      if (!contactId || !/^[a-zA-Z0-9_-]{1,128}$/.test(contactId))
         throw new DeliveryFailure(
-          "HubSpot did not confirm a contact ID.",
+          "CRM did not confirm a contact ID.",
           false,
           response.status,
         );

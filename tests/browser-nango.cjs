@@ -64,7 +64,7 @@ const base = "http://127.0.0.1:3130",
     await p
       .getByRole("heading", { name: "Lead integrations", exact: true })
       .waitFor();
-    await p.getByText("Server setup pending.", { exact: false }).waitFor();
+    await p.getByText("Server setup pending.", { exact: false }).first().waitFor();
     assert.equal(
       await p
         .getByRole("button", { name: "Connect HubSpot", exact: true })
