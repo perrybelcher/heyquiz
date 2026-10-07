@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-export const localMode = () => process.env.HEYQUIZ_LOCAL_MODE === "1";
+export const localMode = () => process.env.HEYQUIZ_LOCAL_MODE === "1" && process.env.VERCEL !== "1";
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -40,11 +40,11 @@ export async function currentUser(): Promise<{ id: string } | null> {
   if (localMode() && local && verifyToken(local)?.role === "local")
     return { id: "local" };
   const access = jar.get("hq_access")?.value;
-  if (!access || !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY)
+  if (!access || !process.env.SUPABASE_URL || !(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY))
     return null;
   const res = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      apikey: process.env.SUPABASE_ANON_KEY,
+      apikey: (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY)!,
       Authorization: `Bearer ${access}`,
     },
     cache: "no-store",

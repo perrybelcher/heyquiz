@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 export const cloudEnabled = () =>
-  Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
 export const dataDirectory = () =>
   path.resolve(process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data");
 const safe = (v: string) => {
@@ -17,7 +17,7 @@ export interface StoredRecord<T> {
   payload: T;
 }
 export async function supabaseFetch(endpoint: string, init: RequestInit = {}) {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!process.env.SUPABASE_URL || !key)
     throw new Error("Cloud storage is not configured.");
   const res = await fetch(`${process.env.SUPABASE_URL}${endpoint}`, {
@@ -25,7 +25,7 @@ export async function supabaseFetch(endpoint: string, init: RequestInit = {}) {
     cache: "no-store",
     headers: {
       apikey: key,
-      Authorization: `Bearer ${key}`,
+      ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
       "Content-Type": "application/json",
       ...init.headers,
     },

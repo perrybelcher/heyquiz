@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       );
       return Response.json({ ok: true });
     }
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY)
+    if (!process.env.SUPABASE_URL || !(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY))
       throw new HttpError(503, "Connect Supabase to enable account sign-in.");
     if (typeof body.email !== "string" || typeof body.password !== "string")
       throw new HttpError(400, "Enter your email and password.");
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       {
         method: "POST",
         headers: {
-          apikey: process.env.SUPABASE_ANON_KEY,
+          apikey: (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY)!,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email: body.email, password: body.password }),
