@@ -16,6 +16,7 @@ import {
 } from "../records";
 import type { QuizSubmissionResult, FormSchemaType } from "../schema";
 import { HttpError } from "../auth";
+import { sendHubspot } from "./nango";
 const scope = (owner: string, c: Pick<IntegrationConfig, "formId" | "id">) =>
   `${owner}:${c.formId}:${c.id}`;
 export const deliveryAllowed = () =>
@@ -81,13 +82,15 @@ export async function saveConnection(
     if (!secrets.url)
       throw new HttpError(422, "Enter the webhook destination URL.");
     if (data.signingSecret) secrets.signingSecret = data.signingSecret;
-  } else {
+  } else if (data.provider === "gohighlevel") {
     if (data.token) secrets.token = data.token;
     if (!secrets.token)
       throw new HttpError(
         422,
         "Enter the HighLevel private integration token.",
       );
+  } else if (!old || !secrets.connectionId || !secrets.providerKey) {
+    throw new HttpError(422, "Authorize HubSpot using Connect HubSpot first.");
   }
   const config: IntegrationConfig = {
     id,
@@ -103,7 +106,9 @@ export async function saveConnection(
     destination:
       data.provider === "webhook"
         ? new URL(secrets.url).hostname
-        : `HighLevel · ${data.locationId}`,
+        : data.provider === "hubspot"
+          ? "HubSpot via Nango"
+          : `HighLevel · ${data.locationId}`,
     secretBox: seal(secrets, scope(owner, { id, formId })),
     createdAt: old?.payload.createdAt || now,
     updatedAt: now,
@@ -404,6 +409,23 @@ export async function deliver(
       });
       checkResponse(response);
       status = response.status;
+    } else if (c.provider === "hubspot") {
+      const response = await sendHubspot(j.event, secret, sender);
+      checkResponse(response);
+      let contactId: string | undefined;
+      try {
+        contactId = JSON.parse(response.body).id;
+      } catch {
+        /* validated below */
+      }
+      if (!contactId || !/^[0-9]+$/.test(contactId))
+        throw new DeliveryFailure(
+          "HubSpot did not confirm a contact ID.",
+          false,
+          response.status,
+        );
+      claimed.payload.remoteContactId = contactId;
+      status = response.status;
     } else {
       const headers = {
         Authorization: `Bearer ${secret.token}`,
@@ -485,10 +507,12 @@ export async function deliver(
     const failure =
       error instanceof DeliveryFailure
         ? error
-        : new DeliveryFailure(
-            "Connection failed or timed out. Check the destination and saved credentials.",
-            true,
-          );
+        : error instanceof HttpError
+          ? new DeliveryFailure(error.message, false, error.status)
+          : new DeliveryFailure(
+              "Connection failed or timed out. Check the destination and saved credentials.",
+              true,
+            );
     const retry = failure.retryable && claimed.payload.attempts < 6;
     await writeRecord(
       "deliveries",

@@ -1,4 +1,5 @@
 import { schedulerStatus } from "@/lib/integrations/scheduler";
+import { nangoConfigured } from "@/lib/integrations/nango";
 import { after } from "next/server";
 import { z } from "zod";
 import { apiError, checkOrigin, requireUser, HttpError } from "@/lib/auth";
@@ -30,6 +31,7 @@ export async function GET(_req: Request, { params }: Context) {
         schedulerConfigured: scheduler.configured,
         schedulerCadence: scheduler.cadence,
         deliveryAllowed: deliveryAllowed(),
+        nangoConfigured: nangoConfigured(),
       },
       { headers: { "Cache-Control": "private, no-store" } },
     );

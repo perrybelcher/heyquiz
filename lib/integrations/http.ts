@@ -59,8 +59,14 @@ export type Sender = (
   url: string,
   body: string,
   headers: Record<string, string>,
+  method?: "POST" | "PATCH" | "GET",
 ) => Promise<HttpResult>;
-export const sendHttps: Sender = async (value, body, headers) => {
+export const sendHttps: Sender = async (
+  value,
+  body,
+  headers,
+  method = "POST",
+) => {
   const url = webhookUrl(value);
   const addresses = await lookup(url.hostname, { all: true, verbatim: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
@@ -71,7 +77,7 @@ export const sendHttps: Sender = async (value, body, headers) => {
     const req = request(
       url,
       {
-        method: "POST",
+        method,
         agent: false,
         family: pinned.family,
         lookup: (_hostname, _options, callback) =>

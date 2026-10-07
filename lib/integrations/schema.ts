@@ -11,7 +11,7 @@ export const IntegrationInput = z
     id: identifier.optional(),
     revision: z.number().int().min(0).default(0),
     name: z.string().trim().min(1).max(100),
-    provider: z.enum(["webhook", "gohighlevel"]),
+    provider: z.enum(["webhook", "gohighlevel", "hubspot"]),
     enabled: z.boolean().default(false),
     consentOnly: z.boolean().default(true),
     url: z.string().trim().max(2048).optional(),
@@ -51,11 +51,19 @@ export const IntegrationInput = z
         code: "custom",
         message: "Enter the HighLevel location ID.",
       });
-    if (v.provider === "gohighlevel" && !v.consentOnly)
+    if (v.provider !== "webhook" && !v.consentOnly)
+      ctx.addIssue({
+        code: "custom",
+        message: "CRM delivery requires marketing opt-in in this version.",
+      });
+    if (
+      v.provider === "hubspot" &&
+      v.mappings.some((m) => !/^heyquiz_[a-z0-9_]+$/.test(m.target))
+    )
       ctx.addIssue({
         code: "custom",
         message:
-          "HighLevel delivery requires marketing opt-in in this version.",
+          "Map HubSpot quiz data to custom properties beginning with heyquiz_.",
       });
   });
 export type IntegrationDraft = z.infer<typeof IntegrationInput>;

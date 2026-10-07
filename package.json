@@ -19,7 +19,8 @@
     "test:owner-isolation": "node tests/owner-isolation.cjs",
     "test:integrations": "node tests/integrations.cjs",
     "test:integrations-api": "node tests/integrations-api.cjs",
-    "test:browser-integrations": "node tests/browser-integrations.cjs"
+    "test:browser-integrations": "node tests/browser-integrations.cjs",
+    "test:nango": "node tests/nango.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
