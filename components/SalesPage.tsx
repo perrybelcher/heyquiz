@@ -63,7 +63,7 @@ export default function SalesPage() {
       <header className="sales-nav">
         <a href="/welcome" aria-label="Quiznick home">
           <Image
-            src="/quiznick-logo.png"
+            src="/quiznick-logo-v2.png"
             alt="Quiznick"
             width={150}
             height={50}
@@ -516,7 +516,7 @@ export default function SalesPage() {
       <footer className="sales-width sales-footer">
         <div>
           <Image
-            src="/quiznick-logo.png"
+            src="/quiznick-logo-v2.png"
             alt="Quiznick"
             width={150}
             height={50}

@@ -130,7 +130,7 @@ export default function Dashboard({
   return (
     <div className="min-h-screen bg-[#f8f9f5] text-slate-900">
       <header className="h-20 bg-[#f8f9f5] border-b border-[#e4e5de] flex items-center justify-between px-6 sm:px-10">
-        <img src="/quiznick-logo.png" alt="Quiznick" className="h-8" />
+        <img src="/quiznick-logo-v2.png" alt="Quiznick" className="h-8" />
         <div className="flex items-center gap-4">
           <nav aria-label="Workspace navigation" className="hidden sm:flex items-center gap-6 text-sm text-slate-500"><a href="#quiz-starters" className="hover:text-slate-900">Quiz starters</a><a href="#your-quizzes" className="hover:text-slate-900">My quizzes</a></nav>
           <button

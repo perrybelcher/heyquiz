@@ -23,7 +23,7 @@ export default function Login({ local }: { local: boolean }) {
   return (
     <main className="min-h-screen grid place-items-center bg-slate-50 p-6">
       <section className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-9 shadow-sm">
-        <img src="/quiznick-logo.png" alt="Quiznick" className="h-9 mb-9" />
+        <img src="/quiznick-logo-v2.png" alt="Quiznick" className="h-9 mb-9" />
         <h1 className="text-2xl font-semibold tracking-tight">
           Welcome to your workspace
         </h1>

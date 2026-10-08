@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Modern, bloat-free form and quiz builder with conditional logic and agent intelligence.",
   icons: {
-    icon: "/quiznick-logo.png",
+    icon: "/quiznick-logo-v2.png",
   },
 };
 

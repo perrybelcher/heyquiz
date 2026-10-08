@@ -29,7 +29,7 @@ Preserve visible keyboard focus, reduced-motion rules, and labels adjacent to pr
 
 ## Content and assets
 
-- `public/quiznick-logo.png` is the user-supplied transparent 150 × 50 logo. Avoid enlarging it significantly. A larger original or vector is preferable to invented upscaling.
+- `public/quiznick-logo-v2.png` is the user-supplied transparent 150 × 50 logo. Avoid enlarging it significantly. A larger original or vector is preferable to invented upscaling.
 - `public/images/quiz-bags.webp` is original generated artwork showing fictional example products, not a customer brand.
 - Analytics figures are illustrative and labeled. They are not live customer performance or evidence of conversion uplift.
 - CRM integrations are pilots requiring setup and authorization. Logos are provider identifiers, not endorsements or proof of a configured connection.

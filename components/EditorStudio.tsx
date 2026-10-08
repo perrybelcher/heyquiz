@@ -1343,7 +1343,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
             title="Quiznick - Back to Dashboard"
           >
             <img
-              src="/quiznick-logo.png"
+              src="/quiznick-logo-v2.png"
               alt="Quiznick"
               className="h-6 w-auto object-contain"
             />
