@@ -46,7 +46,7 @@ const faqs = [
   ],
   [
     "How do I get access?",
-    "Quiznick is currently available through provisioned accounts. Existing users can sign in to the builder. Public signup, paid plans, and self-service billing are not available yet. You can explore the interactive sample here without an account.",
+    "Create an account with your email and a password, confirm your email, and start building. You can also explore the interactive sample without an account.",
   ],
 ];
 /**
@@ -81,8 +81,8 @@ export default function SalesPage() {
           <a className="nav-signin" href="/login">
             Sign in
           </a>
-          <a className="nav-login" href="#demo">
-            Try a quiz <ArrowRight size={16} />
+          <a className="nav-login" href="/signup">
+            Create account <ArrowRight size={16} />
           </a>
         </div>
       </header>
@@ -295,8 +295,8 @@ export default function SalesPage() {
                 <em>Flexible underneath.</em>
               </h2>
             </div>
-            <a href="/login" className="sales-text-link">
-              Open your workspace <ArrowRight size={16} />
+            <a href="/signup" className="sales-text-link">
+              Create your account <ArrowRight size={16} />
             </a>
           </div>
           <div className="steps-grid">
@@ -503,14 +503,11 @@ export default function SalesPage() {
             <a href="#demo" className="sales-button">
               Try the interactive sample <ArrowRight size={18} />
             </a>
-            <a href="/login" className="sales-text-link">
-              Sign in to build <ArrowRight size={16} />
+            <a href="/signup" className="sales-text-link">
+              Create your account <ArrowRight size={16} />
             </a>
           </div>
-          <small>
-            Quiznick is available through provisioned accounts. Public signup is
-            coming later.
-          </small>
+          <small>Create your account and start building your first quiz.</small>
         </section>
       </main>
       <footer className="sales-width sales-footer">

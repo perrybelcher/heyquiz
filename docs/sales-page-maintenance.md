@@ -33,7 +33,7 @@ Preserve visible keyboard focus, reduced-motion rules, and labels adjacent to pr
 - `public/images/quiz-bags.webp` is original generated artwork showing fictional example products, not a customer brand.
 - Analytics figures are illustrative and labeled. They are not live customer performance or evidence of conversion uplift.
 - CRM integrations are pilots requiring setup and authorization. Logos are provider identifiers, not endorsements or proof of a configured connection.
-- Access currently uses provisioned accounts. Do not add free-trial, pricing, instant-signup, or billing promises until those flows exist.
+- Signup and password recovery use Supabase email confirmation. Production SMTP must be configured before inviting external testers. Do not promise pricing, free trials, or billing until those flows exist. See account-auth.md.
 - The Vercel address still contains the legacy HeyQuiz name. Domain changes require updating canonical/social URLs and deployment configuration. Internal storage, auth, and integration identifiers were intentionally not renamed during the visual rebrand.
 
 ## Verification

@@ -1,6 +1,12 @@
 "use client";
 import { useState } from "react";
-export default function Login({ local }: { local: boolean }) {
+export default function Login({
+  local,
+  reset = false,
+}: {
+  local: boolean;
+  reset?: boolean;
+}) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   async function login(data: Record<string, unknown>) {
@@ -30,6 +36,11 @@ export default function Login({ local }: { local: boolean }) {
         <p className="text-slate-500 mt-2 mb-7">
           Thoughtful questions. Meaningful answers.
         </p>
+        {reset && (
+          <p role="status" className="text-sm text-emerald-800 mb-5">
+            Your password has been updated. Sign in with your new password.
+          </p>
+        )}
         {error && (
           <p role="alert" className="hq-error">
             {error}
@@ -49,41 +60,62 @@ export default function Login({ local }: { local: boolean }) {
             </button>
           </>
         ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const d = new FormData(e.currentTarget);
-              void login({
-                email: d.get("email"),
-                password: d.get("password"),
-              });
-            }}
-            className="space-y-4"
-          >
-            <label className="block text-sm">
-              Email
-              <input
-                className="hq-input mt-2"
-                name="email"
-                type="email"
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label className="block text-sm">
-              Password
-              <input
-                className="hq-input mt-2"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <button className="hq-primary w-full" disabled={busy}>
-              {busy ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
+          <>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const d = new FormData(e.currentTarget);
+                void login({
+                  email: d.get("email"),
+                  password: d.get("password"),
+                });
+              }}
+              className="space-y-4"
+            >
+              <label className="block text-sm">
+                Email
+                <input
+                  className="hq-input mt-2"
+                  name="email"
+                  type="email"
+                  autoComplete="username"
+                  required
+                />
+              </label>
+              <label className="block text-sm">
+                Password
+                <input
+                  className="hq-input mt-2"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+              <button className="hq-primary w-full" disabled={busy}>
+                {busy ? "Signing in…" : "Sign in"}
+              </button>
+            </form>
+            <p className="text-sm mt-5">
+              <a className="text-indigo-700 underline" href="/forgot-password">
+                Forgot your password?
+              </a>
+            </p>
+            <p className="text-sm mt-4">
+              New to Quiznick?{" "}
+              <a className="text-indigo-700 underline" href="/signup">
+                Create an account
+              </a>
+            </p>
+            <p className="text-sm mt-4">
+              <a
+                className="text-indigo-700 underline"
+                href="/resend-confirmation"
+              >
+                Resend confirmation
+              </a>
+            </p>
+          </>
         )}
       </section>
     </main>

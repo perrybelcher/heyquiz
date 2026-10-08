@@ -129,7 +129,7 @@ const assert = require("node:assert/strict"),
       .click();
     await p
       .getByText(
-        "Public signup, paid plans, and self-service billing are not available yet.",
+        "Create an account with your email and a password, confirm your email, and start building.",
         { exact: false },
       )
       .waitFor();

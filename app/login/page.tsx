@@ -1,5 +1,11 @@
 import { localMode } from "@/lib/auth";
 import Login from "@/components/Login";
-export default function LoginPage() {
-  return <Login local={localMode()} />;
+export const dynamic = "force-dynamic";
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string }>;
+}) {
+  const query = await searchParams;
+  return <Login local={localMode()} reset={query.reset === "success"} />;
 }

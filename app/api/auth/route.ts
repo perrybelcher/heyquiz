@@ -1,3 +1,8 @@
+import {
+  authRequest,
+  emailAddress,
+  setAccountSession,
+} from "@/lib/account-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { cookies } from "next/headers";
 import {
@@ -32,32 +37,18 @@ export async function POST(req: Request) {
       );
       return Response.json({ ok: true });
     }
-    if (!process.env.SUPABASE_URL || !(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY))
-      throw new HttpError(503, "Connect Supabase to enable account sign-in.");
-    if (typeof body.email !== "string" || typeof body.password !== "string")
+    const email = emailAddress(body.email);
+    if (
+      typeof body.password !== "string" ||
+      !body.password ||
+      body.password.length > 128
+    )
       throw new HttpError(400, "Enter your email and password.");
-    const res = await fetch(
-      `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
-      {
-        method: "POST",
-        headers: {
-          apikey: (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY)!,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: body.email, password: body.password }),
-        signal: AbortSignal.timeout(15000),
-      },
-    );
-    if (!res.ok)
-      throw new HttpError(
-        401,
-        "Sign-in failed. Check your email and password.",
-      );
-    const data: { access_token: string; expires_in: number } = await res.json();
-    jar.set("hq_access", data.access_token, {
-      ...options,
-      maxAge: data.expires_in,
+    const data = await authRequest("token?grant_type=password", {
+      email,
+      password: body.password,
     });
+    await setAccountSession(data);
     return Response.json({ ok: true });
   } catch (e) {
     return apiError(e);
@@ -69,6 +60,8 @@ export async function DELETE(req: Request) {
     const jar = await cookies();
     jar.delete("hq_access");
     jar.delete("hq_local");
+    jar.delete("hq_email_flow");
+    jar.delete("hq_recovery");
     return Response.json({ ok: true });
   } catch (e) {
     return apiError(e);
