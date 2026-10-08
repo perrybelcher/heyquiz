@@ -25,7 +25,8 @@
     "test:analytics": "node tests/analytics.cjs",
     "test:tracking": "node tests/tracking.cjs",
     "test:browser-analytics": "node tests/browser-analytics.cjs",
-    "test:browser-tracking": "node tests/browser-tracking.cjs"
+    "test:browser-tracking": "node tests/browser-tracking.cjs",
+    "test:browser-sales": "node tests/browser-sales.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
