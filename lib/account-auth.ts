@@ -147,8 +147,17 @@ export async function emailFlow() {
     );
   return flow;
 }
-export function callbackUrl() {
-  // Never derive email destinations from an untrusted Host / forwarded header.
-  const origin = process.env.APP_URL || "https://heyquiz-fawn.vercel.app";
+export function callbackUrl(requestUrl?: string) {
+  // Keep PKCE on the requesting host during the domain transition. Only these
+  // exact, owned production origins are accepted; arbitrary Host headers cannot
+  // redirect account emails. Local development can explicitly set APP_URL.
+  const allowed = ["https://www.pippiapp.com", "https://pippiapp.com", "https://heyquiz-fawn.vercel.app"];
+  let origin = process.env.APP_URL || allowed[0];
+  if (requestUrl) {
+    try {
+      const requested = new URL(requestUrl).origin;
+      if (allowed.includes(requested)) origin = requested;
+    } catch { /* Invalid request URLs retain the configured destination. */ }
+  }
   return new URL("/auth/callback", origin).toString();
 }

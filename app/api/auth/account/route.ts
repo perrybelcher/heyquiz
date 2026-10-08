@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         password = newPassword(body.password);
       const challenge = await beginEmailFlow("signup");
       const data = await authRequest(
-        `signup?redirect_to=${encodeURIComponent(callbackUrl())}`,
+        `signup?redirect_to=${encodeURIComponent(callbackUrl(req.url))}`,
         { email, password, ...challenge.challenge },
       );
       await challenge.persist();
@@ -44,14 +44,14 @@ export async function POST(req: Request) {
         const password = newPassword(body.password);
         const challenge = await beginEmailFlow("signup");
         await authRequest(
-          `signup?redirect_to=${encodeURIComponent(callbackUrl())}`,
+          `signup?redirect_to=${encodeURIComponent(callbackUrl(req.url))}`,
           { email, password, ...challenge.challenge },
         );
         await challenge.persist();
       } else {
         const challenge = await beginEmailFlow("recovery");
         await authRequest(
-          `recover?redirect_to=${encodeURIComponent(callbackUrl())}`,
+          `recover?redirect_to=${encodeURIComponent(callbackUrl(req.url))}`,
           { email, ...challenge.challenge },
         );
         await challenge.persist();

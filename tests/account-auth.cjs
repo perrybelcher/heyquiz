@@ -73,6 +73,10 @@ function check(condition, message) {
   console.log("PASS", message);
 }
 (async () => {
+  const { callbackUrl } = require("../lib/account-auth.ts");
+  check(callbackUrl("https://www.pippiapp.com/signup") === "https://www.pippiapp.com/auth/callback", "pippi callback preserves PKCE origin");
+  check(callbackUrl("https://heyquiz-fawn.vercel.app/signup") === "https://heyquiz-fawn.vercel.app/auth/callback", "legacy callback preserves existing email flows");
+  check(callbackUrl("https://evil.test/signup") === "https://www.pippiapp.com/auth/callback", "untrusted callback origin rejected");
   let r = await request({
     action: "signup",
     email: "bad",
@@ -119,7 +123,7 @@ function check(condition, message) {
     calls
       .at(-1)
       .url.includes(
-        encodeURIComponent("https://heyquiz-fawn.vercel.app/auth/callback"),
+        encodeURIComponent("https://www.pippiapp.com/auth/callback"),
       ),
     "email redirect fixed to app, never supplied host",
   );

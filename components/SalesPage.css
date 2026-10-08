@@ -69,7 +69,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
   gap: 24px;
 }
 .hq-sales-page .sales-logo {
-  width: 136px;
+  width: 100px;
   height: auto;
 }
 .hq-sales-page .sales-nav nav {
@@ -1055,7 +1055,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
     gap: 16px;
   }
   .hq-sales-page .sales-logo {
-    width: 112px;
+    width: 90px;
   }
   .hq-sales-page .nav-login {
     font-size: 12px;
@@ -1737,7 +1737,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
     padding: 10px 12px;
   }
   .hq-sales-page .sales-logo {
-    width: 104px;
+    width: 84px;
   }
   .hq-sales-page h1 {
     font-size: 45px;

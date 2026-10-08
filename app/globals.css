@@ -126,3 +126,6 @@ body {
     animation: none;
   }
 }
+
+/* Preserve the supplied logo pixels while blending its white canvas into light surfaces. */
+img[src="/pippi-logo.svg"] { mix-blend-mode: multiply; object-fit: contain; }
