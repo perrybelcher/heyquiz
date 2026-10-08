@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import WorkspaceWelcome from "./WorkspaceWelcome";
 import { nanoid } from "nanoid";
 import {
-  Plus,
   Search,
   ArrowUpRight,
   MoreHorizontal,
@@ -13,7 +13,6 @@ import {
   Layers,
   FileText,
   LogOut,
-  ArrowRight,
   X,
 } from "lucide-react";
 import type { FormSchemaType } from "@/lib/schema";
@@ -129,13 +128,11 @@ export default function Dashboard({
     }
   }
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-900">
-      <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sm:px-10">
+    <div className="min-h-screen bg-[#f8f9f5] text-slate-900">
+      <header className="h-20 bg-[#f8f9f5] border-b border-[#e4e5de] flex items-center justify-between px-6 sm:px-10">
         <img src="/logo.png" alt="HeyQuiz" className="h-8" />
         <div className="flex items-center gap-4">
-          <span className="hidden sm:block text-sm text-slate-500">
-            Your workspace
-          </span>
+          <nav aria-label="Workspace navigation" className="hidden sm:flex items-center gap-6 text-sm text-slate-500"><a href="#quiz-starters" className="hover:text-slate-900">Quiz starters</a><a href="#your-quizzes" className="hover:text-slate-900">My quizzes</a></nav>
           <button
             className="hq-icon text-slate-400"
             aria-label="Sign out"
@@ -148,101 +145,8 @@ export default function Dashboard({
           </button>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-6 py-12 sm:px-10">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
-          <div>
-            <p className="text-xs uppercase tracking-[.18em] text-indigo-600 font-semibold mb-3">
-              Ask better. Learn more.
-            </p>
-            <h1 className="text-4xl font-semibold tracking-tight">
-              Your quizzes & forms
-            </h1>
-            <p className="text-slate-500 mt-3">
-              Turn a good question into your next great insight.
-            </p>
-          </div>
-          <button
-            disabled={busy}
-            className="hq-primary"
-            onClick={() => void create()}
-          >
-            <Plus size={18} /> Create new
-          </button>
-        </div>
-        <section className="grid md:grid-cols-[1.6fr_1fr] gap-5 mb-10">
-          <div className="bg-[#eef0ff] border border-indigo-100 rounded-2xl p-7 flex gap-5">
-            <div className="rounded-xl bg-white w-12 h-12 shrink-0 grid place-items-center text-indigo-600">
-              <Sparkles size={23} />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Start with an idea</h2>
-              <p className="text-sm text-slate-600 mt-2 max-w-lg leading-relaxed">
-                Describe what you want to learn. AI can turn your topic into an
-                editable quiz, with questions and answer keys.
-              </p>
-              <button
-                className="mt-5 text-sm text-indigo-700 font-semibold flex items-center gap-2"
-                onClick={() => {
-                  setError("");
-                  setAgent(true);
-                }}
-              >
-                Create with AI <ArrowRight size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-7">
-            <p className="text-xs uppercase tracking-wider text-slate-400 mb-3">
-              Built for your next conversation
-            </p>
-            <div className="text-3xl font-semibold">51 field types</div>
-            <p className="text-sm text-slate-500 mt-3 leading-relaxed">
-              Branching, scoring, real attachments, and a clear view of every
-              response.
-            </p>
-          </div>
-        </section>
-        <section aria-label="Marketing quiz templates" className="mb-10">
-          <div className="flex flex-wrap justify-between gap-2 mb-4">
-            <h2 className="text-lg font-semibold">
-              Start with a marketing quiz
-            </h2>
-            <p className="text-sm text-slate-500">
-              Editable examples · no live offers or email required
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {(
-              [
-                [
-                  "product_finder",
-                  "Product finder",
-                  "Match needs to a product, with clear reasons.",
-                ],
-                [
-                  "segmentation",
-                  "Buyer segmentation",
-                  "Find a priority and recommend a useful next step.",
-                ],
-                [
-                  "scorecard",
-                  "Category scorecard",
-                  "Assess separate areas with honest coverage.",
-                ],
-              ] as const
-            ).map(([kind, title, description]) => (
-              <button
-                key={kind}
-                disabled={busy}
-                onClick={() => void create(undefined, kind)}
-                className="text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-400 transition"
-              >
-                <h3 className="font-semibold">{title} →</h3>
-                <p className="text-sm text-slate-500 mt-2">{description}</p>
-              </button>
-            ))}
-          </div>
-        </section>
+      <main className="max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10">
+        <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAgent(true);}} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
         {error && !agent && (
           <p role="alert" className="hq-error mb-6">
             {error}
@@ -251,7 +155,7 @@ export default function Dashboard({
         <div className="flex flex-col sm:flex-row justify-between gap-5 mb-6">
           <nav
             aria-label="Filter forms"
-            className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit"
+            className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit max-w-full overflow-x-auto"
           >
             {[
               ["all", "All forms"],
@@ -263,7 +167,7 @@ export default function Dashboard({
                 key={id}
                 onClick={() => setFilter(id)}
                 aria-pressed={filter === id}
-                className={`text-sm rounded-lg px-4 py-2 transition ${filter === id ? "bg-white shadow-sm font-medium" : "text-slate-500"}`}
+                className={`text-sm whitespace-nowrap rounded-lg px-4 py-2 transition ${filter === id ? "bg-white shadow-sm font-medium" : "text-slate-500"}`}
               >
                 {name}
               </button>
@@ -406,7 +310,7 @@ export default function Dashboard({
             <textarea
               className="hq-input min-h-32"
               aria-label="Quiz brief"
-              placeholder="A beginner quiz on sustainable gardening for new homeowners…"
+              placeholder="A short quiz that helps first-time gardeners understand which growing style fits their space and schedule…"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
             />
