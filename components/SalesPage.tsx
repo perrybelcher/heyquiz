@@ -25,7 +25,7 @@ import "./SalesPage.css";
 // identify supported pilots; they are not customer endorsements or proof of setup.
 const faqs = [
   [
-    "What can I create with Quiznick?",
+    "What can I create with pippi?",
     "Build product finders, audience segmentation quizzes, category scorecards, forms, and surveys. Start with a marketing template, customize the questions, and set the rules that connect answers to results.",
   ],
   [
@@ -42,7 +42,7 @@ const faqs = [
   ],
   [
     "Can I use my CRM or email platform?",
-    "Quiznick includes webhooks, a direct GoHighLevel connection, and a growing set of CRM and email connectors in pilot. Provider authorization and setup are required. Availability varies by provider; some require your own developer credentials. These connectors are not a built-in email campaign service.",
+    "pippi includes webhooks, a direct GoHighLevel connection, and a growing set of CRM and email connectors in pilot. Provider authorization and setup are required. Availability varies by provider; some require your own developer credentials. These connectors are not a built-in email campaign service.",
   ],
   [
     "How do I get access?",
@@ -61,11 +61,11 @@ export default function SalesPage() {
         Skip to content
       </a>
       <header className="sales-nav">
-        <a href="/welcome" aria-label="Quiznick home">
+        <a href="/welcome" aria-label="pippi home">
           <Image
-            src="/quiznick-logo-v2.png"
-            alt="Quiznick"
-            width={150}
+            src="/pippi-logo.svg"
+            alt="pippi"
+            width={100}
             height={50}
             className="sales-logo"
             priority
@@ -513,9 +513,9 @@ export default function SalesPage() {
       <footer className="sales-width sales-footer">
         <div>
           <Image
-            src="/quiznick-logo-v2.png"
-            alt="Quiznick"
-            width={150}
+            src="/pippi-logo.svg"
+            alt="pippi"
+            width={100}
             height={50}
           />
           <p>Thoughtful questions. Meaningful next steps.</p>
@@ -525,7 +525,7 @@ export default function SalesPage() {
           <a href="#questions">Questions & access</a>
           <a href="/login">Sign in</a>
         </nav>
-        <small>© {new Date().getFullYear()} Quiznick</small>
+        <small>© {new Date().getFullYear()} pippi</small>
       </footer>
     </div>
   );

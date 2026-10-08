@@ -288,7 +288,7 @@ export default function QuizPlayer({
   return (
     <div className="hq-player min-h-screen flex flex-col" style={theme}>
       <header className="h-20 border-b border-slate-200/70 bg-white/85 flex items-center justify-between px-5 sm:px-10">
-        <img src="/quiznick-logo-v2.png" alt="Quiznick" className="h-7" />
+        <img src="/pippi-logo.svg" alt="pippi" className="h-7" />
         <div className="flex items-center gap-4 text-xs text-slate-500">
           {preview && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-3 py-1.5">
@@ -682,7 +682,7 @@ export default function QuizPlayer({
       </main>
       <QuizTracking form={active} preview={preview} sessionId={session?.token} questionId={!result ? q?.id : undefined} completed={Boolean(result)} leadCaptured={Boolean(result?.contactCaptured)} />
       <footer className="text-center text-xs text-slate-400 py-7">
-        Made with Quiznick · Designed for better conversations
+        Made with pippi · Designed for better conversations
       </footer>
     </div>
   );

@@ -4,7 +4,7 @@ import { currentUser } from "@/lib/auth";
 import SalesPage from "@/components/SalesPage";
 import Dashboard from "@/components/Dashboard";
 export const metadata: Metadata = {
-  title: "Quiznick — The right question changes everything",
+  title: "pippi — The right question changes everything",
   description:
     "Build product finders, audience segmentation quizzes, and personalized scorecards with useful conversion analytics.",
 };

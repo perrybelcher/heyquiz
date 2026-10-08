@@ -1340,11 +1340,11 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
               if (await saveNow()) window.location.assign("/");
             }}
             className="flex items-center pr-2.5 border-r border-gray-200 transition hover:opacity-85"
-            title="Quiznick - Back to Dashboard"
+            title="pippi - Back to Dashboard"
           >
             <img
-              src="/quiznick-logo-v2.png"
-              alt="Quiznick"
+              src="/pippi-logo.svg"
+              alt="pippi"
               className="h-6 w-auto object-contain"
             />
           </Link>

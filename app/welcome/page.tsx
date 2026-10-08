@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import SalesPage from "@/components/SalesPage";
 export const metadata: Metadata = {
-  title: "Quiznick — The right question changes everything",
+  title: "pippi — The right question changes everything",
   description:
-    "Create product finders, audience segmentation quizzes, and personalized scorecards. Turn thoughtful questions into meaningful next steps with Quiznick.",
+    "Create product finders, audience segmentation quizzes, and personalized scorecards. Turn thoughtful questions into meaningful next steps with pippi.",
   alternates: { canonical: "https://heyquiz-fawn.vercel.app/welcome" },
   openGraph: {
-    title: "Quiznick — The right question changes everything",
+    title: "pippi — The right question changes everything",
     description:
       "Help people find what fits. Product finders, scorecards, and quizzes with a more personal next step.",
     images: [

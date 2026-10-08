@@ -5,7 +5,7 @@ import "./AccountForm.css";
 type Mode = "signup" | "recover" | "reset" | "resend";
 const copy = {
   signup: [
-    "Create your Quiznick account",
+    "Create your pippi account",
     "Your next great customer conversation starts here.",
     "Create account",
   ],
@@ -16,7 +16,7 @@ const copy = {
   ],
   reset: [
     "Choose a new password",
-    "Make it unique to your Quiznick account.",
+    "Make it unique to your pippi account.",
     "Save new password",
   ],
   resend: [
@@ -74,10 +74,10 @@ export default function AccountForm({ mode }: { mode: Mode }) {
   return (
     <main className="account-page">
       <section className="account-card">
-        <a href="/welcome" aria-label="Quiznick home">
+        <a href="/welcome" aria-label="pippi home">
           <img
-            src="/quiznick-logo-v2.png"
-            alt="Quiznick"
+            src="/pippi-logo.svg"
+            alt="pippi"
             width="150"
             height="50"
           />
@@ -182,7 +182,7 @@ export default function AccountForm({ mode }: { mode: Mode }) {
           <a href="/login">Sign in</a>
         </p>
         <a className="account-back" href="/welcome">
-          <ArrowLeft size={15} /> Back to Quiznick
+          <ArrowLeft size={15} /> Back to pippi
         </a>
       </section>
     </main>

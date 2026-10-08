@@ -1,4 +1,4 @@
-/* Quiznick public sales page. All selectors are scoped to .hq-sales-page.
+/* pippi public sales page. All selectors are scoped to .hq-sales-page.
 Base composition comes first; responsive rules and product-tour refinements follow.
 Cascade order is intentional: see docs/sales-page-maintenance.md before moving rules. */
 .hq-sales-page {

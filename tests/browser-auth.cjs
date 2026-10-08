@@ -17,7 +17,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base))
       await page.setViewportSize({ width, height: 900 });
       await page.goto(base + "/signup");
       await page
-        .getByRole("heading", { name: "Create your Quiznick account" })
+        .getByRole("heading", { name: "Create your pippi account" })
         .waitFor();
       assert.ok(
         await page.evaluate(
@@ -92,13 +92,13 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base))
       await page.goto(base + "/login?reset=success");
       await page.getByRole("status").filter({hasText: "password has been updated"}).waitFor(); count++;
       await page.getByRole("link", {name: "Create an account"}).click();
-      await page.getByRole("heading", {name: "Create your Quiznick account"}).waitFor(); count++;
+      await page.getByRole("heading", {name: "Create your pippi account"}).waitFor(); count++;
       await page.goto(base + "/login");
       await page.getByRole("link", {name: "Forgot your password?"}).click();
       await page.getByRole("heading", {name: "Forgot your password?"}).waitFor(); count++;
       await page.goto(base + "/welcome");
       await page.getByRole("link", {name: "Create account", exact: true}).click();
-      await page.getByRole("heading", {name: "Create your Quiznick account"}).waitFor(); count++;
+      await page.getByRole("heading", {name: "Create your pippi account"}).waitFor(); count++;
     }
     console.log(
       `${count} browser checks passed. Simulated success messages; no real signup/email.`,

@@ -97,7 +97,7 @@ export default function JourneyShowcase() {
               <i />
               <i />
             </span>{" "}
-            Quiznick / Journey preview
+            pippi / Journey preview
           </span>
           <span className="journey-example">INTERACTIVE EXAMPLE</span>
         </div>

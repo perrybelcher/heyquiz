@@ -19,7 +19,7 @@ export default function ResultsChart({ formId, refreshKey }: {
         setError(e.message); }).finally(() => { if (!controller.signal.aborted)
         setLoading(false); }); return () => controller.abort(); }, [formId, range, refresh, refreshKey]);
     function download() { if (!data)
-        return; const rows = [['Question', 'Reached', 'Completed quiz', 'Quiet at this step', 'Measured sessions'], ...data.questions.map(q => [q.title, q.reached, q.completed, q.quiet, q.measured])]; const csv = rows.map(row => row.map(v => '"' + String(v).replace(/^[\s=+@-]/, "'$&").replaceAll('"', '""') + '"').join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `quiznick-question-performance-${range}.csv`; a.click(); URL.revokeObjectURL(url); }
+        return; const rows = [['Question', 'Reached', 'Completed quiz', 'Quiet at this step', 'Measured sessions'], ...data.questions.map(q => [q.title, q.reached, q.completed, q.quiet, q.measured])]; const csv = rows.map(row => row.map(v => '"' + String(v).replace(/^[\s=+@-]/, "'$&").replaceAll('"', '""') + '"').join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `pippi-question-performance-${range}.csv`; a.click(); URL.revokeObjectURL(url); }
     const metricIcons = [Play, CircleCheck, UserPlus, Timer];
     const quietest = data?.questions.filter(q => q.quiet > 0).sort((a, b) => b.quiet - a.quiet)[0];
     const questions = data ? (sort === "quiet" ? [...data.questions].sort((a, b) => b.quiet - a.quiet) : data.questions) : [];

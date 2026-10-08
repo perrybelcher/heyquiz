@@ -1,6 +1,6 @@
 import AuthCallback from "@/components/AuthCallback";
 export const metadata = {
-  title: "Confirm your email — Quiznick",
+  title: "Confirm your email — pippi",
   robots: { index: false, follow: false },
   referrer: "no-referrer" as const,
 };

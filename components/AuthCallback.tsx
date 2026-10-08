@@ -39,8 +39,8 @@ export default function AuthCallback() {
     <main className="account-page">
       <section className="account-card">
         <img
-          src="/quiznick-logo-v2.png"
-          alt="Quiznick"
+          src="/pippi-logo.svg"
+          alt="pippi"
           width="150"
           height="50"
         />

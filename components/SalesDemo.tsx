@@ -123,7 +123,7 @@ export default function SalesDemo() {
         </div>
       </div>
       <p className="demo-disclosure">
-        Fictional products. Real Quiznick matching. Answers stay in this page
+        Fictional products. Real pippi matching. Answers stay in this page
         and are not saved.
       </p>
     </div>
