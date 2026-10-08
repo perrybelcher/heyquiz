@@ -59,3 +59,11 @@ Sources checked October 8, 2026:
 - [Freshsales contacts](https://developers.freshworks.com/crm/api/)
 - [Salesforce external-ID upsert](https://developer.salesforce.com/docs/platform/api-rest/guide/dome-upsert.html)
 - [Twenty APIs](https://docs.twenty.com/developers/extend/api)
+
+## Setup status on October 8, 2026
+
+Nine definitions now exist in the Nango dev environment: hubspot, active-campaign, klaviyo, mailchimp, brevo-api-key, zoho-crm, freshsales, salesforce and twenty-crm. Keap requires a customer-owned developer app's client ID and secret; no Nango test app is available. No real CRM account is authorized.
+
+HubSpot, Mailchimp, Zoho and Salesforce use Nango's developer apps for testing only. HeyQuiz overrides HubSpot, Zoho and Salesforce session scopes to contact access / API plus refresh access, avoiding the broader default test-app scopes. Verify the actual consent screen before granting access. Own OAuth apps remain required for production rollout.
+
+The restricted Nango environment-key form is prepared but not submitted. Server secrets and provider IDs have not been configured in Vercel. The deployed cards therefore remain disabled until that setup is complete.

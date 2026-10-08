@@ -15,7 +15,7 @@ async function test(name,fn){await fn(); console.log('PASS '+name);passed++;}
       const form='q-'+provider; await r.writeRecord('forms',form,'owner',{id:form},0);
       let tags;
       const start=await n.startProvider(provider,form,'owner',async(url,body)=>{
-        const b=JSON.parse(body);tags=b.tags;assert.deepEqual(b.allowed_integrations,[provider+'-config']);
+        const b=JSON.parse(body);tags=b.tags;if(providers[provider].scopes)assert.equal(b.integrations_config_defaults[provider+"-config"].connection_config.oauth_scopes_override,providers[provider].scopes);assert.deepEqual(b.allowed_integrations,[provider+'-config']);
         return response(201,{data:{connect_link:'https://connect.nango.dev/?session_token=synthetic',expires_at:new Date(Date.now()+1800000).toISOString()}});
       });
       const remote={connection_id:'connection',provider:providers[provider].nangoProvider,provider_config_key:provider+'-config',tags};
