@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { ShoppingBag, Users, ChartColumn, Plus, Trash2, RotateCcw, ArrowRight } from "lucide-react";
 import { nanoid } from "nanoid";
 import type { FormSchemaType } from "@/lib/schema";
 import {
@@ -111,7 +112,7 @@ export default function MarketingStudio({
                   })
                 }
               >
-                <h2 className="text-lg font-semibold">{title}</h2>
+                <div className="mb-4 inline-flex rounded-xl bg-indigo-50 text-indigo-600 p-3">{kind === "product_finder" ? <ShoppingBag size={24} aria-hidden="true" /> : kind === "segmentation" ? <Users size={24} aria-hidden="true" /> : <ChartColumn size={24} aria-hidden="true" />}</div><h2 className="text-lg font-semibold">{title}</h2>
                 <p className="text-sm text-slate-500 mt-3">
                   {kind === "product_finder"
                     ? "Recommend a fitting product and explain why."
@@ -119,7 +120,7 @@ export default function MarketingStudio({
                       ? "Choose a relevant result and offer for each buyer."
                       : "Score factual practices across separate categories."}
                 </p>
-                <p className="text-sm text-indigo-600 mt-5">Set up →</p>
+                <p className="text-sm text-indigo-600 mt-5">Set up <ArrowRight size={14} aria-hidden="true" className="inline-block ml-1" /></p>
               </button>
             ))}
           </div>
@@ -145,7 +146,7 @@ export default function MarketingStudio({
                     onChange({ ...form, marketing: undefined });
                 }}
               >
-                Use standard results
+                <RotateCcw size={14} aria-hidden="true" className="inline-block mr-2" />Use standard results
               </button>
             </div>
             {issue && (
@@ -196,7 +197,7 @@ export default function MarketingStudio({
                             })
                       }
                     >
-                      + Add {m.kind === "scorecard" ? "category" : "result"}
+                      <Plus size={14} aria-hidden="true" className="inline-block mr-1" /> Add {m.kind === "scorecard" ? "category" : "result"}
                     </button>
                   </div>
                   {targets.map((target, index) => (
@@ -228,7 +229,7 @@ export default function MarketingStudio({
                             })
                           }
                         >
-                          Remove
+                          <Trash2 size={14} aria-hidden="true" className="inline-block mr-1" />Remove
                         </button>
                       </div>
                       <Field
@@ -373,7 +374,7 @@ export default function MarketingStudio({
                         })
                       }
                     >
-                      + Add rule
+                      <Plus size={14} aria-hidden="true" className="inline-block mr-1" /> Add rule
                     </button>
                   </div>
                   <p className="text-sm text-slate-500">
@@ -417,7 +418,7 @@ export default function MarketingStudio({
                               })
                             }
                           >
-                            Remove rule
+                            <Trash2 size={14} aria-hidden="true" className="inline-block mr-1" />Remove rule
                           </button>
                         </div>
                         <label className="block text-sm">

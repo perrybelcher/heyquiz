@@ -16,6 +16,7 @@ import {
 } from "@/lib/schema";
 import {
   Search,
+  Pencil, Plug,
   Plus,
   Trash2,
   Copy,
@@ -1407,15 +1408,15 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Edit
+            <Pencil size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Edit
           </button>
 
-          <button onClick={() => setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}>Contacts</button>
+          <button onClick={() => setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
           <button
             onClick={() => setActiveNavTab("marketing")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}
           >
-            Marketing
+            <Sparkles size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Marketing
           </button>
           <button
             onClick={() => setActiveNavTab("integrate")}
@@ -1425,7 +1426,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Integrate
+            <Plug size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Integrate
           </button>
 
           <button
@@ -1436,7 +1437,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Share
+            <Share2 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Share
           </button>
 
           <button
@@ -1447,7 +1448,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Results
+            <BarChart3 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Results
           </button>
         </div>
 

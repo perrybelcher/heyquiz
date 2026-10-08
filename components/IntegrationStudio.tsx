@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowUpRight,
+  Plug, Pencil, Send, Save, History, Cable,
   Check,
   Link2,
   Plus,
@@ -18,6 +19,7 @@ import type {
 } from "@/lib/integrations/schema";
 import { nangoProviders, providers, isNangoProvider, type NangoProvider } from "@/lib/integrations/providers";
 import Connections from "./Connections";
+import ProviderIcon from "./ProviderIcon";
 type History = Omit<DeliveryJob, "event"> & { responseId: string };
 type Data = {
   connections: IntegrationView[];
@@ -42,7 +44,7 @@ const empty = (provider: "webhook" | "gohighlevel"): IntegrationDraft => ({
 const inputClass =
   "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 const buttonClass =
-  "rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50";
 export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
   const [data, setData] = useState<Data | null>(null),
     [draft, setDraft] = useState<IntegrationDraft | null>(null);
@@ -235,7 +237,7 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
             key={c.provider}
             className="rounded-2xl border border-slate-200 bg-white p-6"
           >
-            <c.icon size={25} className="text-indigo-600 mb-4" />
+            <div className="mb-4"><ProviderIcon provider={c.provider} /></div>
             <h2 className="text-lg font-semibold">{c.title}</h2>
             <p className="text-sm text-slate-500 mt-2 mb-5">{c.copy}</p>
             <button
@@ -258,18 +260,18 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
           const ready = data?.configuredProviders?.includes(provider) || (provider === "hubspot" && data?.nangoConfigured);
           const attempt = hubspotAttempt?.provider === provider ? hubspotAttempt : null;
           return <section key={provider} aria-label={`${providers[provider].name} integration`} className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-            <h2 className="text-lg font-semibold">{providers[provider].name}</h2>
+            <div className="flex items-center gap-3"><ProviderIcon provider={provider} /><h2 className="text-lg font-semibold">{providers[provider].name}</h2></div>
             <p className="text-sm text-slate-500">Connect your account, map quiz results, and test contact delivery.</p>
             {!ready && <p className="text-sm text-amber-800">Server setup pending. Your administrator needs to configure Nango before this provider can connect.</p>}
             <button className={buttonClass} disabled={busy || !ready || !data?.deliveryAllowed} onClick={() => void hubspot("start", provider)}>
-              {attempt ? "Start a new connection" : `Connect ${providers[provider].name}`}
+              <Plug size={15} aria-hidden="true" />{attempt ? "Start a new connection" : `Connect ${providers[provider].name}`}
             </button>
             {attempt && <div className="rounded-xl bg-indigo-50 p-4 space-y-3 text-sm">
               <p>Authorize your account in a new tab, then return here. The link expires in 30 minutes. No leads are sent until you enable delivery.</p>
               <div className="flex flex-wrap gap-3">
-                <a className={buttonClass} href={attempt.connectLink} target="_blank" rel="noopener noreferrer">Authorize {providers[provider].name} ↗</a>
-                <button className={buttonClass} disabled={busy} onClick={() => void hubspot("finish", provider)}>Check connection</button>
-                <button className={buttonClass} disabled={busy} onClick={() => setHubspotAttempt(null)}>Dismiss</button>
+                <a className={buttonClass} href={attempt.connectLink} target="_blank" rel="noopener noreferrer"><ArrowUpRight size={15} aria-hidden="true" />Authorize {providers[provider].name} ↗</a>
+                <button className={buttonClass} disabled={busy} onClick={() => void hubspot("finish", provider)}><RefreshCw size={15} aria-hidden="true" />Check connection</button>
+                <button className={buttonClass} disabled={busy} onClick={() => setHubspotAttempt(null)}><X size={15} aria-hidden="true" />Dismiss</button>
               </div>
             </div>}
           </section>;
@@ -529,22 +531,22 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
             <button
               disabled={busy}
               onClick={() => void save()}
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
             >
-              {busy ? "Saving…" : "Save connection"}
+              <Save size={15} aria-hidden="true" />{busy ? "Saving…" : "Save connection"}
             </button>
             <button
               className={buttonClass}
               onClick={() => setDraft(null)}
               disabled={busy}
             >
-              Cancel
+              <X size={14} aria-hidden="true" /> Cancel
             </button>
           </div>
         </section>
       )}
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Your connections</h2>
+        <h2 className="text-xl font-semibold flex items-center gap-2"><Cable size={20} aria-hidden="true" />Your connections</h2>
         {!data ? (
           <p className="text-slate-500">Loading connections…</p>
         ) : !data.connections.length ? (
@@ -559,8 +561,8 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
               className="rounded-2xl border bg-white p-5 flex flex-wrap justify-between items-center gap-4"
             >
               <div>
-                <h3 className="font-semibold">
-                  {c.name}{" "}
+                <h3 className="font-semibold flex flex-wrap items-center gap-2">
+                  <ProviderIcon provider={c.provider} small />{c.name}{" "}
                   <span
                     className={`ml-2 rounded-full px-2 py-1 text-xs ${c.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}
                   >
@@ -580,14 +582,14 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
                     setError("");
                   }}
                 >
-                  Edit
+                  <Pencil size={14} aria-hidden="true" /> Edit
                 </button>
                 <button
                   className={buttonClass}
                   disabled={busy || !data.deliveryAllowed}
                   onClick={() => setTestId(c.id)}
                 >
-                  Send test
+                  <Send size={14} aria-hidden="true" /> Send test
                 </button>
               </div>
             </article>
@@ -611,17 +613,17 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
               disabled={busy}
               onClick={() => action("test", testId)}
             >
-              Send synthetic test
+              <Send size={14} aria-hidden="true" /> Send synthetic test
             </button>
             <button className={buttonClass} onClick={() => setTestId(null)}>
-              Cancel
+              <X size={14} aria-hidden="true" /> Cancel
             </button>
           </div>
         </section>
       )}
       <section className="rounded-2xl border bg-white p-5 sm:p-7 space-y-4">
         <div className="flex flex-wrap justify-between gap-3">
-          <h2 className="text-xl font-semibold">Delivery history</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2"><History size={20} aria-hidden="true" />Delivery history</h2>
           <button
             className={buttonClass}
             disabled={busy || !data?.deliveryAllowed}

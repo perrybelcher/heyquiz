@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ProviderIcon from "./ProviderIcon";
 import { Cloud, Sparkles, ShieldCheck, Lock } from "lucide-react";
 export default function Connections() {
   const [data, setData] = useState<Record<string, boolean> | null>(null);
@@ -54,7 +55,7 @@ export default function Connections() {
             key={c.id}
             className="rounded-2xl border border-slate-200 bg-white p-6"
           >
-            <c.icon className="text-indigo-600 mb-5" size={26} />
+            <div className="mb-5">{c.id === "auth" ? <c.icon className="text-indigo-600" size={26} aria-hidden="true" /> : <ProviderIcon provider={c.id} />}</div>
             <h2 className="font-semibold">{c.name}</h2>
             <p className="text-sm text-slate-500 mt-2 leading-relaxed">
               {c.description}
