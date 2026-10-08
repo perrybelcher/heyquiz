@@ -39,7 +39,7 @@ export function trackerConsent(config: TrackingConfig, allowed: boolean) {
         if (allowed && !initialized.has(config.ga4Id)) {
             initialized.add(config.ga4Id);
             w.gtag!('js', new Date());
-            w.gtag!('config', config.ga4Id, { send_page_view: false, page_location: location.origin + location.pathname, page_referrer: '', page_title: 'HeyQuiz', allow_enhanced_conversions: false });
+            w.gtag!('config', config.ga4Id, { send_page_view: false, page_location: location.origin + location.pathname, page_referrer: '', page_title: 'Quiznick', allow_enhanced_conversions: false });
             script('hq-ga4', 'https://www.googletagmanager.com/gtag/js?id=' + config.ga4Id);
         }
     }
@@ -70,7 +70,7 @@ export function sendTrackingEvent(config: TrackingConfig, event: TrackingEvent, 
         return;
     const w = window as TrackerWindow, params = { quiz_id: quizId, ...(questionId ? { question_id: questionId } : {}) };
     if (config.ga4Id)
-        w.gtag?.('event', 'hq_' + event, { ...params, send_to: config.ga4Id, page_location: location.origin + location.pathname, page_referrer: '', page_title: 'HeyQuiz' });
+        w.gtag?.('event', 'hq_' + event, { ...params, send_to: config.ga4Id, page_location: location.origin + location.pathname, page_referrer: '', page_title: 'Quiznick' });
     if (config.metaPixelId)
         w.fbq?.('trackSingleCustom', config.metaPixelId, 'hq_' + event, params);
 }

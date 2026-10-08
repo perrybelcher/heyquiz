@@ -22,6 +22,6 @@ export default function SalesDemo() {
       {question ? <><p>Find a bag that fits the way you move.</p><div className="demo-options">{question.options?.map((option, i) => <button key={option.id} onClick={() => { setAnswers(a => ({ ...a, [question.id]: option.id })); move(step + 1); }}><span className="option-letter">{String.fromCharCode(65 + i)}</span>{option.label}<ArrowRight size={16} aria-hidden="true"/></button>)}</div></> : <div className="demo-result"><span className="result-icon"><Sparkles size={24}/></span><p>{result?.message}</p>{result?.reasons.map(reason => <p className="demo-reason" key={reason}><Check size={16} aria-hidden="true"/>{reason}</p>)}<p>{result?.advice}</p><a href="#how-it-works" className="sales-button">See how to build yours <ArrowRight size={16}/></a></div>}
       <div className="demo-bottom">{step > 0 ? <button onClick={() => move(step - 1)}><ArrowLeft size={14}/> Back</button> : <span>Three questions. A more personal answer.</span>}{result && <button onClick={() => { setAnswers({}); move(0); }}><RotateCcw size={14}/> Start again</button>}</div>
     </div>
-    <p className="demo-disclosure">Fictional products. Real HeyQuiz matching. Answers stay in this page and are not saved.</p>
+    <p className="demo-disclosure">Fictional products. Real Quiznick matching. Answers stay in this page and are not saved.</p>
   </div>;
 }

@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "heyquiz™ - Advanced Form & Quiz Builder",
+  title: "Quiznick - Advanced Form & Quiz Builder",
   description:
     "Modern, bloat-free form and quiz builder with conditional logic and agent intelligence.",
   icons: {
-    icon: "/logo.png",
+    icon: "/quiznick-logo.png",
   },
 };
 

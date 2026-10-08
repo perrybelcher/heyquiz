@@ -4,7 +4,7 @@ import { ArrowDown, ArrowRight, ArrowUpRight, BarChart3, Check, GitBranch, Plus,
 import type { MarketingConfig } from "@/lib/marketing";
 export default function WorkspaceWelcome({busy,onCreate,onAI,projectCount,publishedCount}:{busy:boolean;onCreate:(kind?:MarketingConfig['kind'])=>void;onAI:()=>void;projectCount:number;publishedCount:number}) {
   return <>
-    <section aria-label="Welcome to HeyQuiz" className="relative overflow-hidden rounded-[28px] bg-[#f1ebe1] border border-[#e8e2d8] mb-12">
+    <section aria-label="Welcome to Quiznick" className="relative overflow-hidden rounded-[28px] bg-[#f1ebe1] border border-[#e8e2d8] mb-12">
       <div className="grid lg:grid-cols-[1.05fr_1fr]">
         <div className="relative z-10 px-7 py-10 sm:p-12 lg:py-16">
           <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#656259] flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-indigo-600"/> A little curiosity. A real connection.</p>
