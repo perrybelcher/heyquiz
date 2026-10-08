@@ -40,6 +40,7 @@ const { FormSchema } = require("../lib/schema.ts");
       [`/api/forms/${id}/publish`, "POST"],
       [`/api/forms/${id}/contacts`, "GET"],
       [`/api/forms/${id}/submissions`, "GET"],
+      [`/api/forms/${id}/analytics`, "GET"],
     ]) {
       const r = await fetch(base + path, {
         method,

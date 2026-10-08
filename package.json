@@ -21,7 +21,11 @@
     "test:integrations-api": "node tests/integrations-api.cjs",
     "test:browser-integrations": "node tests/browser-integrations.cjs",
     "test:nango": "node tests/nango.cjs",
-    "test:providers": "node tests/providers.cjs"
+    "test:providers": "node tests/providers.cjs",
+    "test:analytics": "node tests/analytics.cjs",
+    "test:tracking": "node tests/tracking.cjs",
+    "test:browser-analytics": "node tests/browser-analytics.cjs",
+    "test:browser-tracking": "node tests/browser-tracking.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

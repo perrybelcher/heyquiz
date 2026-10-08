@@ -1,57 +1,50 @@
-export default function ResultsChart({
-  stats,
-}: {
-  stats: {
-    starts?: number;
-    completionRate?: number;
-    funnel?: { id: string; title: string; viewed: number }[];
-  };
+"use client";
+import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUpRight, BarChart3, Download, RefreshCw, Sparkles } from "lucide-react";
+import type { AnalyticsRange, AnalyticsSummary } from "@/lib/analytics";
+const number = (n: number) => n.toLocaleString();
+const pct = (n: number | null) => n === null ? "—" : `${n}%`;
+function duration(n: number | null) { if (n === null)
+    return "—"; const s = Math.round(n); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`; }
+export default function ResultsChart({ formId, refreshKey }: {
+    formId: string;
+    refreshKey?: unknown;
 }) {
-  return (
-    <section className="bg-white rounded-2xl border border-slate-200 p-6 my-6">
-      <div className="flex justify-between gap-6 mb-6">
-        <div>
-          <h3 className="font-semibold text-slate-900">Response journey</h3>
-          <p className="text-sm text-slate-500 mt-1">
-            See where respondents reach each question. Branching may
-            intentionally skip steps.
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <strong className="text-2xl text-indigo-600">
-            {stats.completionRate || 0}%
-          </strong>
-          <p className="text-xs text-slate-500">
-            completion · {stats.starts || 0} starts
-          </p>
+    const [range, setRange] = useState<AnalyticsRange>("30"), [data, setData] = useState<AnalyticsSummary | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(true), [refresh, setRefresh] = useState(0), [sort, setSort] = useState<"order" | "quiet">("order");
+    useEffect(() => { const controller = new AbortController(); fetch(`/api/forms/${formId}/analytics?range=${range}`, { signal: controller.signal }).then(async (r) => { const body = await r.json(); if (!r.ok)
+        throw new Error(body.error || "Could not load analytics."); return body; }).then(body => { if (!controller.signal.aborted) {
+        setData(body);
+        setError("");
+    } }).catch(e => { if (!controller.signal.aborted)
+        setError(e.message); }).finally(() => { if (!controller.signal.aborted)
+        setLoading(false); }); return () => controller.abort(); }, [formId, range, refresh, refreshKey]);
+    function download() { if (!data)
+        return; const rows = [['Question', 'Reached', 'Completed quiz', 'Quiet at this step', 'Measured sessions'], ...data.questions.map(q => [q.title, q.reached, q.completed, q.quiet, q.measured])]; const csv = rows.map(row => row.map(v => '"' + String(v).replace(/^[\s=+@-]/, "'$&").replaceAll('"', '""') + '"').join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `heyquiz-question-performance-${range}.csv`; a.click(); URL.revokeObjectURL(url); }
+    const quietest = data?.questions.filter(q => q.quiet > 0).sort((a, b) => b.quiet - a.quiet)[0];
+    const questions = data ? (sort === "quiet" ? [...data.questions].sort((a, b) => b.quiet - a.quiet) : data.questions) : [];
+    return <section aria-label="Conversion analytics" className="my-8 rounded-3xl border border-slate-200 bg-slate-50/80 overflow-hidden text-slate-900">
+    <div className="bg-slate-950 text-white p-6 sm:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-5">
+        <div><div className="text-indigo-300 text-[11px] font-semibold tracking-[.2em] uppercase flex items-center gap-2"><BarChart3 size={15}/> Conversion intelligence</div><h2 className="text-2xl sm:text-3xl tracking-tight font-semibold mt-3">See what moves people forward.</h2><p className="text-slate-400 text-sm mt-2">From the first question to the next action.</p></div>
+        <div className="flex flex-wrap gap-2"><label className="sr-only" htmlFor="analytics-range">Analytics date range</label><select id="analytics-range" value={range} onChange={e => { setLoading(true); setData(null); setError(""); setRange(e.target.value as AnalyticsRange); }} className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2.5 text-sm"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">All time</option></select><button title="Refresh analytics" aria-label="Refresh analytics" onClick={() => { setLoading(true); setError(""); setRefresh(n => n + 1); }} disabled={loading} className="p-3 rounded-xl border border-slate-700 disabled:opacity-40"><RefreshCw size={16}/></button><button title="Export question performance" aria-label="Export question performance" onClick={download} disabled={!data || loading} className="p-3 rounded-xl border border-slate-700 disabled:opacity-40"><Download size={16}/></button></div>
+      </div>
+      {data && <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mt-8">
+        {[['Quiz starts', number(data.starts), 'Sessions, not unique people'], ['Completion rate', pct(data.completionRate), data.completionChange === null ? 'No comparable previous period' : `${data.completionChange > 0 ? '+' : ''}${data.completionChange} percentage points vs prior period`], ['Captured leads', number(data.leads), `${pct(data.leadRate)} of starts · ${number(data.consentedLeads)} opted in`], ['Median finish time', duration(data.medianSeconds), `${number(data.timedCompletions)} timed completions`]].map(([label, value, hint]) => <div key={label} className="border-t border-slate-700/70 pt-4"><p className="text-xs text-slate-400">{label}</p><p className="text-3xl sm:text-4xl tracking-tight font-semibold mt-2 tabular-nums">{value}</p><p className="text-[11px] text-slate-400 mt-2 leading-relaxed">{hint}</p></div>)}
+      </div>}
+    </div>
+    {loading ? <div role="status" className="p-12 text-center text-slate-500 animate-pulse">Reading your quiz journey…</div> : error ? <div role="alert" className="p-8 text-rose-700">{error} <button className="underline" onClick={() => { setLoading(true); setError(""); setRefresh(n => n + 1); }}>Try again</button></div> : data && <div className="p-5 sm:p-8 space-y-6">
+      {!data.starts && <div className="border border-dashed border-indigo-200 bg-white rounded-2xl p-8 text-center"><Sparkles className="mx-auto text-indigo-500 mb-3"/><h3 className="font-semibold text-lg">Your next improvement starts with a real signal.</h3><p className="text-sm text-slate-500 mt-2">No published quiz sessions in this period. Preview sessions are excluded. Charts will populate when responses arrive.</p></div>}
+      <div className="grid lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><h3 className="font-semibold">The conversion journey</h3><p className="text-xs text-slate-500 mt-1 mb-6">Each count represents a quiz session.</p>{[['Started', data.starts, ''], ['Completed', data.completions, pct(data.completionRate) + ' of starts'], ['Results viewed', data.resultViews, `${data.trackedCompletions} completions eligible for tracking`], ['Offer clicked', data.offerClicks, pct(data.offerClickRate) + ' of tracked result viewers']].map(([label, count, hint], i) => <div key={label} className="mb-4"><div className="flex justify-between gap-3 text-sm"><span className="text-slate-600">{label}</span><strong className="tabular-nums">{number(Number(count))}</strong></div><div className="h-2.5 rounded-full bg-slate-100 mt-2 overflow-hidden"><div className={i === 3 ? 'h-full rounded-full bg-emerald-500' : 'h-full rounded-full bg-indigo-500'} style={{ width: `${data.starts ? Number(count) / data.starts * 100 : 0}%` }}/></div><p className="text-[10px] text-slate-400 mt-1.5 min-h-3">{hint}</p></div>)}<p className="text-xs leading-relaxed text-slate-500 border-t pt-4">Leads are shown separately because capture can happen before or after results. An offer click is not a purchase.</p></div>
+        <div className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-semibold">Momentum over time</h3><p className="text-xs text-slate-500 mt-1">Grouped by the day each session started · UTC</p></div><div className="flex gap-3 text-[11px] text-slate-500"><span>▰ Starts</span><span className="text-indigo-600">▰ Completed</span><span className="text-emerald-600">▰ Leads</span></div></div>
+          <div className="h-44 flex items-end gap-1 mt-8" role="img" aria-label="Daily starts, completions and captured leads. Exact values available in the daily counts table below.">{data.days.map(d => { const max = Math.max(1, ...data.days.map(x => x.starts)); return <div key={d.date} className="flex-1 h-full flex items-end gap-px group" title={`${d.date}: ${d.starts} starts, ${d.completions} completions, ${d.leads} leads`}>{[[d.starts, 'bg-slate-200'], [d.completions, 'bg-indigo-500'], [d.leads, 'bg-emerald-400']].map(([n, color], i) => <div key={i} className={`flex-1 rounded-t-sm ${color}`} style={{ height: `${Number(n) / max * 100}%`, minHeight: Number(n) ? 3 : 0 }}/>)}</div>; })}</div><div className="flex justify-between text-[10px] text-slate-400 mt-3"><span>{data.days[0]?.date}</span><span>{data.days.at(-1)?.date}</span></div>
+          <details className="mt-5 text-xs text-slate-500"><summary className="cursor-pointer">Daily counts {range === 'all' ? '(latest 90 days)' : ''}</summary><div className="max-h-48 overflow-auto mt-3"><table className="w-full text-left"><thead><tr>{['UTC date', 'Starts', 'Completed', 'Leads'].map(x => <th scope="col" key={x} className="py-2">{x}</th>)}</tr></thead><tbody>{data.days.map(d => <tr key={d.date}><td>{d.date}</td><td>{d.starts}</td><td>{d.completions}</td><td>{d.leads}</td></tr>)}</tbody></table></div></details>
         </div>
       </div>
-      {!stats.starts ? (
-        <p className="text-sm text-slate-400">
-          Share your published quiz to start collecting journey insights.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {stats.funnel?.map((q, i) => (
-            <div key={q.id}>
-              <div className="flex justify-between gap-4 mb-2 text-xs">
-                <span className="truncate">
-                  {i + 1}. {q.title}
-                </span>
-                <span>{q.viewed} reached</span>
-              </div>
-              <div className="h-2 bg-slate-100 rounded-full">
-                <div
-                  className="h-2 bg-indigo-500 rounded-full"
-                  style={{
-                    width: `${Math.min(100, (q.viewed / (stats.starts || 1)) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+      <div className="rounded-2xl bg-indigo-50 border border-indigo-100 p-5 flex gap-3"><Sparkles size={20} className="shrink-0 text-indigo-600 mt-0.5"/><div><h3 className="font-semibold text-indigo-950">{quietest ? 'A step worth reviewing' : data.starts ? 'Let the evidence build' : 'Ready when you are'}</h3><p className="text-sm text-indigo-900/75 leading-relaxed mt-1">{quietest ? `${quietest.quiet} unfinished ${quietest.quiet === 1 ? 'session was' : 'sessions were'} last seen at “${quietest.title}” and have been quiet for at least 30 minutes. Review its wording, effort, and relevance before making a change. This is a signal, not proof that the question caused an exit.` : data.starts ? 'No measured question currently has an unfinished session quiet for 30 minutes. Keep collecting data before drawing conclusions.' : 'Publish a quiz when you are ready. Until then, no fabricated conversions or improvement claims appear here.'}</p></div></div>
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden"><div className="p-5 sm:p-6 flex flex-wrap items-start justify-between gap-4"><div><h3 className="font-semibold">Question performance</h3><p className="text-xs text-slate-500 mt-1">Follow actual reach. Branching may intentionally skip questions.</p></div><select aria-label="Sort question performance" className="text-xs p-2 rounded-lg border border-slate-200" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="order">Quiz order</option><option value="quiet">Most quiet sessions</option></select></div><div className="overflow-x-auto"><table className="w-full min-w-[550px] text-sm text-left"><thead className="bg-slate-50 text-[11px] text-slate-500"><tr>{['Question', 'Reached', 'Finished quiz', 'Quiet here', 'Quiet / measured'].map(x => <th scope="col" key={x} className="px-5 py-3 font-medium">{x}</th>)}</tr></thead><tbody>{questions.map((q, i) => <tr key={q.id} className="border-t border-slate-100"><td className="px-5 py-4 max-w-xs"><div className="flex gap-3"><span className="text-slate-400 text-xs mt-0.5">{String(i + 1).padStart(2, '0')}</span><span>{q.title}</span></div></td><td className="px-5 py-4 tabular-nums">{number(q.reached)}</td><td className="px-5 py-4 tabular-nums">{number(q.completed)}</td><td className="px-5 py-4 tabular-nums"><span className={q.quiet ? 'rounded-full bg-amber-50 text-amber-800 px-2 py-1' : ''}>{number(q.quiet)}</span></td><td className="px-5 py-4 text-slate-500 tabular-nums">{pct(q.quietRate)} <span className="text-xs">/ {q.measured}</span></td></tr>)}</tbody></table></div><p className="px-5 py-4 text-xs leading-relaxed text-slate-500 border-t">“Finished quiz” counts completions among sessions that reached that question. “Quiet here” means unfinished with no question activity for 30 minutes; people may return. It is not a confirmed abandonment rate.</p></div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><h3 className="font-semibold flex gap-2 items-center">Result segments <ArrowUpRight size={16} className="text-indigo-500"/></h3><p className="text-xs text-slate-500 mt-1 mb-5">Which outcomes lead to contact capture and the next action?</p>{!data.segments.length ? <p className="text-sm text-slate-400">Completed quizzes will appear here by result.</p> : <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{data.segments.map(s => <div key={s.title} className="border border-slate-100 rounded-xl p-4"><h4 className="font-medium break-words">{s.title}</h4><div className="text-2xl font-semibold mt-3 tabular-nums">{number(s.completions)} <span className="text-xs font-normal text-slate-500">completions</span></div><div className="mt-3 flex gap-4 text-xs text-slate-500"><span>{s.leads} leads</span><span>{s.clicks} offer clicks</span></div></div>)}</div>}</div>
+      <details className="text-xs text-slate-500 leading-relaxed"><summary className="cursor-pointer flex items-center gap-2"><ArrowDown size={13}/> How these numbers are measured</summary><div className="mt-3 space-y-2"><p>Date filters select sessions by their start date. Their later completions and clicks remain in that cohort. Today is partial. Comparisons use the preceding equal-length calendar period.</p><p>Preview sessions are excluded. Retakes count as new sessions. Leads count completed sessions with a captured contact, not unique email addresses. Result views, clicks, timing, and quiet-step reporting require the new tracker: {data.measuredSessions} of {data.starts} sessions are eligible. Historical reach and completion remain available.</p><p>Question titles use the current quiz where possible; removed questions use an earlier version. Browser events can be missed when a device loses connectivity. Elapsed finish time includes time away from the quiz.</p>{data.unlinkedSubmissions > 0 && <p>{data.unlinkedSubmissions} responses have no matching session record and are excluded from these conversion rates; they remain in the response list.</p>}<p>Updated {new Date(data.generatedAt).toLocaleString()}. Export contains question aggregates only.</p></div></details>
+    </div>}
+  </section>;
 }

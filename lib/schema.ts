@@ -1,3 +1,4 @@
+import { TrackingSchema, type TrackingConfig } from "./tracking";
 import { CaptureSchema, type CaptureConfig, type ContactRecord } from "./contacts";
 import { z } from "zod";
 import {
@@ -392,6 +393,7 @@ export const LogicRuleSchema: z.ZodType<LogicRule> = z.object({
 });
 
 export interface FormSchemaType {
+  tracking?: TrackingConfig;
   capture?: CaptureConfig;
   marketing?: MarketingConfig;
   id: string;
@@ -413,6 +415,7 @@ export interface FormSchemaType {
 }
 
 export const FormSchema: z.ZodType<FormSchemaType> = z.object({
+  tracking: TrackingSchema.optional(),
   capture: CaptureSchema.optional(),
   marketing: MarketingSchema.optional(),
   id: z

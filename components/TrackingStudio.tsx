@@ -1,0 +1,21 @@
+"use client";
+import type { FormSchemaType } from "@/lib/schema";
+import { defaultTracking, trackingEvents, trackingLabels, TrackingSchema, type TrackingConfig } from "@/lib/tracking";
+export default function TrackingStudio({ form, onChange }: {
+    form: FormSchemaType;
+    onChange: (form: FormSchemaType) => void;
+}) {
+    const config = form.tracking || defaultTracking;
+    function update(patch: Partial<TrackingConfig>) { onChange({ ...form, tracking: { ...config, ...patch } }); }
+    const validation = TrackingSchema.safeParse(config);
+    return <section aria-label="Tracking and retargeting" className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 space-y-5">
+    <div><h3 className="font-semibold text-lg">Tracking & retargeting</h3><p className="text-sm text-slate-500 mt-1">Connect a tracker once. Choose the moments that matter.</p></div>
+    <label className="flex gap-3 items-center text-sm font-medium"><input type="checkbox" checked={config.enabled} onChange={e => update({ enabled: e.target.checked })}/> Enable external tracking on this quiz</label>
+    <div className="grid sm:grid-cols-2 gap-4"><label className="text-sm">Google Analytics measurement ID<input className="block border border-slate-200 rounded-xl p-3 w-full mt-2" placeholder="G-ABC1234567" value={config.ga4Id} onChange={e => update({ ga4Id: e.target.value.trim().toUpperCase() })}/></label><label className="text-sm">Meta pixel ID<input className="block border border-slate-200 rounded-xl p-3 w-full mt-2" placeholder="123456789012345" value={config.metaPixelId} onChange={e => update({ metaPixelId: e.target.value.trim() })}/></label></div>
+    <fieldset><legend className="text-sm font-medium mb-3">Events to send</legend><div className="grid sm:grid-cols-3 gap-3">{trackingEvents.map(event => <label key={event} className="flex gap-2 items-center text-sm text-slate-600"><input type="checkbox" checked={config.events.includes(event)} onChange={e => update({ events: e.target.checked ? [...config.events, event] : config.events.filter(x => x !== event) })}/>{trackingLabels[event]}</label>)}</div></fieldset>
+    {config.events.includes('question_view') && <fieldset className="border-t border-slate-100 pt-4"><legend className="text-sm font-medium pt-4">Question steps</legend><p className="text-xs text-slate-500 mb-3">No selection sends events for all visible questions. Select specific steps to limit tracking.</p><div className="max-h-48 overflow-auto space-y-2">{form.questions.filter(q => q.type !== 'hidden').map(q => <label key={q.id} className="flex gap-2 items-start text-sm text-slate-600"><input className="mt-1" type="checkbox" checked={config.questionIds.includes(q.id)} onChange={e => update({ questionIds: e.target.checked ? [...config.questionIds, q.id] : config.questionIds.filter(x => x !== q.id) })}/>{q.title || 'Untitled question'}</label>)}</div></fieldset>}
+    <label className="block text-sm">Privacy policy URL<input className="block border border-slate-200 rounded-xl p-3 w-full mt-2" placeholder="https://your-site.com/privacy" value={config.privacyUrl} onChange={e => update({ privacyUrl: e.target.value.trim() })}/></label>
+    {!validation.success && <p role="alert" className="text-sm text-rose-700">{validation.error.issues[0].message}</p>}
+    <div className="rounded-xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-500 space-y-2"><p>Visitors choose whether to allow external analytics and advertising cookies. Nothing is sent to these trackers before permission, and preview mode never loads them. This choice is separate from email marketing consent.</p><p>Events use the <code>hq_</code> prefix and contain quiz and question IDs, not question text, answers, scores, or contact details. Provider scripts can collect browser identifiers and page URLs: keep sensitive information out of quiz URLs, and disable automatic events and advanced matching in your provider settings.</p><p>Save and publish to apply changes. Use these custom events in your provider’s audience builder. A configured ID does not confirm delivery; blockers and browser privacy settings may prevent it.</p></div>
+  </section>;
+}

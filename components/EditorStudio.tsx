@@ -125,6 +125,7 @@ import {
   validateFormReferences,
 } from "@/lib/engine";
 import ResultsChart from "./ResultsChart";
+import TrackingStudio from "./TrackingStudio";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
 import MarketingResultCard from "./MarketingResultCard";
@@ -3589,7 +3590,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                   </h2>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Real-time responses, pass rates, score distributions, and
+                  Conversion performance, score distributions, and
                   detailed respondent records.
                 </p>
               </div>
@@ -3627,6 +3628,9 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
               </div>
             </div>
 
+            <ResultsChart formId={form.id} refreshKey={submissions} />
+            <TrackingStudio form={form} onChange={setForm} />
+            <h3 className="text-sm font-semibold text-slate-500">All-time response records</h3>
             {/* Metric Cards Grid */}
             {form.marketing ? (
               <div className="grid sm:grid-cols-3 gap-4">
@@ -3784,7 +3788,6 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
               </div>
             )}
 
-            <ResultsChart stats={submissionStats} />
             {/* Submissions Table Card */}
             <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden">
               {/* Search & Filter Bar */}

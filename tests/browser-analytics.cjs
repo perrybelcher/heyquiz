@@ -1,0 +1,24 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const base='http://127.0.0.1:3130',id='qa-analytics-'+Date.now(),headers={Origin:base};
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true}),ctx=await browser.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage();let checks=0;const errors=[];p.on('pageerror',e=>errors.push(e.message));
+try{
+ await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
+ let r=await ctx.request.post(base+'/api/forms',{data:{id,title:'QA analytics journey',mode:'survey',questions:[{id:'one',type:'short_answer',title:'What would you like to improve?',required:true},{id:'two',type:'short_answer',title:'What is holding you back?'}],endingPage:{title:'Your results',message:'Thanks',redirectUrl:'https://example.com',ctaText:'Explore your next step'}},headers});assert.equal(r.status(),201);
+ assert.equal((await ctx.request.post(base+'/api/forms/'+id+'/publish',{data:{},headers})).status(),200);
+ const anon=await browser.newContext();assert.equal((await anon.request.get(base+'/api/forms/'+id+'/analytics')).status(),401);checks++;
+ const start=await (await anon.request.post(base+'/api/forms/'+id+'/start',{data:{},headers})).json();const token=start.token;
+ const event=async data=>anon.request.post(base+'/api/forms/'+id+'/progress',{data:{token,...data},headers});
+ assert.equal((await event({event:'offer_click'})).status(),409);assert.equal((await event({questionId:'unknown'})).status(),400);checks+=2;
+ await event({questionId:'one'});await event({questionId:'one'});await event({questionId:'two'});
+ assert.equal((await anon.request.post(base+'/api/forms/'+id+'/submit',{data:{token,answers:{one:'Confidence',two:'Time'}},headers})).status(),200);
+ await event({event:'result_view'});await event({event:'offer_click'});await event({event:'offer_click'});
+ let a=await (await ctx.request.get(base+'/api/forms/'+id+'/analytics')).json();assert.equal(a.starts,1);assert.equal(a.completions,1);assert.equal(a.resultViews,1);assert.equal(a.offerClicks,1);assert.equal(a.questions[0].reached,1);checks+=5;
+ assert.equal((await ctx.request.get(base+'/api/forms/'+id+'/analytics?range=invalid')).status(),400);checks++;
+ await p.goto(base+'/editor/'+id);await p.getByRole('button',{name:'Results',exact:true}).click();await p.getByRole('heading',{name:'See what moves people forward.'}).waitFor();await p.getByText('100%',{exact:true}).first().waitFor();checks++;
+ await p.getByLabel('Analytics date range').selectOption('7');await p.getByRole('heading',{name:'Question performance',exact:true}).waitFor();assert.equal(await p.getByLabel('Analytics date range').inputValue(),'7');checks++;
+ const downloadPromise=p.waitForEvent('download');await p.getByRole('button',{name:'Export question performance',exact:true}).click();const dl=await downloadPromise;const csv=fs.readFileSync(await dl.path(),'utf8');assert.ok(csv.includes('What would you like to improve?'));checks++;
+ const dir=path.resolve('../../outputs/analytics');fs.mkdirSync(dir,{recursive:true});await p.screenshot({path:path.join(dir,'analytics-desktop.png'),fullPage:true});
+ await p.setViewportSize({width:390,height:844});assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await p.screenshot({path:path.join(dir,'analytics-mobile.png'),fullPage:true});checks++;
+ await p.route('**/api/forms/'+id+'/analytics?*',route=>route.fulfill({status:500,json:{error:'Analytics temporarily unavailable.'}}));await p.getByRole('button',{name:'Refresh analytics',exact:true}).click();await p.getByText('Analytics temporarily unavailable.',{exact:false}).waitFor();checks++;
+ assert.deepEqual(errors,[]);checks++;await anon.close();console.log(`${checks} analytics browser/API checks passed. Synthetic local quiz only.`);
+}finally{await ctx.request.delete(base+'/api/forms/'+id,{headers});await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

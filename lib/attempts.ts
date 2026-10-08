@@ -8,6 +8,12 @@ export interface Attempt {
   expiresAt: number;
   preview: boolean;
   reached: string[];
+  analyticsVersion?: 1;
+  lastSeenAt?: number;
+  lastQuestionId?: string;
+  completedAt?: number;
+  resultViewedAt?: number;
+  offerClickedAt?: number;
   completed?: boolean;
   uploadCount?: number;
   result?: QuizSubmissionResult;
@@ -26,6 +32,8 @@ export async function createAttempt(
     expiresAt,
     preview,
     reached: [],
+    analyticsVersion: 1,
+    lastSeenAt: now,
   };
   await writeRecord("attempts", id, owner, attempt, 0);
   return { token: signToken({ id, formId: form.id, exp: expiresAt }), attempt };

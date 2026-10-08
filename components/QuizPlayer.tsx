@@ -33,6 +33,7 @@ import {
 import QuestionField from "./QuestionField";
 import MarketingResultCard from "./MarketingResultCard";
 import LeadCapture from "./LeadCapture";
+import QuizTracking from "./QuizTracking";
 import type { ContactInput } from "@/lib/contacts";
 interface Session {
   result?: QuizSubmissionResult;
@@ -117,6 +118,15 @@ export default function QuizPlayer({
       body: JSON.stringify({ token: session.token, questionId: q.id }),
     }).catch(() => {});
   }, [session?.token, q?.id, result, form.id]);
+  const trackResult = useCallback((event: "result_view" | "offer_click") => {
+    if (!session || preview) return;
+    if (event === "offer_click") window.dispatchEvent(new Event("heyquiz-offer-click"));
+    void fetch(`/api/forms/${form.id}/progress`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: session.token, event }), keepalive: true,
+    }).catch(() => {});
+  }, [session, preview, form.id]);
+  useEffect(() => { if (result) trackResult("result_view"); }, [result, trackResult]);
   const submit = useCallback(async (contact?: ContactInput | null) => {
     if (!session || inFlight.current) return;
     if (session.form.capture?.enabled && session.form.capture.placement === "before_results" && contact === undefined) { setCapturing(true); return; }
@@ -371,7 +381,7 @@ export default function QuizPlayer({
         ) : result ? (
           <section className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center shadow-sm">
             {result.marketing ? (
-              <MarketingResultCard result={result.marketing} />
+              <MarketingResultCard result={result.marketing} onOfferClick={() => trackResult("offer_click")} />
             ) : (
               <>
                 <div className="mx-auto grid place-items-center rounded-2xl bg-emerald-50 text-emerald-600 w-16 h-16 mb-6">
@@ -450,6 +460,7 @@ export default function QuizPlayer({
               ) && (
                 <a
                   className="hq-primary mt-8 ml-3"
+                  onClick={() => trackResult("offer_click")}
                   href={
                     result.matchedTier?.ctaUrl || active.endingPage?.redirectUrl
                   }
@@ -669,6 +680,7 @@ export default function QuizPlayer({
           </section>
         )}
       </main>
+      <QuizTracking form={active} preview={preview} sessionId={session?.token} questionId={!result ? q?.id : undefined} completed={Boolean(result)} leadCaptured={Boolean(result?.contactCaptured)} />
       <footer className="text-center text-xs text-slate-400 py-7">
         Made with HeyQuiz · Designed for better conversations
       </footer>

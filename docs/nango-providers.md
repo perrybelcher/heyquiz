@@ -66,4 +66,4 @@ Nine definitions now exist in the Nango dev environment: hubspot, active-campaig
 
 HubSpot, Mailchimp, Zoho and Salesforce use Nango's developer apps for testing only. HeyQuiz overrides HubSpot, Zoho and Salesforce session scopes to contact access / API plus refresh access, avoiding the broader default test-app scopes. Verify the actual consent screen before granting access. Own OAuth apps remain required for production rollout.
 
-The restricted Nango environment-key form is prepared but not submitted. Server secrets and provider IDs have not been configured in Vercel. The deployed cards therefore remain disabled until that setup is complete.
+The restricted HeyQuiz integrations key (connection metadata list, Connect Sessions write, proxy) is saved as a production secret in Vercel. Nine provider IDs are configured and deployment B1j1dZprZvdHctoxp79ZufDKUsEk completed successfully. Keap remains disabled. Real account authorization and live delivery verification are still pending.

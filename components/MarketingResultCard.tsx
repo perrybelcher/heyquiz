@@ -1,8 +1,9 @@
 import type { MarketingResult } from "@/lib/marketing";
 export default function MarketingResultCard({
-  result,
+  result, onOfferClick,
 }: {
   result: MarketingResult;
+  onOfferClick?: () => void;
 }) {
   return (
     <div className="text-left space-y-6">
@@ -59,7 +60,7 @@ export default function MarketingResultCard({
         </div>
       ))}
       {result.ctaUrl && /^https?:\/\//i.test(result.ctaUrl) && (
-        <a className="hq-primary" href={result.ctaUrl}>
+        <a className="hq-primary" href={result.ctaUrl} onClick={onOfferClick}>
           {result.ctaLabel || "Explore this option"} →
         </a>
       )}

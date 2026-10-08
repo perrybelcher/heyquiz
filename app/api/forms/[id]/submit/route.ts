@@ -124,6 +124,7 @@ export async function POST(
     await writeRecord("attempts", r.id, r.owner_id, {
       ...a,
       completed: true,
+      completedAt: Date.now(),
       result: saved,
     });
     if (!a.preview) scheduleDeliveries(r.owner_id, id);

@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
+const {TrackingSchema,defaultTracking}=require('../lib/tracking.ts'),{trackerConsent,sendTrackingEvent}=require('../lib/browser-tracking.ts');
+const nodes=new Map();global.window={};global.location={origin:'https://quiz.example',pathname:'/play/q',search:'?email=private@example.com'};global.document={getElementById:id=>nodes.get(id),createElement:()=>({}),head:{appendChild:n=>nodes.set(n.id,n)}};
+const config={...defaultTracking,enabled:true,ga4Id:'G-ABC1234567',metaPixelId:'123456789012345',questionIds:['two']};
+let n=0;const test=(label,fn)=>{fn();n++;console.log('PASS '+label);};
+test('IDs reject script URLs and arbitrary code',()=>{assert.equal(TrackingSchema.safeParse({...config,ga4Id:'<script>'}).success,false);assert.equal(TrackingSchema.safeParse({...config,metaPixelId:'javascript:alert(1)'}).success,false);});
+test('enabled setup needs a tracker',()=>assert.equal(TrackingSchema.safeParse({...defaultTracking,enabled:true}).success,false));
+test('declined tracking loads no scripts or queues',()=>{trackerConsent(config,false);assert.equal(nodes.size,0);assert.equal(window.gtag,undefined);assert.equal(window.fbq,undefined);});
+test('permission loads only fixed vendor scripts',()=>{trackerConsent(config,true);assert.equal(nodes.size,2);assert.equal(nodes.get('hq-meta').src,'https://connect.facebook.net/en_US/fbevents.js');assert.ok(nodes.get('hq-ga4').src.startsWith('https://www.googletagmanager.com/gtag/js?id=G-'));});
+test('question allowlist rejects other steps',()=>{const before=window.fbq.queue.length;sendTrackingEvent(config,'question_view','quiz','one');assert.equal(window.fbq.queue.length,before);});
+test('events target the configured account and omit raw answers',()=>{sendTrackingEvent(config,'question_view','quiz','two');const meta=window.fbq.queue.at(-1);assert.deepEqual(meta,['trackSingleCustom',config.metaPixelId,'hq_question_view',{quiz_id:'quiz',question_id:'two'}]);const ga=Array.from(window.dataLayer.at(-1));assert.equal(ga[2].send_to,config.ga4Id);assert.ok(!JSON.stringify(ga).includes('private@example.com'));});
+test('repeat consent does not initialize duplicate trackers',()=>{const before=window.fbq.queue.filter(x=>x[0]==='init').length;trackerConsent(config,true);assert.equal(window.fbq.queue.filter(x=>x[0]==='init').length,before);});
+test('withdrawal disables GA and revokes Meta consent',()=>{trackerConsent(config,false);assert.equal(window['ga-disable-'+config.ga4Id],true);assert.deepEqual(window.fbq.queue.at(-1),['consent','revoke']);});
+test('withdrawn consent blocks events at the sender',()=>{const before=window.fbq.queue.length;sendTrackingEvent(config,'offer_click','quiz');assert.equal(window.fbq.queue.length,before);});
+test('disabled event list suppresses configured events',()=>{const before=window.fbq.queue.length;sendTrackingEvent({...config,events:[]},'offer_click','quiz');assert.equal(window.fbq.queue.length,before);});
+console.log(`${n} tracking checks passed.`);
