@@ -2,7 +2,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3155';if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(base))throw Error('Local tests only');
 (async()=>{const browser=await chromium.launch({channel:'chrome'}),ctx=await browser.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage();let id;const headers={Origin:base};try{
  assert.equal((await ctx.request.post(base+'/api/agent/marketing',{data:{},headers})).status(),401);
- await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
+ assert.equal((await ctx.request.post(base+'/api/auth',{data:{local:true},headers})).status(),200,'Local authentication must succeed before testing the workspace');
  await p.goto(base+'/');await p.getByRole('link',{name:'Build a marketing quiz'}).click();
  await p.getByLabel('Who is this quiz for?').fill('Small business owners');
  await p.getByLabel('What do you offer?').fill('Practical follow-up coaching');

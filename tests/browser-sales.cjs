@@ -139,13 +139,14 @@ const assert = require("node:assert/strict"),
     console.log("Demo and FAQ passed");
     assert.deepEqual(writes, []);
     assert.deepEqual(errors, []);
-    assert(
-      await p
-        .locator("img")
-        .evaluateAll((imgs) =>
-          imgs.every((i) => i.complete && i.naturalWidth > 0),
-        ),
-    );
+    // Navigation above creates fresh lazy images; exercise their viewport before
+    // asserting pixels, just as on the initial visit (do not ignore failures).
+    for (const img of await p.locator("img").all()) {
+      await img.scrollIntoViewIfNeeded();
+      await img.evaluate(i => i.decode());
+      assert.ok(await img.evaluate(i => i.complete && i.naturalWidth > 0),
+        "Image failed after return navigation: " + await img.getAttribute("src"));
+    }
     await p.goto(base);
     await p.getByRole("heading", { level: 1 }).waitFor();
     await ctx.request.post(base + "/api/auth", {
