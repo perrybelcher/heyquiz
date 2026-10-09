@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { FormSchema } from "./schema";
-import { MarketingSchema, validateMarketing } from "./marketing";
+import { MarketingSchema, validateMarketing, evaluateMarketing } from "./marketing";
 import { defaultCapture } from "./contacts";
 
 const destination = z.string().trim().max(2000).refine(v => {
@@ -94,6 +94,20 @@ export function compileMarketingDraft(input: unknown, output: unknown) {
     settings:{showProgressBar:true,showReviewBeforeSubmit:true,showAnswerKeyOnFinish:false,allowRetake:true},
     capture:{...defaultCapture,enabled:true,required:false,marketingEnabled:false},marketing:m,outcomeTiers:[]});
   validateMarketing(form,true);
+  // Prove a concrete path for each generated outcome. This conservative witness
+  // favors target points, then fewer competing points; ambiguous drafts are retried,
+  // rather than shipping a result nobody can reach. Hand-edited rules are unaffected.
+  if (brief.kind !== "scorecard") for (const target of targets) {
+    const answers = Object.fromEntries(form.questions.map(q => {
+      const ranked = (q.options || []).map(o => {
+        const rules = m.rules.filter(r => r.questionId === q.id && r.answerId === o.id);
+        return {id:o.id, own:rules.filter(r=>r.targetId===target.id).reduce((n,r)=>n+r.points,0), other:rules.filter(r=>r.targetId!==target.id).reduce((n,r)=>n+r.points,0)};
+      }).sort((a,b)=>b.own-a.own || a.other-b.other);
+      return [q.id, ranked[0].id];
+    }));
+    if (evaluateMarketing(form, answers)?.outcomeId !== target.id)
+      throw Error("The draft needs a clear answer path for every result. Please try again.");
+  }
   return {form, rationale:draft.questions.map((q,i)=>({questionId:questions[i].id,purpose:q.purpose}))};
 }
 

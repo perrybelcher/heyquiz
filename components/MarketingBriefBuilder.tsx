@@ -11,7 +11,9 @@ import MarketingResultCard from "./MarketingResultCard";
 const empty: MarketingBrief = {audience:"",offer:"",goal:"",concerns:"",voice:"Warm, clear, helpful, and never pushy",kind:"segmentation",numQuestions:6,ctaLabel:"Explore my next step",ctaUrl:"",targets:[{title:"",description:"",ctaUrl:""},{title:"",description:"",ctaUrl:""}]};
 type Preview = {form:FormSchemaType;rationale:{questionId:string;purpose:string}[]};
 export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean}) {
-  const [brief,setBrief]=useState<MarketingBrief>(empty),[step,setStep]=useState(0),[preview,setPreview]=useState<Preview|null>(null),[answers,setAnswers]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),[error,setError]=useState(""),[ready,setReady]=useState(false),[recovered,setRecovered]=useState(false),[storageWarning,setStorageWarning]=useState(false);
+  const [brief,setBrief]=useState<MarketingBrief>(empty),[step,setStep]=useState(0),[preview,setPreview]=useState<Preview|null>(null),[answers,setAnswers]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),[authError,setAuthError]=useState(false),[error,setError]=useState(""),[ready,setReady]=useState(false),[recovered,setRecovered]=useState(false),[storageWarning,setStorageWarning]=useState(false);
+  // Restore tab-local storage after hydration; it is unavailable during SSR.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{try{const saved=sessionStorage.getItem("pippi-marketing-brief");if(saved)setBrief({...empty,...JSON.parse(saved)});}catch{}
     try {
       const saved=JSON.parse(sessionStorage.getItem("pippi-marketing-preview")||"null");
@@ -22,29 +24,32 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
       }
     }catch{}
     setReady(true);},[]);
-  useEffect(()=>{if(ready)try{sessionStorage.setItem("pippi-marketing-brief",JSON.stringify(brief));}catch{}},[brief,ready]);
+  // Report browser storage failures without discarding the in-memory brief.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(()=>{if(ready)try{sessionStorage.setItem("pippi-marketing-brief",JSON.stringify(brief));}catch{setStorageWarning(true);}},[brief,ready]);
   useEffect(()=>{
     if(!ready)return;
     try {
       if(preview)sessionStorage.setItem("pippi-marketing-preview",JSON.stringify(preview));
       else sessionStorage.removeItem("pippi-marketing-preview");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     }catch{setStorageWarning(true);}
   },[preview,ready]);
   const change=(patch:Partial<MarketingBrief>)=>setBrief(b=>({...b,...patch}));
   const field=(label:string,key:"audience"|"offer"|"goal"|"concerns"|"voice"|"ctaLabel"|"ctaUrl",placeholder:string,max:number,multiline=false)=><label className="block text-sm font-medium">{label}{multiline?<textarea rows={3} className="hq-input mt-2" value={brief[key]} maxLength={max} placeholder={placeholder} onChange={e=>change({[key]:e.target.value})}/>:<input className="hq-input mt-2" value={brief[key]} maxLength={max} placeholder={placeholder} onChange={e=>change({[key]:e.target.value})}/>}</label>;
-  function starter(){setError("");try{setPreview(createMarketingStarter(brief));setAnswers({});}catch(e){setError(e instanceof Error?e.message:"Complete your brief first.");}}
+  function starter(){setError("");setAuthError(false);try{setPreview(createMarketingStarter(brief));setAnswers({});}catch(e){setError(e instanceof Error?e.message:"Complete your brief first.");}}
   async function generate(){
-    setError("");const parsed=MarketingBriefSchema.safeParse(brief);
+    setError("");setAuthError(false);const parsed=MarketingBriefSchema.safeParse(brief);
     if(!parsed.success){setError(parsed.error.issues.map(i=>`${i.path.join(" → ")}: ${i.message}`).join(" · "));return;}
     setBusy(true);
-    try{const res=await fetch("/api/agent/marketing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(parsed.data)});const data=await res.json();if(!res.ok)throw Error(data.error || "Could not generate the draft.");setPreview(data);setAnswers({});}
+    try{const res=await fetch("/api/agent/marketing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(parsed.data)});const data=await res.json();if(!res.ok){setAuthError(res.status===401);throw Error(data.error || "Could not generate the draft.");}setPreview(data);setAnswers({});}
     catch(e){setError(e instanceof Error?e.message:"Could not generate the draft.");}finally{setBusy(false);}
   }
   async function save(){
     if(!preview)return;
     if(preview.form.questions.some(q=>!q.title.trim()||q.options?.some(o=>!o.label.trim())||new Set(q.options?.map(o=>o.label.trim().toLowerCase())).size!==q.options?.length)){setError("Give every question and answer a clear, distinct label before saving.");return;}
-    setBusy(true);setError("");
-    try{const res=await fetch("/api/forms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(preview.form)});const data=await res.json();if(!res.ok)throw Error(data.error || "Could not save.");try{sessionStorage.removeItem("pippi-marketing-brief");sessionStorage.removeItem("pippi-marketing-preview");}catch{}window.location.assign(`/editor/${data.id}`);}
+    setBusy(true);setError("");setAuthError(false);
+    try{const res=await fetch("/api/forms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(preview.form)});const data=await res.json();if(!res.ok){setAuthError(res.status===401);throw Error(data.error || "Could not save.");}try{sessionStorage.removeItem("pippi-marketing-brief");sessionStorage.removeItem("pippi-marketing-preview");}catch{}window.location.assign(`/editor/${data.id}`);}
     catch(e){setError(e instanceof Error?e.message:"Could not save.");setBusy(false);}
   }
   const copyFindings=preview?reviewQuizCopy(preview.form):[];
@@ -58,7 +63,7 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
     <p className="mt-4 text-slate-600 max-w-2xl leading-relaxed">Turn your expertise into a thoughtful sequence: their goal, what gets in the way, what matters in a solution, and a relevant next step. Review the wording, test the scoring, and make it yours before publishing.</p>
     {recovered&&preview&&<p role="status" className="mt-5 rounded-xl bg-green-50 p-4 text-sm text-green-900">Your unsaved draft was restored from this tab. Review it and save it to your account when ready.</p>}
     {storageWarning&&<p role="status" className="mt-5 rounded-xl bg-amber-50 p-4 text-sm">This browser could not back up your draft. Keep this tab open and save to your account before leaving.</p>}
-    {error&&<div role="alert" className="hq-error mt-6">{error}<p className="mt-2"><a href="/login?next=%2Fcreate%2Fmarketing" className="underline">Sign in again</a> · <Link href="/" className="underline">Use a quiz starter</Link></p></div>}
+    {error&&<div role="alert" className="hq-error mt-6">{error}<p className="mt-2">{authError&&<><a href="/login?next=%2Fcreate%2Fmarketing" className="underline">Sign in again</a> · </>}{!preview&&<button disabled={busy} onClick={starter} className="underline">Create starter from this brief</button>}</p></div>}
     {!preview?<div className="grid lg:grid-cols-[1fr_300px] gap-7 mt-8">
       <section className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8">
         <nav aria-label="Brief steps" className="flex flex-wrap gap-3 mb-8">{["Audience & offer","Results & fit","Voice & action"].map((label,i)=><button key={label} disabled={busy} aria-current={step===i?"step":undefined} onClick={()=>setStep(i)} className={`text-sm rounded-full px-4 py-2 ${step===i?"bg-red-50 text-red-800 font-semibold":"bg-slate-50 text-slate-600"}`}>{i+1}. {label}</button>)}</nav>
@@ -89,7 +94,7 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
         <div className="flex justify-between mt-8 gap-4"><button disabled={step===0||busy} className="hq-secondary disabled:opacity-40" onClick={()=>setStep(s=>s-1)}>Back</button>{step<2?<button className="hq-primary" onClick={()=>setStep(s=>s+1)}>Continue<ArrowRight size={16}/></button>:<button disabled={busy||!aiAvailable} className="hq-primary disabled:opacity-50" onClick={generate}><Sparkles size={16}/>{busy?"Creating your draft…":"Generate my quiz"}</button>}</div>
       </section>
       <aside className="rounded-2xl bg-[#f1ebe3] p-6 h-fit"><h2 className="font-semibold text-lg">Built around your business</h2><ul className="mt-5 space-y-4 text-sm text-slate-700">{["Questions that reveal real needs","Scoring connected to your results","A neutral answer when nothing fits","Useful advice before the offer","An editable draft, never auto-published"].map(t=><li key={t} className="flex gap-2"><Check size={17} className="shrink-0 text-red-800"/>{t}</li>)}</ul><p className="text-xs text-slate-500 mt-6">Your brief and unsaved preview stay in this browser tab while you work. Closing the tab may clear them. Generation sends it to our AI provider. Avoid confidential customer information.</p></aside>
-    </div>:<div className="mt-8"><div className="flex flex-wrap gap-3 mb-6"><button disabled={busy} className="hq-secondary" onClick={()=>{setPreview(null);setError("");}}>Edit brief</button><button disabled={busy} className="hq-primary" onClick={save}>{busy?"Saving…":"Save draft & open editor"}<ArrowRight size={16}/></button></div><div className="grid lg:grid-cols-2 gap-7">
+    </div>:<div className="mt-8"><div className="flex flex-wrap gap-3 mb-6"><button disabled={busy} className="hq-secondary" onClick={()=>{setPreview(null);setError("");setAuthError(false);}}>Edit brief</button><button disabled={busy} className="hq-primary" onClick={save}>{busy?"Saving…":"Save draft & open editor"}<ArrowRight size={16}/></button></div><div className="grid lg:grid-cols-2 gap-7">
       <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6"><h2 className="text-2xl font-semibold">{preview.form.title}</h2><p className="text-slate-600">{preview.form.description}</p><p className="text-sm text-red-800">Edit the wording below, then try different answers. Scoring stays connected to the same answer choices. Nothing is published.</p>
       <div className="rounded-xl bg-amber-50 border border-amber-200 p-4"><h3 className="font-semibold">Conversation review</h3><p className="text-sm mt-2">{copyFindings.length?`${copyFindings.length} wording suggestions to review below.`:"No common wording flags found. Still check that every question earns its place."} These are editorial hints, not a conversion prediction.</p><p className="text-sm mt-2">Try a clear fit, mixed answers, and all “not sure” answers. Confirm each result is useful and honest.</p></div>{preview.form.questions.map((q,i)=><fieldset key={q.id} className="border border-slate-200 rounded-xl p-5"><legend className="font-medium">{i+1}. {q.title}</legend><p className="text-sm text-slate-500 mb-4">{preview.rationale.find(r=>r.questionId===q.id)?.purpose}</p>
         <details className="mb-4 text-sm"><summary className="cursor-pointer font-medium text-red-800">Edit question and answers</summary><label className="block mt-3">Question {i+1} wording<textarea aria-label={`Question ${i+1} wording`} className="hq-input mt-1" maxLength={1000} value={q.title} onChange={e=>editQuestion(q.id,e.target.value)}/></label>{q.options?.map((o,oi)=><label key={o.id} className="block mt-3">Question {i+1}, answer {oi+1}<input aria-label={`Question ${i+1}, answer ${oi+1}`} className="hq-input mt-1" maxLength={300} value={o.label} onChange={e=>editAnswer(q.id,o.id,e.target.value)}/></label>)}</details>
