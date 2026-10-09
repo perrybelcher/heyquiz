@@ -117,8 +117,8 @@ export default function SalesPage() {
           </div>
           <div className="hero-visual">
             <Image
-              src="/images/quiz-bags.webp"
-              alt="Three fictional bags: a lavender sling, a blue work backpack, and a terracotta weekend tote"
+              src="/images/pippi-warm-products.webp"
+              alt="Three fictional bags: a burgundy sling, a cream work backpack, and a cognac weekend tote"
               fill
               sizes="(max-width: 800px) 100vw, 54vw"
               priority

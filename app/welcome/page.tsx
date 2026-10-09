@@ -11,7 +11,7 @@ export const metadata: Metadata = {
       "Help people find what fits. Product finders, scorecards, and quizzes with a more personal next step.",
     images: [
       {
-        url: "https://www.pippiapp.com/images/quiz-bags.webp",
+        url: "https://www.pippiapp.com/images/pippi-warm-products.webp",
         width: 1536,
         height: 1024,
       },
