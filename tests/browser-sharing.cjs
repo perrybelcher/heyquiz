@@ -5,7 +5,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.goto(base+'/editor/'+id);await page.getByRole('button',{name:'Share',exact:true}).click();
  await page.getByRole('button',{name:'Publish and enable sharing'}).waitFor();assert.equal(await page.getByRole('button',{name:'Copy Link',exact:true}).count(),0);
  const outsider=await browser.newContext();const publicPage=await outsider.newPage();await publicPage.goto(base+'/play/'+id);await publicPage.getByRole('heading',{name:'This quiz isn’t available yet'}).waitFor();
- await page.getByRole('button',{name:'Publish and enable sharing'}).click();await page.getByText('Published · Your public link is ready.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Publish and enable sharing'}).click();await page.getByRole('dialog').getByRole('button',{name:'Publish now',exact:true}).click();await page.getByText('Published · Your public link is ready.',{exact:false}).waitFor();
  await publicPage.reload();await publicPage.getByText('Sharing test',{exact:true}).waitFor();
  await page.reload();await page.getByRole('button',{name:'Share',exact:true}).click();await page.getByRole('button',{name:'Copy Link',exact:true}).waitFor();assert.equal(await page.locator('a[title="Open in new tab"]').getAttribute('href'),'/play/'+id);
  console.log('PASS draft sharing gated, unavailable guidance, publishing enables anonymous access, published status survives reload, public open link');await outsider.close();

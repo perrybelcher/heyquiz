@@ -117,6 +117,7 @@ import {
 import { SortableQuestionCard } from "./SortableQuestionCard";
 import MediaPickerModal from "./MediaPickerModal";
 import TextareaAutosize from "react-textarea-autosize";
+import PublishReadiness from "./PublishReadiness";
 import { useAutosave } from "@/hooks/useAutosave";
 import { FormSchema } from "@/lib/schema";
 import {
@@ -280,6 +281,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showLogicModal, setShowLogicModal] = useState(false);
   const [showJsonModal, setShowJsonModal] = useState(false);
+  const [showReadiness, setShowReadiness] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [jsonText, setJsonText] = useState(
     JSON.stringify(initialForm, null, 2),
@@ -945,12 +947,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     setTimeout(() => setShareCopied(false), 2000);
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (confirmed = false) => {
     if (publishing) return;
+    if (!confirmed) { setShowReadiness(true); return; }
     setActionError("");
-    if (!(await saveNow())) return;
     setPublishing(true);
     try {
+      if (!(await saveNow())) { setShowReadiness(false); return; }
       const res = await fetch(`/api/forms/${form.id}/publish`, {
         method: "POST",
       });
@@ -958,8 +961,10 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       if (!res.ok) throw new Error(data.error || "Publishing failed.");
       setLiveFingerprint(publicationFingerprint(form));
       setIsPublished(true);
+      setShowReadiness(false);
       setShowPublishModal(true);
     } catch (err) {
+      setShowReadiness(false);
       setActionError(err instanceof Error ? err.message : "Publishing failed.");
     } finally { setPublishing(false); }
   };
@@ -1561,7 +1566,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
           {/* Publish Button */}
           <button
-            onClick={handlePublish}
+            onClick={() => void handlePublish()}
             className="px-4 py-1.5 rounded-lg bg-[#18181b] hover:bg-black text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
@@ -4057,7 +4062,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   <h3 className="font-semibold text-gray-900">Publish your quiz to get a working share link</h3>
                   <p className="text-sm text-gray-700">Saved means your draft is stored in your account. It is not public yet. Publishing makes it available to visitors and enables embedding.</p>
                   <div className="flex flex-wrap gap-3">
-                    <button disabled={publishing} onClick={handlePublish} className="hq-primary disabled:opacity-50">{publishing ? "Publishing…" : "Publish and enable sharing"}</button>
+                    <button disabled={publishing} onClick={() => void handlePublish()} className="hq-primary disabled:opacity-50">{publishing ? "Publishing…" : "Publish and enable sharing"}</button>
                     <a href={`/play/${form.id}?preview=1`} target="_blank" rel="noopener noreferrer" className="hq-secondary">Preview privately</a>
                   </div>
                 </div>
@@ -4716,7 +4721,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
 
-      {/* FILLOUT PUBLISH MODAL */}
+      {showReadiness && <PublishReadiness form={form} busy={publishing} onClose={()=>setShowReadiness(false)} onConfirm={()=>void handlePublish(true)}/> }
+      {/* Publication confirmation */}
       {showPublishModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
