@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
+const {reviewQuizCopy}=require('../lib/quiz-copy-review.ts');
+const q={id:'q',title:'What would you most like to improve?',options:[{id:'a',label:'Finding a useful starting point'},{id:'b',label:'Not sure'}]};
+assert.deepEqual(reviewQuizCopy({questions:[q]}),[]);
+const bad={...q,title:"Don't you agree our guaranteed solution is best?",options:[{id:'a',label:'Yes'},{id:'b',label:'Stay broke'}]};
+const findings=reviewQuizCopy({questions:[bad,bad]});
+for(const word of ['repeats','claim','dignity','view','unsure'])assert.ok(findings.some(f=>f.message.includes(word)),word);
+assert.ok(reviewQuizCopy({questions:[{...q,options:[{id:'a',label:'Yes'},{id:'b',label:' yes '}]}]}).some(f=>f.message.includes('duplicate')));
+const before=JSON.stringify(bad);reviewQuizCopy({questions:[bad]});assert.equal(JSON.stringify(bad),before);
+console.log('PASS copy review detects actionable wording risks without mutating questions or scoring');
