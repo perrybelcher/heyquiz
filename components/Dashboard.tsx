@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { FormSchemaType } from "@/lib/schema";
+import { blankQuiz } from "@/lib/blank-quiz";
 import { marketingTemplate } from "@/lib/marketing-templates";
 import type { MarketingConfig } from "@/lib/marketing";
 export default function Dashboard({
@@ -53,38 +54,7 @@ export default function Dashboard({
             revision: 0,
             publishedAt: undefined,
           }
-        : {
-            id,
-            title: "Untitled quiz",
-            description: "A new conversation starts with a good question.",
-            mode: "quiz",
-            theme: {
-              primaryColor: "#4f46e5",
-              backgroundColor: "#f6f7fb",
-              layout: "step",
-            },
-            settings: {
-              showProgressBar: true,
-              showReviewBeforeSubmit: true,
-              showAnswerKeyOnFinish: true,
-              allowRetake: true,
-              passingScorePercentage: 70,
-            },
-            questions: [
-              {
-                id: `q-${nanoid(8)}`,
-                type: "multiple_choice",
-                title: "What would you like to ask?",
-                required: true,
-                points: 10,
-                options: [
-                  { id: "a", label: "First option", isCorrect: true },
-                  { id: "b", label: "Second option", isCorrect: false },
-                ],
-              },
-            ],
-            outcomeTiers: [],
-          };
+        : blankQuiz(id);
     try {
       const res = await fetch("/api/forms", {
         method: "POST",
