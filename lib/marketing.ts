@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resultVideoEmbed } from "./result-video";
 import type { FormSchemaType } from "./schema";
 import { resolvePath, type Answers } from "./engine";
 const id = z
@@ -31,9 +32,25 @@ export const ScorecardPresentationSchema = z.object({
   message: z.string().max(4000).default("Your results are based on the answers you shared."),
   bands: z.array(ScoreBandSchema).max(10).default([]),
 });
+// Structured content only: no arbitrary HTML or executable embeds in result pages.
+export const ResultSectionConditionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("outcome"), outcomeId: id }),
+  z.object({ type: z.literal("score"), categoryId: id.optional(), min: z.number().int().min(0).max(100), max: z.number().int().min(0).max(100) }),
+]);
+export const ResultSectionSchema = z.object({
+  condition: ResultSectionConditionSchema.optional(),
+  id,
+  type: z.enum(["text", "image", "testimonial", "faq", "cta", "video"]),
+  title: z.string().max(200).default(""),
+  body: z.string().max(4000).default(""),
+  url: webUrl.default(""),
+  label: z.string().max(200).default(""),
+});
+export type ResultSection = z.infer<typeof ResultSectionSchema>;
 export const MarketingSchema = z.object({
   kind: z.enum(["product_finder", "segmentation", "scorecard"]),
   scorecard: ScorecardPresentationSchema.optional(),
+  resultSections: z.array(ResultSectionSchema).max(12).optional(),
   fallbackTitle: z
     .string()
     .min(1)
@@ -88,6 +105,7 @@ export const MarketingSchema = z.object({
 });
 export type MarketingConfig = z.infer<typeof MarketingSchema>;
 export interface MarketingResult {
+  resultSections?: ResultSection[];
   kind: MarketingConfig["kind"];
   status: "matched" | "no_match" | "scored";
   title: string;
@@ -119,6 +137,22 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
   const unique = (ids: string[]) => new Set(ids).size === ids.length;
   if (!unique(targets.map((t) => t.id)) || !unique(m.rules.map((r) => r.id)))
     throw Error("Marketing IDs must be unique.");
+  if (!unique((m.resultSections ?? []).map(s => s.id))) throw Error("Result section IDs must be unique.");
+  if (publishing) for (const [index, section] of (m.resultSections ?? []).entries()) {
+    const name = `Result section ${index + 1}`;
+    if (["image", "cta", "video"].includes(section.type) && !section.url.trim()) throw Error(`${name}: add a URL.`);
+    if (section.type === "video" && !resultVideoEmbed(section.url)) throw Error(`${name}: use an HTTPS YouTube or Vimeo video link.`);
+    const condition = section.condition;
+    if (condition?.type === "outcome" && (m.kind === "scorecard" || !m.outcomes.some(o => o.id === condition.outcomeId))) throw Error(`${name}: choose an existing result.`);
+    if (condition?.type === "score") {
+      if (m.kind !== "scorecard") throw Error(`${name}: score conditions require a scorecard.`);
+      if (condition.min > condition.max) throw Error(`${name}: minimum score exceeds maximum.`);
+      if (condition.categoryId ? !m.categories.some(c => c.id === condition.categoryId) : !m.scorecard) throw Error(`${name}: choose an available score category or enable overall score results.`);
+    }
+    if (section.type === "cta" && !section.label.trim()) throw Error(`${name}: add a button label.`);
+    if (section.type === "faq" && !section.title.trim()) throw Error(`${name}: add a question.`);
+    if (["text", "faq", "testimonial"].includes(section.type) && !section.body.trim()) throw Error(`${name}: add content.`);
+  }
   if (publishing && (!targets.length || !m.rules.length))
     throw Error(
       "Add a result and at least one answer rule before publishing this marketing quiz.",
@@ -183,7 +217,21 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
       )
         throw Error(`Add a positive points rule for ${target.title}.`);
 }
-export function evaluateMarketing(
+// Resolve visibility on the server, and retain the selected content in saved results.
+// Insufficient coverage is never treated as a zero score.
+export function evaluateMarketing(form: FormSchemaType, answers: Answers): MarketingResult | undefined {
+  const result = evaluateMarketingCore(form, answers);
+  if (!result) return;
+  if (result.resultSections) result.resultSections = result.resultSections.filter(section => {
+    const condition = section.condition;
+    if (!condition) return true;
+    if (condition.type === "outcome") return result.status === "matched" && result.outcomeId === condition.outcomeId;
+    const score = condition.categoryId ? result.categories.find(c => c.id === condition.categoryId)?.score : result.overallScore;
+    return typeof score === "number" && score >= condition.min && score <= condition.max;
+  }).map(({ condition: _condition, ...section }) => section);
+  return result;
+}
+function evaluateMarketingCore(
   form: FormSchemaType,
   answers: Answers,
 ): MarketingResult | undefined {
@@ -199,6 +247,7 @@ export function evaluateMarketing(
       : answers[qid] === aid);
   const matches = m.rules.filter((r) => selected(r.questionId, r.answerId));
   const base: MarketingResult = {
+    resultSections: m.resultSections,
     kind: m.kind,
     status: "no_match",
     title: m.fallbackTitle,

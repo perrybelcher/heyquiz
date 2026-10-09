@@ -244,7 +244,7 @@ export function publicForm(form: FormSchemaType): FormSchemaType {
   return {
     ...form,
     marketing: form.marketing
-      ? { ...form.marketing, scorecard: undefined, rules: [], outcomes: [], categories: [] }
+      ? { ...form.marketing, scorecard: undefined, resultSections: undefined, rules: [], outcomes: [], categories: [] }
       : undefined,
     questions: form.questions.map((q) => {
       const {

@@ -1,3 +1,4 @@
+import ResultVideo from "./ResultVideo";
 import type { MarketingResult } from "@/lib/marketing";
 export default function MarketingResultCard({
   result, onOfferClick,
@@ -73,6 +74,20 @@ export default function MarketingResultCard({
           </p>
         </div>
       ))}
+      {result.resultSections?.map(section => {
+        const heading = section.title && <h2 className="text-xl font-semibold tracking-tight">{section.title}</h2>;
+        const body = <p className="text-slate-600 leading-relaxed whitespace-pre-line">{section.body}</p>;
+        const safeUrl = /^https?:\/\//i.test(section.url);
+        if (section.type === "faq") return <details key={section.id} className="rounded-2xl border border-slate-200 p-5"><summary className="font-semibold cursor-pointer">{section.title || "Learn more"}</summary><div className="mt-3">{body}</div></details>;
+        if (section.type === "testimonial") return <figure key={section.id} className="rounded-2xl bg-slate-50 border border-slate-200 p-6"><blockquote className="text-lg leading-relaxed whitespace-pre-line">{section.body}</blockquote>{section.title && <figcaption className="mt-4 text-sm font-semibold">{section.title}</figcaption>}</figure>;
+        return <section key={section.id} className="rounded-2xl border border-slate-200 p-6 space-y-4">
+          {heading}
+          {section.type === "video" && <ResultVideo url={section.url} title={section.label || section.title} />}
+          {section.type === "image" && safeUrl && <img src={section.url} alt={section.label} loading="lazy" className="w-full max-h-96 object-contain rounded-xl" />}
+          {section.body && body}
+          {section.type === "cta" && safeUrl && <a className="hq-primary" href={section.url} onClick={onOfferClick}>{section.label || "Learn more"} →</a>}
+        </section>;
+      })}
       {result.ctaUrl && /^https?:\/\//i.test(result.ctaUrl) && (
         <a className="hq-primary" href={result.ctaUrl} onClick={onOfferClick}>
           {result.ctaLabel || "Explore this option"} →
