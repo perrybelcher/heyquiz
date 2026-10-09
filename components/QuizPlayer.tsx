@@ -47,9 +47,13 @@ interface Session {
 export default function QuizPlayer({
   form,
   preview = false,
+  experimentToken,
+  experimentId,
 }: {
   form: FormSchemaType;
   preview?: boolean;
+  experimentToken?: string;
+  experimentId?: string;
 }) {
   const [capturing, setCapturing] = useState(false), [contactDone, setContactDone] = useState(false);
   const [loadedAt] = useState(() => Date.now());
@@ -81,7 +85,7 @@ export default function QuizPlayer({
       visible.findIndex((q) => q.id === currentId),
     ),
     q = visible[index],
-    storageKey = `heyquiz:${form.id}:${preview ? "preview" : "live"}`;
+    storageKey = `heyquiz:${form.id}:${experimentId || (preview ? "preview" : "live")}`;
   const savedSession = useSyncExternalStore(
     () => () => {},
     () => sessionStorage.getItem(storageKey),
@@ -185,7 +189,7 @@ export default function QuizPlayer({
       const res = await fetch(`/api/forms/${form.id}/start`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preview }),
+          body: JSON.stringify({ preview, experimentToken }),
         }),
         data = await res.json();
       if (!res.ok) throw new Error(data.error);

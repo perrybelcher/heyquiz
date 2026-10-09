@@ -1,3 +1,4 @@
+import { resolveExperiment } from "@/lib/experiments";
 import { rateLimit } from "@/lib/rate-limit";
 import { currentUser, apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { ownedForm } from "@/lib/storage";
@@ -17,14 +18,16 @@ export async function POST(
     const preview = body.preview === true,
       user = preview ? await currentUser() : null;
     const published = await readRecord<FormSchemaType>("published", id);
-    const form =
+    const experiment = body.experimentToken ? await resolveExperiment(body.experimentToken) : null;
+    if (experiment && (preview || experiment.form.id !== id)) throw new HttpError(400, "Invalid experiment session.");
+    const form = experiment?.form || (
       preview && user
         ? await ownedForm(id, user.id)
         : !preview
           ? published?.payload
-          : null;
+          : null);
     if (!form) throw new HttpError(404, "This quiz is not published.");
-    const owner = preview && user ? user.id : published!.owner_id;
+    const owner = experiment ? experiment.row.owner_id : preview && user ? user.id : published!.owner_id;
     const shuffled = {
       ...form,
       questions: form.questions.map((q) => ({
@@ -42,7 +45,7 @@ export async function POST(
         .map((q) => ({ q, r: Math.random() }))
         .sort((a, b) => a.r - b.r)
         .map((x) => x.q);
-    const { token, attempt } = await createAttempt(shuffled, owner, preview);
+    const { token, attempt } = await createAttempt(shuffled, owner, preview, experiment?.assignment);
     return Response.json({
       token,
       form: publicForm(shuffled),

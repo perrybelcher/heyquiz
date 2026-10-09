@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {experimentStats}=require('../lib/experiments.ts');
+const a=(visitor,variant=0,extra={})=>({startedAt:1,preview:false,experiment:{id:'x',visitor,variant},...extra});
+const result=experimentStats('x',[a('one'),a('one',0,{completed:true,result:{contact:{email:'test@example.com'}},offerClickedAt:4}),a('two',1),a('preview',0,{preview:true}),{startedAt:1},a('other',0,{experiment:{id:'y',visitor:'other',variant:0}})]);
+assert.deepEqual(result,[{visitors:1,completions:1,leads:1,clicks:1},{visitors:1,completions:0,leads:0,clicks:0}]);
+assert.equal(JSON.stringify(result).includes('@'),false);
+assert.equal(experimentStats('x',[])[0].visitors,0);
+assert.equal(experimentStats('x',[a('one'),a('one',1,{completed:true})])[1].visitors,0);
+console.log('PASS unique-visitor aggregation, conversion deduplication, arm isolation, preview/direct/foreign exclusion, empty data and no personal data');

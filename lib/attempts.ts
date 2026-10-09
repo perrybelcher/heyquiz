@@ -3,6 +3,7 @@ import { HttpError, signToken, verifyToken } from "./auth";
 import { readRecord, writeRecord } from "./records";
 import type { FormSchemaType, QuizSubmissionResult } from "./schema";
 export interface Attempt {
+  experiment?: import("./experiments").ExperimentAssignment;
   form: FormSchemaType;
   startedAt: number;
   expiresAt: number;
@@ -22,12 +23,14 @@ export async function createAttempt(
   form: FormSchemaType,
   owner: string,
   preview: boolean,
+  experiment?: import("./experiments").ExperimentAssignment,
 ) {
   const id = randomUUID(),
     now = Date.now();
   const expiresAt = now + 24 * 3600000;
   const attempt: Attempt = {
     form,
+    experiment,
     startedAt: now,
     expiresAt,
     preview,
