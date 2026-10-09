@@ -1,3 +1,4 @@
+import { aiProviderError } from "./ai-provider-error";
 import { z } from "zod";
 import { HttpError } from "./auth";
 import { MarketingBriefSchema, MarketingDraftSchema, compileMarketingDraft, marketingSystemPrompt } from "./marketing-brief";
@@ -16,7 +17,7 @@ export async function generateMarketingQuiz(input: unknown) {
       throw new HttpError(504, "The AI service took too long. Your brief is still here. Try again or create a starter without AI.");
     throw new HttpError(502, "We could not reach the AI service. Your brief is still here. Try again or create a starter without AI.");
   }
-  if (!res.ok) throw new HttpError(502, "The AI service could not create this draft. Your brief is safe; please try again.");
+  if (!res.ok) throw await aiProviderError(res);
   try {
     const data = await res.json();
     const raw = data.candidates?.[0]?.content?.parts?.map((p:{text?:string})=>p.text || "").join("");

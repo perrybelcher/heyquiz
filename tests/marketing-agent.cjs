@@ -13,7 +13,7 @@ const {generateMarketingQuiz}=require('../lib/marketing-agent.ts');
   global.fetch=async()=>new Response(JSON.stringify({candidates:[{content:{parts:[{text:'{"questions":[]}'}]}}]}),{status:200});
   await assert.rejects(()=>generateMarketingQuiz(brief),e=>e.status===502);
   global.fetch=async()=>new Response('',{status:429});
-  await assert.rejects(()=>generateMarketingQuiz(brief),e=>e.status===502);
+  await assert.rejects(()=>generateMarketingQuiz(brief),e=>e.status===503 && e.message.includes('usage limit'));
   global.fetch=async()=>{throw new DOMException('timed out','TimeoutError');};
   await assert.rejects(()=>generateMarketingQuiz(brief),e=>e.status===504 && e.message.includes('brief is still here'));
   global.fetch=async()=>{throw new TypeError('network disconnected');};

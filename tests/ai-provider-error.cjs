@@ -1,0 +1,4 @@
+const fs=require('fs'),ts=require('typescript'),assert=require('assert/strict');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {aiProviderError}=require('../lib/ai-provider-error.ts');
+(async()=>{for(const [status,message,pattern] of [[400,'API key not valid. secret-value',/key is invalid/],[403,'secret-value',/denied/],[429,'secret-value',/usage limit/],[404,'secret-value',/model is unavailable/],[400,'response schema secret-value',/quiz format/],[500,'secret-value',/could not create/]]){const e=await aiProviderError(Response.json({error:{message}},{status}));assert.match(e.message,pattern);assert.ok(!e.message.includes('secret-value'));}console.log('PASS six provider rejection categories; provider payloads stay private');})().catch(e=>{console.error(e);process.exitCode=1});
