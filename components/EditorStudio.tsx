@@ -127,6 +127,7 @@ import {
 } from "@/lib/engine";
 import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
+import AnswerScoring, { ScoringMode } from "./AnswerScoring";
 import ThemeEditor from "./ThemeEditor";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
@@ -1495,6 +1496,7 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
             <Paintbrush className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Theme</span>
           </button>
+          <ScoringMode form={form} onChange={setForm} />
           {/* Device Mockup Toggle */}
           <div className="hidden sm:flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
             <button
@@ -2079,7 +2081,8 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
                               idx={idx}
                               totalQuestions={displayedQuestions.length}
                               isSelected={isSelected}
-                              mode={form.mode}
+                              mode={form.marketing ? "survey" : form.mode}
+                              scoring={form.marketing ? <AnswerScoring q={q} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
                               hasLogic={hasLogic}
                               onSelect={() => setSelectedQuestionId(q.id)}
                               onMoveQuestion={moveQuestion}
@@ -2124,7 +2127,8 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
                                   idx={idx}
                                   totalQuestions={displayedQuestions.length}
                                   isSelected={isSelected}
-                                  mode={form.mode}
+                                  mode={form.marketing ? "survey" : form.mode}
+                              scoring={form.marketing ? <AnswerScoring q={q} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
                                   hasLogic={hasLogic}
                                   onSelect={() => setSelectedQuestionId(q.id)}
                                   onMoveQuestion={moveQuestion}
@@ -3045,14 +3049,14 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
                 )}
 
                 {/* Points Value */}
-                {form.mode === "quiz" &&
+                {form.mode === "quiz" && !form.marketing &&
                   selectedQuestion.type !== "heading" &&
                   selectedQuestion.type !== "subheading" &&
                   selectedQuestion.type !== "banner" &&
                   selectedQuestion.type !== "divider" && (
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                        Points Worth
+                        Points for a correct answer
                       </label>
                       <input
                         type="number"

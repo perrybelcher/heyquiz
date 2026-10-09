@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 
 export interface SortableQuestionCardProps {
+  scoring?: React.ReactNode;
   q: Question;
   idx: number;
   totalQuestions: number;
@@ -72,6 +73,7 @@ export interface SortableQuestionCardProps {
 
 export function SortableQuestionCard({
   q,
+  scoring,
   idx,
   totalQuestions,
   isSelected,
@@ -1191,6 +1193,8 @@ export function SortableQuestionCard({
           <div className="flex-1 border-t border-gray-200" />
         </div>
       )}
+
+      {scoring}
 
       {/* Post-Answer Educational Explanation Box */}
       {mode === "quiz" &&
