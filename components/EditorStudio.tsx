@@ -158,6 +158,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
   const {
     status: saveStatus,
     error: saveError,
+    authRequired,
     saveNow,
     recovery,
     dismissRecovery,
@@ -1299,9 +1300,23 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
       {(saveError || actionError) && (
         <div
           role="alert"
-          className="hq-error fixed bottom-5 left-1/2 -translate-x-1/2 z-[10000] max-w-xl shadow-lg"
+          className="hq-error fixed bottom-5 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-2rem)] max-w-xl shadow-lg"
         >
-          {saveError || actionError}
+          {authRequired ? (
+            <div>
+              <p className="font-semibold">Sign in to save your quiz</p>
+              <p className="mt-1 text-sm">
+                Keep this editor tab open so you don’t lose your edits. Sign in
+                with the account that owns this quiz, then return here and retry
+                saving. New to pippi? You can create an account in a new tab.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-4">
+                {/* A separate tab keeps the unsaved editor state intact during authentication. */}
+                <a href="/login" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Sign in ↗</a>
+                <a href="/signup" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Create account ↗</a>
+              </div>
+            </div>
+          ) : (saveError || actionError)}
           <button
             className="ml-4 underline"
             onClick={() => {

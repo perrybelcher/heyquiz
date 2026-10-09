@@ -15,6 +15,7 @@ export function useAutosave(form: FormSchemaType) {
       "saved" | "unsaved" | "saving" | "error"
     >("saved"),
     [error, setError] = useState(""),
+    [authRequired, setAuthRequired] = useState(false),
     [recoveryDismissed, setRecoveryDismissed] = useState(false),
     [savedFingerprint, setSavedFingerprint] = useState(fingerprint(form));
   const latest = useRef(form),
@@ -67,7 +68,11 @@ export function useAutosave(form: FormSchemaType) {
             body: JSON.stringify({ ...snapshot, revision: revision.current }),
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Save failed.");
+          if (!res.ok) {
+            setAuthRequired(res.status === 401);
+            throw new Error(data.error || "Save failed.");
+          }
+          setAuthRequired(false);
           revision.current = data.revision;
           saved.current = fingerprint(snapshot);
           setSavedFingerprint(saved.current);
@@ -115,6 +120,7 @@ export function useAutosave(form: FormSchemaType) {
         ? ("unsaved" as const)
         : status,
     error,
+    authRequired,
     saveNow,
     recovery,
     dismissRecovery: () => setRecoveryDismissed(true),
