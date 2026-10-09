@@ -6,6 +6,17 @@
 }
 
 @theme inline {
+  /* Shared action palette follows the supplied pippi wordmark. */
+  --color-indigo-50: #fdf2f1;
+  --color-indigo-100: #fbe2df;
+  --color-indigo-200: #f4c5bf;
+  --color-indigo-300: #eaa39a;
+  --color-indigo-400: #dd7166;
+  --color-indigo-500: #ce4035;
+  --color-indigo-600: #c62121;
+  --color-indigo-700: #a41b1b;
+  --color-indigo-800: #861d1d;
+  --color-indigo-900: #701e1e;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -49,7 +60,7 @@ summary {
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #818cf8;
+  outline: 3px solid #c62121;
   outline-offset: 3px;
 }
 body {

@@ -58,8 +58,8 @@
   min-width: 0;
 }
 .account-card input:focus {
-  outline: 3px solid #e6ecff;
-  border-color: #405fe9;
+  outline: 3px solid #fceae8;
+  border-color: #d85d51;
 }
 .account-password {
   position: relative;
@@ -89,7 +89,7 @@
   justify-content: center;
   gap: 12px;
   width: 100%;
-  background: #3c57df;
+  background: #c62121;
   border: 0;
   border-radius: 10px;
   color: #fff;
@@ -111,7 +111,7 @@
 }
 .account-footer a,
 .account-text {
-  color: #334cc9;
+  color: #ba4d42;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -148,7 +148,7 @@
   cursor: pointer;
 }
 .account-card :focus-visible {
-  outline: 3px solid #ccd6ff;
+  outline: 3px solid #fad5d1;
   outline-offset: 3px;
 }
 @media (max-width: 480px) {
