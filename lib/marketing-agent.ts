@@ -10,7 +10,7 @@ export async function generateMarketingQuiz(input: unknown) {
   let res: Response;
   try { res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_MODEL || "gemini-3.5-flash-lite")}:generateContent`, {
     method: "POST", headers: {"Content-Type":"application/json", "x-goog-api-key":process.env.GEMINI_API_KEY},
-    body: JSON.stringify({systemInstruction:{parts:[{text:marketingSystemPrompt}]},contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],generationConfig:{responseMimeType:"application/json",responseJsonSchema:schema,temperature:0.4}}),
+    body: JSON.stringify({systemInstruction:{parts:[{text:marketingSystemPrompt + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema)}]},contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],generationConfig:{responseMimeType:"application/json",temperature:0.4}}),
     signal: AbortSignal.timeout(60000),
   }); } catch (error) {
     if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
