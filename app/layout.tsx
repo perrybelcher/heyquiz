@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "pippi - Advanced Form & Quiz Builder",
-  description:
-    "Modern, bloat-free form and quiz builder with conditional logic and agent intelligence.",
-  icons: {
-    icon: "/pippi-logo.svg",
-  },
+  metadataBase: new URL("https://www.pippiapp.com"),
+  title: "Pippi Quiz Builder",
+  description: "Build interactive quizzes, product recommendations, and personalized scorecards with Pippi.",
+  icons: { icon: "/pippi-logo.svg" },
 };
 
 export default function RootLayout({

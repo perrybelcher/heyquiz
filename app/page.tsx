@@ -1,13 +1,11 @@
-import type { Metadata } from "next";
+import { publicMetadata, homeTitle, homeDescription, privateMetadata } from "@/lib/seo";
 import { getAllForms } from "@/lib/storage";
 import { currentUser } from "@/lib/auth";
 import SalesPage from "@/components/SalesPage";
 import Dashboard from "@/components/Dashboard";
-export const metadata: Metadata = {
-  title: "pippi — The right question changes everything",
-  description:
-    "Build product finders, audience segmentation quizzes, and personalized scorecards with useful conversion analytics.",
-};
+export async function generateMetadata() {
+  return await currentUser() ? { ...privateMetadata, title: "Your workspace | Pippi" } : publicMetadata(homeTitle, homeDescription, "/");
+}
 // Resolve the session per request; never cache one user’s workspace as public HTML.
 export const dynamic = "force-dynamic";
 export default async function HomePage() {

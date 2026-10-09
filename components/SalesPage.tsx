@@ -86,6 +86,7 @@ export default function SalesPage() {
           </a>
         </div>
       </header>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify({"@context":"https://schema.org","@type":"WebSite",name:"Pippi",url:"https://www.pippiapp.com/",description:"Free quiz builder for websites, lead generation, product recommendations, and personalized scorecards."}).replace(/</g,"\\u003c")}} />
       <main id="main">
         <section className="sales-hero sales-width">
           <div className="hero-copy">
@@ -94,13 +95,13 @@ export default function SalesPage() {
               PERSONAL CUSTOMER JOURNEY
             </p>
             <h1>
-              The right question <br />
-              changes <em>everything.</em>
+              Build interactive quizzes. <br />
+              Turn visitors into <em>leads.</em>
             </h1>
             <p className="hero-description">
-              Turn curiosity into a confident next step. Create product finders,
-              scorecards, and quizzes that help people see what’s right for
-              them—and why.
+              A free quiz builder for your website. Recommend the right products,
+              create personalized scorecards, and learn what your audience needs.
+              Start building without code.
             </p>
             <div className="hero-actions">
               <a className="sales-button" href="/create">
@@ -498,6 +499,9 @@ export default function SalesPage() {
           <p>Thoughtful questions. Meaningful next steps.</p>
         </div>
         <nav aria-label="Footer navigation">
+          <a href="/lead-generation-quiz-builder">Lead generation quizzes</a>
+          <a href="/product-recommendation-quiz-builder">Product recommendation quizzes</a>
+          <a href="/scorecard-builder">Scorecard builder</a>
           <a href="#demo">Try the sample</a>
           <a href="#questions">Questions & access</a>
           <a href="/login">Sign in</a>

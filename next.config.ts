@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "/*": ["./.heyquiz-data/**/*", "./.env*", "./tests/**/*", "./coverage/**/*"],
   },
+  async headers() {
+    return [{source:"/api/:path*",headers:[{key:"X-Robots-Tag",value:"noindex, nofollow"}]}];
+  },
   turbopack: {
     rules: {
       "*.css": {
