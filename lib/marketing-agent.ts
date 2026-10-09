@@ -20,7 +20,7 @@ export async function generateMarketingQuiz(input: unknown) {
         body: JSON.stringify({
           systemInstruction:{parts:[{text:marketingSystemPrompt + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema) + repair}]},
           contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],
-          generationConfig:{responseMimeType:"application/json",temperature:0.4},
+          generationConfig:{responseMimeType:"application/json",temperature:0.4,maxOutputTokens:16384},
         }),
         signal: AbortSignal.timeout(Math.max(1, Math.min(40000, deadline - Date.now()))),
       });
@@ -42,8 +42,11 @@ export async function generateMarketingQuiz(input: unknown) {
       if (error instanceof HttpError) throw error;
       // Log classifications only: no brief, model output, or provider body.
       const category = error instanceof SyntaxError ? "invalid_json" : "invalid_draft";
-      console.warn("AI draft rejected", {attempt:attempt + 1,category});
-      repair = "\nA previous attempt failed validation. Generate a fresh complete draft. Return valid JSON only, with all required fields. Recheck exact question/result counts, unique answers, neutral options with empty weights, and zero-based target indexes. Every result must have a clear answer path that selects it; avoid scoring every option equally across results. Scorecard questions must measure one category each with a zero and a positive score.";
+      const issues = error instanceof z.ZodError
+        ? error.issues.map(i=>({code:i.code,path:i.path})).slice(0,12)
+        : error instanceof Error && error.message.startsWith("The draft") ? error.message : category;
+      console.warn("AI draft rejected", {attempt:attempt + 1,category,issues});
+      repair = "\nValidation errors to correct: " + JSON.stringify(issues) + "\nA previous attempt failed validation. Generate a fresh complete draft. Return valid JSON only, with all required fields. Recheck exact question/result counts, unique answers, neutral options with empty weights, and zero-based target indexes. Every result must have a clear answer path that selects it; avoid scoring every option equally across results. Scorecard questions must measure one category each with a zero and a positive score.";
       if (attempt === 1 || Date.now() >= deadline)
         throw new HttpError(502, "The AI draft still did not pass our scoring and structure checks after one automatic retry. Nothing was saved. Your brief is still here. Try again or create a starter without AI.");
     }
