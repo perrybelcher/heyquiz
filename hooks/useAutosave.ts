@@ -10,7 +10,7 @@ import {
 import { FormSchema, type FormSchemaType } from "@/lib/schema";
 const fingerprint = (form: FormSchemaType) =>
   JSON.stringify({ ...form, revision: undefined, updatedAt: undefined });
-export function useAutosave(form: FormSchemaType) {
+export function useAutosave(form: FormSchemaType, guest = false) {
   const [status, setStatus] = useState<
       "saved" | "unsaved" | "saving" | "error"
     >("saved"),
@@ -45,12 +45,12 @@ export function useAutosave(form: FormSchemaType) {
   }, [stored, recoveryDismissed, savedFingerprint]);
   useEffect(() => {
     latest.current = form;
-    if (fingerprint(form) !== saved.current) {
+    if (guest || fingerprint(form) !== saved.current) {
       try {
         localStorage.setItem(key, JSON.stringify(form));
       } catch {}
     }
-  }, [form, key]);
+  }, [form, key, guest]);
   const saveNow = useCallback(async (): Promise<boolean> => {
     if (pending.current) {
       await pending.current;
@@ -58,6 +58,34 @@ export function useAutosave(form: FormSchemaType) {
     }
     const task = (async () => {
       setError("");
+      // Guest drafts stay on this device until an authenticated account claims them.
+      if (guest) {
+        setStatus("saving");
+        try {
+          const res = await fetch("/api/forms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...latest.current, revision: 0 }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setAuthRequired(res.status === 401);
+            throw new Error(data.error || "Could not save your quiz.");
+          }
+          saved.current = fingerprint(latest.current);
+          try {
+            localStorage.removeItem("pippi-guest-draft");
+            localStorage.removeItem(key);
+          } catch {}
+          window.location.assign(`/editor/${data.id}`);
+          // Navigation owns the next step; do not publish or navigate again.
+          return false;
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Could not save your quiz.");
+          setStatus("error");
+          return false;
+        }
+      }
       while (fingerprint(latest.current) !== saved.current) {
         const snapshot = latest.current;
         setStatus("saving");
@@ -98,12 +126,13 @@ export function useAutosave(form: FormSchemaType) {
     } finally {
       if (pending.current === task) pending.current = null;
     }
-  }, [key]);
+  }, [key, guest]);
   useEffect(() => {
+    if (guest) return;
     if (fingerprint(form) === saved.current) return;
     const timer = setTimeout(() => void saveNow(), 600);
     return () => clearTimeout(timer);
-  }, [form, saveNow]);
+  }, [form, saveNow, guest]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (fingerprint(latest.current) !== saved.current) {

@@ -46,7 +46,7 @@ const faqs = [
   ],
   [
     "How do I get access?",
-    "Create an account with your email and a password, confirm your email, and start building. You can also explore the interactive sample without an account.",
+    "Start creating a quiz without signing up. Create a free account and confirm your email when you’re ready to save and publish. All accounts are free. No charges or credit card required.",
   ],
 ];
 /**
@@ -103,16 +103,15 @@ export default function SalesPage() {
               them—and why.
             </p>
             <div className="hero-actions">
-              <a className="sales-button" href="#demo">
-                Experience a quiz <ArrowRight size={18} />
+              <a className="sales-button" href="/create">
+                Create your first quiz <ArrowRight size={18} />
               </a>
               <a className="sales-text-link" href="#product-tour">
                 Explore the platform <ArrowDown size={16} />
               </a>
             </div>
             <p className="hero-note">
-              <Check size={14} /> Interactive sample <Check size={14} /> No
-              signup needed
+              <Check size={14} /> Free accounts. No charges. <Check size={14} /> Start without signing up
             </p>
           </div>
           <div className="hero-visual">
@@ -478,14 +477,14 @@ export default function SalesPage() {
             Make the next step feel like their idea.
           </p>
           <div>
-            <a href="#demo" className="sales-button">
-              Try the interactive sample <ArrowRight size={18} />
+            <a href="/create" className="sales-button">
+              Create your first quiz <ArrowRight size={18} />
             </a>
             <a href="/signup" className="sales-text-link">
               Create your account <ArrowRight size={16} />
             </a>
           </div>
-          <small>Create your account and start building your first quiz.</small>
+          <small>Start building now. Create a free account to save. No credit card.</small>
         </section>
       </main>
       <footer className="sales-width sales-footer">

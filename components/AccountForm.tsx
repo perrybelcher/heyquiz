@@ -6,7 +6,7 @@ type Mode = "signup" | "recover" | "reset" | "resend";
 const copy = {
   signup: [
     "Create your pippi account",
-    "Your next great customer conversation starts here.",
+    "All accounts are free. No charges. No credit card required.",
     "Create account",
   ],
   recover: [

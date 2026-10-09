@@ -134,9 +134,10 @@ import IntegrationStudio from "./IntegrationStudio";
 
 interface EditorStudioProps {
   initialForm: FormSchemaType;
+  guest?: boolean;
 }
 
-export default function EditorStudio({ initialForm }: EditorStudioProps) {
+export default function EditorStudio({ initialForm, guest = false }: EditorStudioProps) {
   const [form, setForm] = useState<FormSchemaType>(initialForm);
   const [activeNavTab, setActiveNavTab] = useState<
     "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
@@ -162,7 +163,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
     saveNow,
     recovery,
     dismissRecovery,
-  } = useAutosave(form);
+  } = useAutosave(form, guest);
   const [mobilePanel, setMobilePanel] = useState<"fields" | "settings" | null>(
     null,
   );
@@ -1297,6 +1298,12 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
 
   return (
     <div className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
+      {guest && (
+        <div className="bg-red-50 text-red-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
+          <span>Build your quiz for free. Your draft stays in this browser. Create a free account to save and publish. No charges.</span>
+          <button className="font-semibold underline" onClick={() => void saveNow()}>Save my quiz</button>
+        </div>
+      )}
       {(saveError || actionError) && (
         <div
           role="alert"
@@ -1306,9 +1313,9 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
             <div>
               <p className="font-semibold">Sign in to save your quiz</p>
               <p className="mt-1 text-sm">
-                Keep this editor tab open so you don’t lose your edits. Sign in
-                with the account that owns this quiz, then return here and retry
-                saving. New to pippi? You can create an account in a new tab.
+                {guest
+                  ? "Create a free account or sign in in a new tab. After confirming your email and signing in, return here and retry saving. Your draft stays in this browser. All accounts are free—no charges or credit card."
+                  : "Keep this editor tab open so you don’t lose your edits. Sign in with the account that owns this quiz, then return here and retry saving. New to pippi? You can create an account in a new tab."}
               </p>
               <div className="mt-3 flex flex-wrap gap-4">
                 {/* A separate tab keeps the unsaved editor state intact during authentication. */}
@@ -1378,7 +1385,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
             {saveStatus === "saving" && (
               <span className="text-amber-500 animate-pulse">Saving...</span>
             )}
-            {saveStatus === "saved" && (
+            {saveStatus === "saved" && !guest && (
               <span className="text-emerald-600 flex items-center gap-1 font-medium">
                 <Check className="w-3 h-3 stroke-[3]" /> Saved
               </span>
@@ -1391,7 +1398,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                 className="text-rose-600 underline"
                 onClick={() => void saveNow()}
               >
-                Save failed · Retry
+                {guest ? "Sign in to save" : "Save failed · Retry"}
               </button>
             )}
           </span>
@@ -1426,7 +1433,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
             <Pencil size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Edit
           </button>
 
-          <button onClick={() => setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
+          <button onClick={() => guest ? void saveNow() : setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
           <button
             onClick={() => setActiveNavTab("marketing")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}
@@ -1434,7 +1441,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
             <Sparkles size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Marketing
           </button>
           <button
-            onClick={() => setActiveNavTab("integrate")}
+            onClick={() => guest ? void saveNow() : setActiveNavTab("integrate")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "integrate"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
@@ -1445,7 +1452,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
           </button>
 
           <button
-            onClick={() => setActiveNavTab("share")}
+            onClick={() => guest ? void saveNow() : setActiveNavTab("share")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "share"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
@@ -1456,7 +1463,7 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
           </button>
 
           <button
-            onClick={() => setActiveNavTab("results")}
+            onClick={() => guest ? void saveNow() : setActiveNavTab("results")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "results"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
@@ -1519,12 +1526,13 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
 
           {/* Preview Button */}
           <Link
-            href={`/play/${form.id}?preview=1`}
+            onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
+            href={guest ? "/create" : `/play/${form.id}?preview=1`}
             target="_blank"
             className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
           >
             <Play className="w-3 h-3 fill-gray-600 text-gray-600" />
-            <span>Preview</span>
+            <span>{guest ? "Save to preview" : "Preview"}</span>
           </Link>
 
           {/* Publish Button */}
@@ -3634,7 +3642,8 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                 </button>
 
                 <Link
-                  href={`/play/${form.id}?preview=1`}
+                  onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
+            href={guest ? "/create" : `/play/${form.id}?preview=1`}
                   target="_blank"
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                 >
@@ -3842,7 +3851,8 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                     </p>
                   </div>
                   <Link
-                    href={`/play/${form.id}?preview=1`}
+                    onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
+            href={guest ? "/create" : `/play/${form.id}?preview=1`}
                     target="_blank"
                     className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition shadow-xs"
                   >
@@ -4046,7 +4056,8 @@ export default function EditorStudio({ initialForm }: EditorStudioProps) {
                     <span>{shareCopied ? "Copied!" : "Copy Link"}</span>
                   </button>
                   <Link
-                    href={`/play/${form.id}?preview=1`}
+                    onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
+            href={guest ? "/create" : `/play/${form.id}?preview=1`}
                     target="_blank"
                     className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition"
                     title="Open in new tab"
