@@ -56,3 +56,11 @@ TEST_BASE_URL=http://127.0.0.1:3135 npm run test:browser-sales
 The browser test is restricted to `127.0.0.1` and requires local authentication mode. It checks six widths, all three tour modes, product matches, exclusion fallback, back/restart, keyboard focus, FAQs, guest/authenticated routing, logo/image loading, and absence of quiz-submission requests. Screenshots go to the adjacent `outputs/salespage` directory when run from this app directory. Chrome is required; some sandboxed environments need approval to launch it.
 
 For CSS reorganization, also compare computed styles at 320, 390, 768, 1024, 1440, and 2560 pixels. Disable motion when capturing visual baselines. A successful build alone does not establish that the appearance stayed unchanged.
+
+## Homepage copy and walkthrough (2026-10-09)
+
+The hero now leads with personal relevance, while the eyebrow retains the website quiz-builder category. Benefit copy covers product choice, lead context, scorecard advice and actionable analytics. Keep the existing pilot/illustrative-data disclosures and avoid invented conversion claims.
+
+`components/HomepageWalkthrough.tsx` sits immediately after the integrations bar. Until a recording exists it shows an explicitly labeled coming-soon illustration and a working link to the interactive product tour, not a fake play control. To publish the video, set `src` (MP4), `poster`, and `captions` (English WebVTT) in `lib/homepage-video.ts`. The native player uses controls, playsInline and preload=none; it does not autoplay. Verify playback, captions and mobile behavior when real assets are supplied.
+
+Validated with the production build, scoped lint, Playwright SEO checks, six-width sales-page regression, and desktop/mobile walkthrough inspection. The recording itself is not part of this change.

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import ProviderIcon from "./ProviderIcon";
 import SalesDemo from "./SalesDemo";
+import HomepageWalkthrough from "./HomepageWalkthrough";
 import JourneyShowcase from "./JourneyShowcase";
 import "./SalesPage.css";
 // Keep availability claims aligned with the shipped product. Connector logos
@@ -91,28 +92,27 @@ export default function SalesPage() {
         <section className="sales-hero sales-width">
           <div className="hero-copy">
             <p className="sales-eyebrow">
-              <span className="status-dot" /> THE QUIZ PLATFORM FOR A MORE
-              PERSONAL CUSTOMER JOURNEY
+              <span className="status-dot" /> FREE INTERACTIVE QUIZ BUILDER FOR YOUR WEBSITE
             </p>
             <h1>
-              Build interactive quizzes. <br />
-              Turn visitors into <em>leads.</em>
+              Ask better questions. <br />
+              Make your next offer <em>personal.</em>
             </h1>
             <p className="hero-description">
-              A free quiz builder for your website. Recommend the right products,
-              create personalized scorecards, and learn what your audience needs.
-              Start building without code.
+              Turn “just browsing” into a useful conversation. Create interactive quizzes
+              that uncover what visitors need, recommend what fits, and give them
+              a clear reason to take the next step.
             </p>
             <div className="hero-actions">
               <a className="sales-button" href="/create">
                 Create your first quiz <ArrowRight size={18} />
               </a>
-              <a className="sales-text-link" href="#product-tour">
-                Explore the platform <ArrowDown size={16} />
+              <a className="sales-text-link" href="#walkthrough">
+                See how Pippi works <ArrowDown size={16} />
               </a>
             </div>
             <p className="hero-note">
-              <Check size={14} /> Free accounts. No charges. <Check size={14} /> Start without signing up
+              <Check size={14} /> Free to build. Free to publish. <Check size={14} /> Start without signing up
             </p>
           </div>
           <div className="hero-visual">
@@ -173,22 +173,25 @@ export default function SalesPage() {
             customers or endorsements.
           </p>
         </section>
+        <HomepageWalkthrough />
         <JourneyShowcase />
         <section className="sales-width demo-section">
           <div className="demo-explainer">
             <p className="sales-eyebrow">LESS PITCH. MORE “THAT’S ME.”</p>
             <h2>
-              Let them feel
+              Give them the feeling:
               <br />
-              <em>understood.</em>
+              <em>“This is for me.”</em>
             </h2>
             <p>
-              A good question does two jobs: it helps you learn about your
-              customer, and helps your customer see what matters.
+              Every visitor arrives with a different goal, hesitation, or problem.
+              A thoughtful quiz gives them room to tell you—and gives your
+              recommendation a reason to matter.
             </p>
             <p>
-              Try this three-question product finder. Your answers shape the
-              recommendation—including when none of the products is a good fit.
+              Try the product finder beside this. Change your answers and watch
+              the recommendation change. If nothing fits, it says so.
+              That’s how you make the advice worth trusting.
             </p>
             <div className="demo-caption">
               <MousePointer2 size={20} />
@@ -209,14 +212,14 @@ export default function SalesPage() {
                   ONE BUILDER. DIFFERENT DESTINATIONS.
                 </p>
                 <h2>
-                  What happens after
+                  Give every answer
                   <br />
-                  the last question?
+                  somewhere useful to go.
                 </h2>
               </div>
               <p>
-                The result is where curiosity becomes a decision. Make it worth
-                getting there.
+                Help a shopper choose. Help a prospect see their priorities.
+                Help your next customer understand why your offer fits.
               </p>
             </div>
             <div className="use-case-grid">
@@ -234,8 +237,8 @@ export default function SalesPage() {
                 <span className="case-number">01 / PRODUCT FINDERS</span>
                 <h3>Make choosing feel easy.</h3>
                 <p>
-                  Match answers to the right product or offer. Explain why it
-                  fits, rule out mismatches, and link to the next step.
+                  Help shoppers narrow the options. Match their needs to a product,
+                  explain the fit, and send them straight to the relevant offer.
                 </p>
                 <a href="#demo">
                   Try the product finder <ChevronRight size={16} />
@@ -259,8 +262,8 @@ export default function SalesPage() {
                 <span className="case-number">02 / SEGMENTATION</span>
                 <h3>Meet them where they are.</h3>
                 <p>
-                  Help visitors recognize their priorities. Send different
-                  audiences to different advice, offers, or calls to action.
+                  Learn what each lead wants before the next conversation. Give
+                  beginners, explorers, and ready-to-act prospects a relevant path.
                 </p>
                 <a href="#how-it-works">
                   Explore the approach <ChevronRight size={16} />
@@ -286,8 +289,8 @@ export default function SalesPage() {
                 <span className="case-number">03 / SCORECARDS</span>
                 <h3>Turn insight into momentum.</h3>
                 <p>
-                  Score the areas that matter. Show people where they stand and
-                  give them useful guidance to move forward.
+                  Show people what’s working, what needs attention, and where to
+                  start. Make your expertise useful before you ask for the sale.
                 </p>
                 <a href="#how-it-works">
                   See how it works <ChevronRight size={16} />
@@ -301,9 +304,9 @@ export default function SalesPage() {
             <div>
               <p className="sales-eyebrow">FROM FIRST QUESTION TO NEXT STEP</p>
               <h2>
-                Thoughtful on the outside.
+                Your expertise. Your offer.
                 <br />
-                <em>Flexible underneath.</em>
+                <em>Your quiz—without the code.</em>
               </h2>
             </div>
             <a href="/signup" className="sales-text-link">
@@ -358,14 +361,14 @@ export default function SalesPage() {
             <div>
               <p className="sales-eyebrow">KNOW WHAT TO IMPROVE NEXT</p>
               <h2>
-                See the story
+                Know where they lean in.
                 <br />
-                behind <em>the submit.</em>
+                See where <em>you lose them.</em>
               </h2>
               <p>
-                A total lead count only tells part of the story. See who starts,
-                who finishes, which results they reach, and whether they click
-                the next step.
+                See the journey from the first answer to the offer click. Find
+                the questions worth improving, the results people reach, and
+                the next steps they choose—so your next edit has a purpose.
               </p>
               <ul>
                 <li>
@@ -446,9 +449,9 @@ export default function SalesPage() {
           <div>
             <p className="sales-eyebrow">A FEW GOOD QUESTIONS</p>
             <h2>
-              Curious?
+              A few answers
               <br />
-              <em>Good.</em>
+              <em>before you start.</em>
             </h2>
           </div>
           <div>
@@ -466,16 +469,14 @@ export default function SalesPage() {
         <section className="sales-width final-cta">
           <p className="sales-eyebrow">A BETTER CONVERSATION STARTS HERE</p>
           <h2>
-            Your next customer
+            You know how you can help.
             <br />
-            has a question.
-            <br />
-            <em>Start with theirs.</em>
+            <em>Help them see it, too.</em>
           </h2>
           <p>
-            Give them a little clarity. Give your offer a little context.
+            Build a quiz that turns your expertise into a useful first conversation.
             <br />
-            Make the next step feel like their idea.
+            Your visitors get clarity. You get a better starting point.
           </p>
           <div>
             <a href="/create" className="sales-button">

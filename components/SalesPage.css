@@ -1858,3 +1858,31 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
 .hq-sales-page .outcome-eyebrow,
 .hq-sales-page .journey-outcome > p,
 .hq-sales-page .journey-window-footer { color: #69514e; }
+
+/* Homepage walkthrough: reserve a stable video ratio without loading a third-party player. */
+.hq-sales-page .walkthrough-section { padding-block: 80px; display: grid; grid-template-columns: .85fr 1.15fr; gap: 56px; align-items: center; }
+.hq-sales-page .walkthrough-copy h2 { margin: 18px 0 22px; font-size: clamp(28px, 3vw, 42px); line-height: 1.18; }
+.hq-sales-page .walkthrough-copy > p:not(.sales-eyebrow) { color: var(--muted); line-height: 1.75; font-size: 16px; }
+.hq-sales-page .walkthrough-chapters { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 20px; }
+.hq-sales-page .walkthrough-chapters li { display: flex; gap: 14px; align-items: flex-start; }
+.hq-sales-page .walkthrough-chapters li > span { font-size: 12px; color: var(--accent); padding-top: 4px; }
+.hq-sales-page .walkthrough-chapters strong { font-size: 15px; }
+.hq-sales-page .walkthrough-chapters p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-top: 5px; }
+.hq-sales-page .walkthrough-stage { min-width: 0; background: #f2e9e5; border: 1px solid #e3d5d0; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 55px #43201c0a; }
+.hq-sales-page .walkthrough-stage video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #201b1a; }
+.hq-sales-page .walkthrough-placeholder { padding: 25px; text-align: center; }
+.hq-sales-page .walkthrough-topline { display:flex; justify-content:space-between; gap:12px; align-items:center; font-size:10px; letter-spacing:.08em; }
+.hq-sales-page .walkthrough-topline > span:first-child { display:flex; align-items:center; gap:8px; }
+.hq-sales-page .walkthrough-topline > span:last-child { background:#fff9; padding:6px 10px; border-radius:20px; letter-spacing:0; }
+.hq-sales-page .walkthrough-preview { display:flex; align-items:center; justify-content:center; gap:14px; padding:35px 0 25px; text-align:left; }
+.hq-sales-page .walkthrough-preview-card, .hq-sales-page .walkthrough-preview-result { display:grid; gap:12px; padding:20px; border-radius:16px; flex:1; min-width:0; }
+.hq-sales-page .walkthrough-preview-card { background:white; box-shadow:0 6px 20px #43201c09; }
+.hq-sales-page .walkthrough-preview-result { background:#772725; color:#fff; }
+.hq-sales-page .walkthrough-preview small { font-size:9px; letter-spacing:.1em; }
+.hq-sales-page .walkthrough-preview strong { font-size:17px; line-height:1.35; }
+.hq-sales-page .walkthrough-preview span { display:flex; align-items:center; gap:6px; font-size:11px; line-height:1.5; padding:8px; border:1px solid #c9ada84a; border-radius:6px; }
+.hq-sales-page .walkthrough-preview-arrow { flex-shrink:0; color:var(--accent); }
+.hq-sales-page .walkthrough-placeholder > p { color:#665450; font-size:14px; line-height:1.7; margin-bottom:18px; }
+.hq-sales-page .walkthrough-placeholder .sales-button { font-size:13px; padding:14px 20px; }
+@media(max-width:1000px) { .hq-sales-page .walkthrough-section {grid-template-columns:1fr;gap:30px;} }
+@media(max-width:600px) { .hq-sales-page .walkthrough-section {padding-block:48px;} .hq-sales-page .walkthrough-placeholder {padding:18px 12px;} .hq-sales-page .walkthrough-preview {gap:8px;} .hq-sales-page .walkthrough-preview-card,.hq-sales-page .walkthrough-preview-result {padding:12px;gap:10px;} .hq-sales-page .walkthrough-preview strong {font-size:14px;} .hq-sales-page .walkthrough-preview-arrow {width:18px;} .hq-sales-page .walkthrough-topline {font-size:8px;} }
