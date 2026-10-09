@@ -45,18 +45,32 @@ export default function AuthCallback() {
           height="50"
         />
         <h1>
-          {error ? "Let’s get you a fresh link" : "Confirming your email…"}
+          {error ? "Let’s get you back to pippi" : "Confirming your email…"}
         </h1>
         {error ? (
           <>
             <p className="account-error" role="alert">
               {error}
             </p>
+            {/* Verification can succeed before the browser-bound session exchange.
+                Do not claim confirmation failed, or promise it succeeded. */}
+            <p className="account-intro">
+              Your email may already be confirmed, especially if you opened the
+              link in another browser. Try signing in with your email and password
+              to finish.
+            </p>
+            <a className="account-submit" href="/login">
+              Sign in to finish
+            </a>
+            <p className="account-footer">
+              If sign-in says your email still needs confirmation, request a new
+              confirmation link. If you were resetting your password, request a
+              new reset link and open it in the same browser.
+            </p>
             <p className="account-footer">
               <a href="/resend-confirmation">Resend confirmation</a> ·{" "}
               <a href="/forgot-password">Reset password</a>
             </p>
-            <a href="/login">Return to sign in</a>
           </>
         ) : (
           <p role="status" className="account-intro">

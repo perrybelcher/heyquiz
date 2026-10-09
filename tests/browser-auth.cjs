@@ -77,6 +77,15 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base))
     await page.getByRole("alert").filter({ hasText: "same browser" }).waitFor();
     assert.equal(new URL(page.url()).search, "");
     count++;
+    await page.getByRole("link", { name: "Sign in to finish", exact: true }).click();
+    await page.getByRole("heading", { name: "Welcome to your workspace" }).waitFor();
+    count++;
+    await page.goto(base + "/auth/callback#error=access_denied&error_code=otp_expired");
+    await page.getByText("Your email may already be confirmed", { exact: false }).waitFor();
+    assert.equal(new URL(page.url()).hash, "");
+    await page.getByRole("link", { name: "Resend confirmation", exact: true }).click();
+    await page.getByRole("heading", { name: "Confirm your email", exact: true }).waitFor();
+    count++;
     await page.goto(base + "/signup");
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({
