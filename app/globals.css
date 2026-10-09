@@ -140,3 +140,14 @@ body {
 
 /* Preserve the supplied logo pixels while blending its white canvas into light surfaces. */
 img[src="/pippi-logo.svg"] { mix-blend-mode: multiply; object-fit: contain; }
+
+/* Preserve readable button labels for custom light or dark brand colors. */
+.hq-player .hq-primary { color: var(--hq-button-text, #ffffff); }
+
+/* Neutral surfaces and copy follow the quiz palette, including dark palettes. */
+.hq-player .text-slate-900 { color: var(--hq-text); }
+.hq-player .text-slate-500,
+.hq-player .text-slate-600 { color: color-mix(in srgb, var(--hq-text) 75%, var(--hq-card)); }
+.hq-player .bg-slate-50 { background-color: color-mix(in srgb, var(--hq-card) 94%, var(--hq-text)); }
+.hq-player .bg-indigo-50 { background-color: color-mix(in srgb, var(--hq-card) 90%, var(--hq-primary)); }
+.hq-player .hq-input { background-color: var(--hq-card); color: var(--hq-text); }

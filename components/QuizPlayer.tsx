@@ -30,6 +30,7 @@ import {
   formatAnswer,
   type Answers,
 } from "@/lib/engine";
+import { quizThemeStyle } from "@/lib/theme-style";
 import QuestionField from "./QuestionField";
 import MarketingResultCard from "./MarketingResultCard";
 import LeadCapture from "./LeadCapture";
@@ -270,21 +271,7 @@ export default function QuizPlayer({
     setError("");
     sessionStorage.removeItem(storageKey);
   }
-  const theme: CSSProperties & Record<string, string> = {
-    "--hq-primary": active.theme.primaryColor || "#4f46e5",
-    "--hq-card": active.theme.cardColor || "#ffffff",
-    "--hq-radius": { none: "0px", md: "12px", lg: "24px", full: "32px" }[
-      active.theme.borderRadius || "lg"
-    ],
-    fontFamily:
-      active.theme.font === "serif"
-        ? "Georgia, serif"
-        : active.theme.font === "mono"
-          ? "ui-monospace, monospace"
-          : "Arial, Helvetica, sans-serif",
-    backgroundColor: active.theme.backgroundColor || "#f6f7fb",
-    color: active.theme.textColor || "#172033",
-  };
+  const theme = quizThemeStyle(active.theme);
   return (
     <div className="hq-player min-h-screen flex flex-col" style={theme}>
       <header className="h-20 border-b border-slate-200/70 bg-white/85 flex items-center justify-between px-5 sm:px-10">

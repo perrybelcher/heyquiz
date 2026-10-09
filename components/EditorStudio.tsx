@@ -127,6 +127,7 @@ import {
 } from "@/lib/engine";
 import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
+import ThemeEditor from "./ThemeEditor";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
 import MarketingResultCard from "./MarketingResultCard";
@@ -4358,81 +4359,9 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
         </div>
       )}
 
-      {/* THEME MODAL */}
       {showThemeModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-gray-900">
-                Form Theme Presets
-              </h3>
-              <button
-                onClick={() => setShowThemeModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {[
-                {
-                  id: "fillout-light",
-                  name: "Fillout Classic Light",
-                  bg: "#f4f5f7",
-                  card: "#ffffff",
-                  primary: "#4f46e5",
-                },
-                {
-                  id: "emerald",
-                  name: "Emerald Pro",
-                  bg: "#f0fdf4",
-                  card: "#ffffff",
-                  primary: "#059669",
-                },
-                {
-                  id: "minimal",
-                  name: "Minimalist Slate",
-                  bg: "#f8fafc",
-                  card: "#ffffff",
-                  primary: "#0f172a",
-                },
-              ].map((themePreset) => (
-                <button
-                  key={themePreset.id}
-                  onClick={() => {
-                    setForm({
-                      ...form,
-                      theme: {
-                        ...form.theme,
-                        id: themePreset.id,
-                        backgroundColor: themePreset.bg,
-                        cardColor: themePreset.card,
-                        primaryColor: themePreset.primary,
-                      },
-                    });
-                    setShowThemeModal(false);
-                  }}
-                  className="w-full p-3 rounded-xl border border-gray-200 hover:border-indigo-500 text-left flex items-center justify-between transition"
-                >
-                  <span className="text-xs font-semibold text-gray-800">
-                    {themePreset.name}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-4 h-4 rounded-full border border-gray-200"
-                      style={{ backgroundColor: themePreset.primary }}
-                    />
-                    <span
-                      className="w-4 h-4 rounded-full border border-gray-200"
-                      style={{ backgroundColor: themePreset.bg }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ThemeEditor theme={form.theme} onClose={() => setShowThemeModal(false)}
+          onApply={(theme) => { setForm(current => ({ ...current, theme })); setShowThemeModal(false); }} />
       )}
 
       {/* LOGIC & BRANCHING MODAL */}
