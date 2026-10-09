@@ -168,6 +168,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     status: saveStatus,
     error: saveError,
     authRequired,
+    storageWarning,
     saveNow,
     recovery,
     dismissRecovery,
@@ -1316,6 +1317,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           <button className="font-semibold underline" onClick={() => void saveNow()}>Save my quiz</button>
         </div>
       )}
+      {storageWarning && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved.</p>}
       {(saveError || actionError) && (
         <div
           role="alert"

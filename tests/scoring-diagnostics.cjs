@@ -1,0 +1,13 @@
+require('./marketing-brief.cjs');
+const assert=require('node:assert/strict');
+const {scoringDiagnostics}=require('../lib/scoring-diagnostics.ts');
+const {brief,fixture}=require('./marketing-brief.cjs');
+const {compileMarketingDraft}=require('../lib/marketing-brief.ts');
+const f=compileMarketingDraft({...brief,kind:'segmentation'},fixture).form;
+let d=scoringDiagnostics(f);assert.equal(d.checkedPaths,27);assert.ok(d.exhaustive);assert.ok(!d.warnings.some(w=>w.includes('unreachable')));
+const tied=structuredClone(f);tied.marketing.rules=tied.marketing.rules.filter(r=>r.targetId==='target-0');tied.marketing.rules.push(...tied.marketing.rules.map(r=>({...r,id:r.id+'b',targetId:'target-1'})));
+d=scoringDiagnostics(tied);assert.ok(d.warnings.some(w=>w.includes('unreachable')));assert.ok(d.warnings.some(w=>w.includes('tie for first')));
+const conflict=structuredClone(f);conflict.marketing.rules.push({...conflict.marketing.rules[0],id:'exclude',effect:'exclude'});assert.ok(scoringDiagnostics(conflict).warnings.some(w=>w.includes('Exclusion wins')));
+const huge=structuredClone(f);huge.questions=Array.from({length:12},(_,i)=>({...f.questions[0],id:'q'+i}));assert.equal(scoringDiagnostics(huge).exhaustive,false);
+const multi=structuredClone(f);multi.questions[0].type='multiselect';assert.equal(scoringDiagnostics(multi).exhaustive,false);
+console.log('PASS exhaustive reachability, ties, exclusions, neutral answers and bounded/unsupported coverage');

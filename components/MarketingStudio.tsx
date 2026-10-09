@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ShoppingBag, Users, ChartColumn, Plus, Trash2, RotateCcw, ArrowRight } from "lucide-react";
 import { nanoid } from "nanoid";
 import type { FormSchemaType } from "@/lib/schema";
@@ -9,6 +9,7 @@ import {
   type MarketingConfig,
   validateMarketing,
 } from "@/lib/marketing";
+import { scoringDiagnostics } from "@/lib/scoring-diagnostics";
 import MarketingResultCard from "./MarketingResultCard";
 import ScorecardResultsEditor from "./ScorecardResultsEditor";
 import { multiTypes, type Answers } from "@/lib/engine";
@@ -56,6 +57,7 @@ export default function MarketingStudio({
 }) {
   const [testAnswers, setTestAnswers] = useState<Answers>({});
   const m = form.marketing;
+  const diagnostics = useMemo(()=>scoringDiagnostics(form),[form]);
   const choices = form.questions.filter((q) => q.options?.length);
   const change = (patch: Partial<MarketingConfig>) =>
     m && onChange({ ...form, marketing: { ...m, ...patch } });
@@ -150,6 +152,11 @@ export default function MarketingStudio({
                 <RotateCcw size={14} aria-hidden="true" className="inline-block mr-2" />Use standard results
               </button>
             </div>
+            <section aria-label="Scoring diagnostics" className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-5">
+              <h2 className="font-semibold">Scoring diagnostics</h2>
+              <p className="text-sm mt-2">{diagnostics.exhaustive ? `Checked all ${diagnostics.checkedPaths} answer paths.` : "Rule checks only. Use the simulator to verify branching, multi-select and scorecard journeys; exhaustive checking is limited to 4,096 simple answer paths."}</p>
+              {diagnostics.warnings.length ? <ul className="list-disc pl-5 text-sm mt-2 space-y-1">{diagnostics.warnings.map(w=><li key={w}>{w}</li>)}</ul> : <p className="text-sm mt-2">No issues found by these checks. Review the result copy before publishing.</p>}
+            </section>
             {issue && (
               <p
                 role="status"

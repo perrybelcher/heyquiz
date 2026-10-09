@@ -14,6 +14,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
   const [status, setStatus] = useState<
       "saved" | "unsaved" | "saving" | "error"
     >("saved"),
+    [storageWarning, setStorageWarning] = useState(false),
     [error, setError] = useState(""),
     [authRequired, setAuthRequired] = useState(false),
     [recoveryDismissed, setRecoveryDismissed] = useState(false),
@@ -25,8 +26,10 @@ export function useAutosave(form: FormSchemaType, guest = false) {
   const key = `heyquiz-draft:${form.id}`;
   const draftSnapshot = useRef<string | null | undefined>(undefined);
   const initialDraftSnapshot = useCallback(() => {
-    if (draftSnapshot.current === undefined)
-      draftSnapshot.current = localStorage.getItem(key);
+    if (draftSnapshot.current === undefined) {
+      try { draftSnapshot.current = sessionStorage.getItem(key); } catch { draftSnapshot.current = null; }
+      if (!draftSnapshot.current) try { draftSnapshot.current = localStorage.getItem(key); } catch {}
+    }
     return draftSnapshot.current;
   }, [key]);
   const stored = useSyncExternalStore(
@@ -47,8 +50,12 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     latest.current = form;
     if (guest || fingerprint(form) !== saved.current) {
       try {
+        // A tab-local copy prevents another editor tab from overwriting recovery.
+        sessionStorage.setItem(key, JSON.stringify(form));
         localStorage.setItem(key, JSON.stringify(form));
-      } catch {}
+      // Surface failure to synchronize the browser backup.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      } catch { setStorageWarning(true); }
     }
   }, [form, key, guest]);
   const saveNow = useCallback(async (): Promise<boolean> => {
@@ -108,7 +115,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           setError(
             e instanceof Error
               ? e.message
-              : "Save failed. Your changes are saved on this device.",
+              : "Save failed. Keep this tab open and retry to protect your changes.",
           );
           setStatus("error");
           return false;
@@ -116,7 +123,11 @@ export function useAutosave(form: FormSchemaType, guest = false) {
       }
       setStatus("saved");
       try {
-        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+        // Do not erase a different tab's newer unsaved draft.
+        const backup = localStorage.getItem(key);
+        if (backup && fingerprint(FormSchema.parse(JSON.parse(backup))) === saved.current)
+          localStorage.removeItem(key);
       } catch {}
       return true;
     })();
@@ -150,6 +161,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
         : status,
     error,
     authRequired,
+    storageWarning,
     saveNow,
     recovery,
     dismissRecovery: () => setRecoveryDismissed(true),
