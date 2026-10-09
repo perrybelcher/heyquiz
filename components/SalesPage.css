@@ -69,7 +69,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
   gap: 24px;
 }
 .hq-sales-page .sales-logo {
-  width: 100px;
+  width: 150px;
   height: auto;
 }
 .hq-sales-page .sales-nav nav {
@@ -850,7 +850,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
   gap: 32px;
 }
 .hq-sales-page .sales-footer img {
-  width: 120px;
+  width: 180px;
   height: auto;
 }
 .hq-sales-page .sales-footer p {
@@ -1055,7 +1055,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
     gap: 16px;
   }
   .hq-sales-page .sales-logo {
-    width: 90px;
+    width: 135px;
   }
   .hq-sales-page .nav-login {
     font-size: 12px;
@@ -1737,7 +1737,7 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
     padding: 10px 12px;
   }
   .hq-sales-page .sales-logo {
-    width: 84px;
+    width: 126px;
   }
   .hq-sales-page h1 {
     font-size: 45px;
@@ -1795,3 +1795,4 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
     transform: none;
   }
 }
+
