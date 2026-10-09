@@ -21,7 +21,9 @@ export async function generateMarketingQuiz(input: unknown) {
   try {
     const data = await res.json();
     const raw = data.candidates?.[0]?.content?.parts?.map((p:{text?:string})=>p.text || "").join("");
-    return compileMarketingDraft(brief, JSON.parse(raw || ""));
+    console.info("AI response shape", {finishReason:data.candidates?.[0]?.finishReason, blockReason:data.promptFeedback?.blockReason, textLength:raw?.length || 0, fenced:raw?.trim().startsWith("```"), parts:data.candidates?.[0]?.content?.parts?.map((p:Record<string,unknown>)=>Object.keys(p))});
+    const json = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    return compileMarketingDraft(brief, JSON.parse(json));
   }
   catch (error) {
     console.error("AI draft validation", error instanceof z.ZodError ? error.issues.map(issue => ({code:issue.code,path:issue.path})) : error instanceof SyntaxError ? "invalid_json" : error instanceof Error ? error.message : "unknown");
