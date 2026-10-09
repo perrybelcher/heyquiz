@@ -8,7 +8,7 @@ export async function generateMarketingQuiz(input: unknown) {
   if (!process.env.GEMINI_API_KEY) throw new HttpError(503, "AI creation is not connected yet. Your brief is still here. You can use a quiz starter while the AI connection is configured.");
   const schema = z.toJSONSchema(MarketingDraftSchema);
   let res: Response;
-  try { res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_MODEL || "gemini-2.5-flash")}:generateContent`, {
+  try { res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_MODEL || "gemini-3.5-flash-lite")}:generateContent`, {
     method: "POST", headers: {"Content-Type":"application/json", "x-goog-api-key":process.env.GEMINI_API_KEY},
     body: JSON.stringify({systemInstruction:{parts:[{text:marketingSystemPrompt}]},contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],generationConfig:{responseMimeType:"application/json",responseJsonSchema:schema,temperature:0.4}}),
     signal: AbortSignal.timeout(60000),
