@@ -1803,3 +1803,50 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
 }
 .hq-sales-page .integrations-early .provider-grid { margin: 24px 0 16px; }
 .hq-sales-page .integrations-early > .integration-disclosure { margin-top: 16px; }
+
+/* Shared marketing type scale. Keep embedded quiz/dashboard UI at its own scale. */
+.hq-sales-page {
+  --sales-display-size: clamp(42px, 5vw, 64px);
+  --sales-heading-size: clamp(32px, 3.5vw, 48px);
+  --sales-card-size: 22px;
+  --sales-body-size: 16px;
+}
+.hq-sales-page h1 {
+  font-size: var(--sales-display-size);
+  line-height: 1.08;
+  letter-spacing: -.045em;
+}
+.hq-sales-page .journey-heading h2,
+.hq-sales-page .demo-explainer h2,
+.hq-sales-page .section-heading h2,
+.hq-sales-page .analytics-grid > div > h2,
+.hq-sales-page .faq-section h2,
+.hq-sales-page .final-cta h2 {
+  font-size: var(--sales-heading-size);
+  line-height: 1.12;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+.hq-sales-page .use-case-grid h3,
+.hq-sales-page .steps-grid h3 {
+  font-size: var(--sales-card-size);
+  line-height: 1.25;
+  letter-spacing: -.025em;
+}
+.hq-sales-page .hero-description,
+.hq-sales-page .journey-heading > p:not(.sales-eyebrow),
+.hq-sales-page .demo-explainer > p:not(.sales-eyebrow),
+.hq-sales-page .section-heading > p:not(.sales-eyebrow),
+.hq-sales-page .use-case-grid p,
+.hq-sales-page .steps-grid p,
+.hq-sales-page .analytics-grid > div > p:not(.sales-eyebrow),
+.hq-sales-page .analytics-section li,
+.hq-sales-page .faq-section details p,
+.hq-sales-page .final-cta > p:not(.sales-eyebrow) {
+  font-size: var(--sales-body-size);
+  line-height: 1.65;
+}
+.hq-sales-page .faq-section summary {
+  font-size: var(--sales-body-size);
+  line-height: 1.5;
+}
