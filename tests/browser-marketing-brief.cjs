@@ -23,6 +23,15 @@ const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3155';if(!/^http:\/\/127
  await p.getByText('Edit question and answers',{exact:true}).first().click();
  const radios=p.getByRole('radio',{name:'Established and consistent',exact:true});for(let i=0;i<await radios.count();i++)await radios.nth(i).check();
  assert.ok(await p.getByText('100%',{exact:true}).count()>0);
+ await p.getByRole('button',{name:'Reset test answers',exact:true}).click();
+ assert.equal(await p.getByRole('radio',{checked:true}).count(),0);
+ await p.reload();
+ await p.getByText('Your unsaved draft was restored from this tab.',{exact:false}).waitFor();
+ await p.getByText('Edit question and answers',{exact:true}).first().click();
+ assert.equal(await p.getByLabel('Question 1 wording',{exact:true}).inputValue(),'How consistently do you follow up on new inquiries?');
+ await p.getByText('Edit question and answers',{exact:true}).first().click();
+ const restored=p.getByRole('radio',{name:'Established and consistent',exact:true});for(let i=0;i<await restored.count();i++)await restored.nth(i).check();
+ assert.ok(await p.getByText('100%',{exact:true}).count()>0);
  await p.setViewportSize({width:390,height:844});assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.setViewportSize({width:1440,height:1000});
  await p.evaluate(()=>window.scrollTo(0,0));await p.screenshot({path:'../quiznick/marketing-brief-preview.png',fullPage:true});
  await p.getByRole('button',{name:'Save draft & open editor'}).click();await p.waitForURL(/\/editor\//);id=p.url().split('/').pop();

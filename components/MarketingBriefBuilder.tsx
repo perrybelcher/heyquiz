@@ -4,16 +4,32 @@ import Link from "next/link";
 import { reviewQuizCopy } from "@/lib/quiz-copy-review";
 import { ArrowLeft, ArrowRight, Check, Plus, Sparkles, Trash2 } from "lucide-react";
 import { MarketingBriefSchema, createMarketingStarter, type MarketingBrief } from "@/lib/marketing-brief";
-import type { FormSchemaType } from "@/lib/schema";
+import { FormSchema, type FormSchemaType } from "@/lib/schema";
 import { evaluateMarketing } from "@/lib/marketing";
 import MarketingResultCard from "./MarketingResultCard";
 
 const empty: MarketingBrief = {audience:"",offer:"",goal:"",concerns:"",voice:"Warm, clear, helpful, and never pushy",kind:"segmentation",numQuestions:6,ctaLabel:"Explore my next step",ctaUrl:"",targets:[{title:"",description:"",ctaUrl:""},{title:"",description:"",ctaUrl:""}]};
 type Preview = {form:FormSchemaType;rationale:{questionId:string;purpose:string}[]};
 export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean}) {
-  const [brief,setBrief]=useState<MarketingBrief>(empty),[step,setStep]=useState(0),[preview,setPreview]=useState<Preview|null>(null),[answers,setAnswers]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),[error,setError]=useState(""),[ready,setReady]=useState(false);
-  useEffect(()=>{try{const saved=sessionStorage.getItem("pippi-marketing-brief");if(saved)setBrief({...empty,...JSON.parse(saved)});}catch{}setReady(true);},[]);
+  const [brief,setBrief]=useState<MarketingBrief>(empty),[step,setStep]=useState(0),[preview,setPreview]=useState<Preview|null>(null),[answers,setAnswers]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),[error,setError]=useState(""),[ready,setReady]=useState(false),[recovered,setRecovered]=useState(false),[storageWarning,setStorageWarning]=useState(false);
+  useEffect(()=>{try{const saved=sessionStorage.getItem("pippi-marketing-brief");if(saved)setBrief({...empty,...JSON.parse(saved)});}catch{}
+    try {
+      const saved=JSON.parse(sessionStorage.getItem("pippi-marketing-preview")||"null");
+      const parsed=FormSchema.safeParse(saved?.form);
+      if(parsed.success && Array.isArray(saved?.rationale)) {
+        setPreview({form:parsed.data,rationale:saved.rationale.filter((r:Preview["rationale"][number])=>r&&typeof r.questionId==="string"&&typeof r.purpose==="string")});
+        setRecovered(true);
+      }
+    }catch{}
+    setReady(true);},[]);
   useEffect(()=>{if(ready)try{sessionStorage.setItem("pippi-marketing-brief",JSON.stringify(brief));}catch{}},[brief,ready]);
+  useEffect(()=>{
+    if(!ready)return;
+    try {
+      if(preview)sessionStorage.setItem("pippi-marketing-preview",JSON.stringify(preview));
+      else sessionStorage.removeItem("pippi-marketing-preview");
+    }catch{setStorageWarning(true);}
+  },[preview,ready]);
   const change=(patch:Partial<MarketingBrief>)=>setBrief(b=>({...b,...patch}));
   const field=(label:string,key:"audience"|"offer"|"goal"|"concerns"|"voice"|"ctaLabel"|"ctaUrl",placeholder:string,max:number,multiline=false)=><label className="block text-sm font-medium">{label}{multiline?<textarea rows={3} className="hq-input mt-2" value={brief[key]} maxLength={max} placeholder={placeholder} onChange={e=>change({[key]:e.target.value})}/>:<input className="hq-input mt-2" value={brief[key]} maxLength={max} placeholder={placeholder} onChange={e=>change({[key]:e.target.value})}/>}</label>;
   function starter(){setError("");try{setPreview(createMarketingStarter(brief));setAnswers({});}catch(e){setError(e instanceof Error?e.message:"Complete your brief first.");}}
@@ -28,7 +44,7 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
     if(!preview)return;
     if(preview.form.questions.some(q=>!q.title.trim()||q.options?.some(o=>!o.label.trim())||new Set(q.options?.map(o=>o.label.trim().toLowerCase())).size!==q.options?.length)){setError("Give every question and answer a clear, distinct label before saving.");return;}
     setBusy(true);setError("");
-    try{const res=await fetch("/api/forms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(preview.form)});const data=await res.json();if(!res.ok)throw Error(data.error || "Could not save.");try{sessionStorage.removeItem("pippi-marketing-brief");}catch{}window.location.assign(`/editor/${data.id}`);}
+    try{const res=await fetch("/api/forms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(preview.form)});const data=await res.json();if(!res.ok)throw Error(data.error || "Could not save.");try{sessionStorage.removeItem("pippi-marketing-brief");sessionStorage.removeItem("pippi-marketing-preview");}catch{}window.location.assign(`/editor/${data.id}`);}
     catch(e){setError(e instanceof Error?e.message:"Could not save.");setBusy(false);}
   }
   const copyFindings=preview?reviewQuizCopy(preview.form):[];
@@ -40,6 +56,8 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
     <p className="text-sm font-semibold text-red-800 flex items-center gap-2"><Sparkles size={17}/>Marketing quiz studio</p>
     <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mt-3">Help people discover what matters—and what fits.</h1>
     <p className="mt-4 text-slate-600 max-w-2xl leading-relaxed">Turn your expertise into a thoughtful sequence: their goal, what gets in the way, what matters in a solution, and a relevant next step. Review the wording, test the scoring, and make it yours before publishing.</p>
+    {recovered&&preview&&<p role="status" className="mt-5 rounded-xl bg-green-50 p-4 text-sm text-green-900">Your unsaved draft was restored from this tab. Review it and save it to your account when ready.</p>}
+    {storageWarning&&<p role="status" className="mt-5 rounded-xl bg-amber-50 p-4 text-sm">This browser could not back up your draft. Keep this tab open and save to your account before leaving.</p>}
     {error&&<div role="alert" className="hq-error mt-6">{error}<p className="mt-2"><a href="/login?next=%2Fcreate%2Fmarketing" className="underline">Sign in again</a> · <Link href="/" className="underline">Use a quiz starter</Link></p></div>}
     {!preview?<div className="grid lg:grid-cols-[1fr_300px] gap-7 mt-8">
       <section className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8">
@@ -70,13 +88,13 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
         {step===2&&<div className="mt-6 rounded-xl bg-slate-50 p-4"><p className="text-sm text-slate-600">Prefer to write the copy yourself? Create a structured starter with basic questions and scoring from your brief. Review and customize it before publishing.</p><button disabled={busy} onClick={starter} className="hq-secondary mt-3">Create starter without AI</button></div>}
         <div className="flex justify-between mt-8 gap-4"><button disabled={step===0||busy} className="hq-secondary disabled:opacity-40" onClick={()=>setStep(s=>s-1)}>Back</button>{step<2?<button className="hq-primary" onClick={()=>setStep(s=>s+1)}>Continue<ArrowRight size={16}/></button>:<button disabled={busy||!aiAvailable} className="hq-primary disabled:opacity-50" onClick={generate}><Sparkles size={16}/>{busy?"Creating your draft…":"Generate my quiz"}</button>}</div>
       </section>
-      <aside className="rounded-2xl bg-[#f1ebe3] p-6 h-fit"><h2 className="font-semibold text-lg">Built around your business</h2><ul className="mt-5 space-y-4 text-sm text-slate-700">{["Questions that reveal real needs","Scoring connected to your results","A neutral answer when nothing fits","Useful advice before the offer","An editable draft, never auto-published"].map(t=><li key={t} className="flex gap-2"><Check size={17} className="shrink-0 text-red-800"/>{t}</li>)}</ul><p className="text-xs text-slate-500 mt-6">Your brief stays in this browser tab while you work. Generation sends it to our AI provider. Avoid confidential customer information.</p></aside>
+      <aside className="rounded-2xl bg-[#f1ebe3] p-6 h-fit"><h2 className="font-semibold text-lg">Built around your business</h2><ul className="mt-5 space-y-4 text-sm text-slate-700">{["Questions that reveal real needs","Scoring connected to your results","A neutral answer when nothing fits","Useful advice before the offer","An editable draft, never auto-published"].map(t=><li key={t} className="flex gap-2"><Check size={17} className="shrink-0 text-red-800"/>{t}</li>)}</ul><p className="text-xs text-slate-500 mt-6">Your brief and unsaved preview stay in this browser tab while you work. Closing the tab may clear them. Generation sends it to our AI provider. Avoid confidential customer information.</p></aside>
     </div>:<div className="mt-8"><div className="flex flex-wrap gap-3 mb-6"><button disabled={busy} className="hq-secondary" onClick={()=>{setPreview(null);setError("");}}>Edit brief</button><button disabled={busy} className="hq-primary" onClick={save}>{busy?"Saving…":"Save draft & open editor"}<ArrowRight size={16}/></button></div><div className="grid lg:grid-cols-2 gap-7">
       <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6"><h2 className="text-2xl font-semibold">{preview.form.title}</h2><p className="text-slate-600">{preview.form.description}</p><p className="text-sm text-red-800">Edit the wording below, then try different answers. Scoring stays connected to the same answer choices. Nothing is published.</p>
       <div className="rounded-xl bg-amber-50 border border-amber-200 p-4"><h3 className="font-semibold">Conversation review</h3><p className="text-sm mt-2">{copyFindings.length?`${copyFindings.length} wording suggestions to review below.`:"No common wording flags found. Still check that every question earns its place."} These are editorial hints, not a conversion prediction.</p><p className="text-sm mt-2">Try a clear fit, mixed answers, and all “not sure” answers. Confirm each result is useful and honest.</p></div>{preview.form.questions.map((q,i)=><fieldset key={q.id} className="border border-slate-200 rounded-xl p-5"><legend className="font-medium">{i+1}. {q.title}</legend><p className="text-sm text-slate-500 mb-4">{preview.rationale.find(r=>r.questionId===q.id)?.purpose}</p>
         <details className="mb-4 text-sm"><summary className="cursor-pointer font-medium text-red-800">Edit question and answers</summary><label className="block mt-3">Question {i+1} wording<textarea aria-label={`Question ${i+1} wording`} className="hq-input mt-1" maxLength={1000} value={q.title} onChange={e=>editQuestion(q.id,e.target.value)}/></label>{q.options?.map((o,oi)=><label key={o.id} className="block mt-3">Question {i+1}, answer {oi+1}<input aria-label={`Question ${i+1}, answer ${oi+1}`} className="hq-input mt-1" maxLength={300} value={o.label} onChange={e=>editAnswer(q.id,o.id,e.target.value)}/></label>)}</details>
         {copyFindings.filter(f=>f.questionId===q.id).map(f=><p key={f.message} className="text-sm text-amber-900 mb-2">{f.message}</p>)}{q.options?.map(o=><label key={o.id} className="flex gap-3 items-start py-2 text-sm"><input type="radio" className="mt-1" name={q.id} checked={answers[q.id]===o.id} onChange={()=>setAnswers(a=>({...a,[q.id]:o.id}))}/>{o.label}</label>)}<details className="mt-3 text-xs text-slate-500"><summary className="cursor-pointer">View answer scoring</summary>{q.options?.map(o=><p key={o.id} className="mt-2">{o.label}: {preview.form.marketing?.rules.filter(r=>r.questionId===q.id&&r.answerId===o.id).map(r=>`${[...(preview.form.marketing?.outcomes||[]),...(preview.form.marketing?.categories||[])].find(t=>t.id===r.targetId)?.title} +${r.points}`).join(", ")||"No score"}</p>)}</details></fieldset>)}</section>
-      <aside className="bg-white rounded-2xl border border-slate-200 p-6 h-fit lg:sticky lg:top-6"><p className="text-sm font-semibold text-slate-500 mb-6">Result preview · no lead is created</p>{result&&<MarketingResultCard result={result}/>}</aside>
+      <aside className="bg-white rounded-2xl border border-slate-200 p-6 h-fit lg:sticky lg:top-6"><p className="text-sm font-semibold text-slate-500 mb-3">Result preview · no lead is created</p><p className="text-sm text-slate-500 mb-3">{Object.keys(answers).length} of {preview.form.questions.length} questions answered. Try different paths before saving.</p><button type="button" className="hq-secondary mb-6" onClick={()=>setAnswers({})} disabled={!Object.keys(answers).length}>Reset test answers</button>{result&&<MarketingResultCard result={result}/>}</aside>
     </div></div>}
   </div></main>;
 }
