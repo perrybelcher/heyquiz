@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/rate-limit";
 import { scheduleDeliveries } from "@/lib/integrations/after-submit";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { getAttempt } from "@/lib/attempts";
@@ -16,6 +17,7 @@ export async function POST(
 ) {
   try {
     checkOrigin(req);
+    rateLimit(req, "contact", 30);
     const { id } = await params,
       body = await req.json(),
       attempt = await getAttempt(body.token, id),

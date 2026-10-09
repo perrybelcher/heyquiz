@@ -18,6 +18,7 @@ const { FormSchema } = require("../lib/schema.ts");
   const id = "qa-isolation-" + Date.now(),
     base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
     other = "qa-other-owner";
+  if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw Error("Local fixtures only");
   const f = FormSchema.parse({
     id,
     mode: "survey",
@@ -41,6 +42,8 @@ const { FormSchema } = require("../lib/schema.ts");
       [`/api/forms/${id}/contacts`, "GET"],
       [`/api/forms/${id}/submissions`, "GET"],
       [`/api/forms/${id}/analytics`, "GET"],
+      [`/api/forms/${id}/contacts?format=csv`, "GET"],
+      [`/api/forms/${id}/submissions?format=csv`, "GET"],
     ]) {
       const r = await fetch(base + path, {
         method,
@@ -56,6 +59,9 @@ const { FormSchema } = require("../lib/schema.ts");
       assert.equal(r.status, 404, path + " " + method);
       checks.push(method + " " + path + " denies other owner");
     }
+    const preview = await fetch(base + `/api/forms/${id}/start`, {method:"POST",headers:{Origin:base,Cookie:cookie,"Content-Type":"application/json"},body:JSON.stringify({preview:true})});
+    assert.equal(preview.status,404);checks.push("Foreign draft preview denied");
+    const listed=await(await fetch(base+"/api/forms",{headers:{Cookie:cookie}})).text();assert.ok(!listed.includes(id));checks.push("Foreign quiz excluded from listing");
     const badOrigin = await fetch(base + "/api/forms", {
       method: "POST",
       headers: {

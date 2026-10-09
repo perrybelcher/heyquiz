@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/rate-limit";
 import { scheduleDeliveries } from "@/lib/integrations/after-submit";
 import type { QuizSubmissionResult } from "@/lib/schema";
 import { parseContact } from "@/lib/contacts";
@@ -19,6 +20,7 @@ export async function POST(
 ) {
   try {
     checkOrigin(req);
+    rateLimit(req, "submit", 60);
     const { id } = await params,
       b = await req.json(),
       r = await getAttempt(b.token, id),
