@@ -148,20 +148,31 @@ export default function SalesPage() {
             </div>
           </div>
         </section>
-        <div className="sales-width capability-strip">
-          <span>
-            <ShoppingBag /> Product recommendations
-          </span>
-          <span>
-            <Users /> Audience segmentation
-          </span>
-          <span>
-            <Target /> Personalized scorecards
-          </span>
-          <span>
-            <BarChart3 /> Conversion analytics
-          </span>
-        </div>
+        <section className="sales-width integrations-section integrations-early" id="integrations" aria-label="CRM and email integrations">
+          <p className="sales-eyebrow">CONNECT TO THE TOOLS YOU ALREADY USE</p>
+          <div className="provider-grid">
+            {[
+              ["hubspot", "HubSpot"],
+              ["gohighlevel", "GoHighLevel"],
+              ["salesforce", "Salesforce"],
+              ["activecampaign", "ActiveCampaign"],
+              ["klaviyo", "Klaviyo"],
+              ["mailchimp", "Mailchimp"],
+              ["zoho", "Zoho CRM"],
+              ["twenty", "Twenty CRM"],
+            ].map(([id, name]) => (
+              <div key={id}>
+                <ProviderIcon provider={id} />
+                <span>{name}</span>
+              </div>
+            ))}
+          </div>
+          <p className="integration-disclosure">
+            CRM connectors are in pilot. Provider setup and authorization are
+            required; availability varies. Logos identify providers, not
+            customers or endorsements.
+          </p>
+        </section>
         <JourneyShowcase />
         <section className="sales-width demo-section">
           <div className="demo-explainer">
@@ -430,39 +441,6 @@ export default function SalesPage() {
               </p>
             </div>
           </div>
-        </section>
-        <section className="sales-width integrations-section" id="integrations">
-          <p className="sales-eyebrow">KEEP THE CONVERSATION GOING</p>
-          <h2>
-            Great answers deserve
-            <br />a thoughtful <em>follow-up.</em>
-          </h2>
-          <p>
-            A useful conversation shouldn’t end at “submit.” Carry the answers,
-            scores, and context into your next conversation.
-          </p>
-          <div className="provider-grid">
-            {[
-              ["hubspot", "HubSpot"],
-              ["gohighlevel", "GoHighLevel"],
-              ["salesforce", "Salesforce"],
-              ["activecampaign", "ActiveCampaign"],
-              ["klaviyo", "Klaviyo"],
-              ["mailchimp", "Mailchimp"],
-              ["zoho", "Zoho CRM"],
-              ["twenty", "Twenty CRM"],
-            ].map(([id, name]) => (
-              <div key={id}>
-                <ProviderIcon provider={id} />
-                <span>{name}</span>
-              </div>
-            ))}
-          </div>
-          <p className="integration-disclosure">
-            CRM connectors are in pilot. Provider setup and authorization are
-            required; availability varies. Logos identify providers, not
-            customers or endorsements.
-          </p>
         </section>
         <section className="sales-width faq-section" id="questions">
           <div>

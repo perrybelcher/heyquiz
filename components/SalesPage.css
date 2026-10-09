@@ -1796,3 +1796,10 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
   }
 }
 
+/* Surface the existing integration pilots directly after the hero. */
+.hq-sales-page .integrations-early {
+  padding: 32px 0;
+  border-block: 1px solid var(--line);
+}
+.hq-sales-page .integrations-early .provider-grid { margin: 24px 0 16px; }
+.hq-sales-page .integrations-early > .integration-disclosure { margin-top: 16px; }
