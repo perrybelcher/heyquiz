@@ -19,6 +19,8 @@ export async function aiProviderError(response: Response): Promise<HttpError> {
     category = /schema|generation_config|generationConfig/i.test(message) ? "request_schema" : "request";
     advice = category === "request_schema" ? "The AI provider rejected the quiz format. The application needs a generation-format update." : "The AI provider rejected the request configuration. The workspace administrator needs to check the AI setup.";
   }
-  console.error("AI provider rejection", { status: response.status, category });
+  // Server-only diagnostic; never include request bodies or unredacted API keys.
+  const safeMessage = message.split(process.env.GEMINI_API_KEY || "__no_key__").join("[redacted]").replace(/AIza[\w-]+/g, "[redacted]").slice(0, 1200);
+  console.error("AI provider rejection", { status: response.status, category, detail: safeMessage });
   return new HttpError(response.status === 429 ? 503 : 502, `${advice} Your brief is safe; you can create a starter without AI.`);
 }
