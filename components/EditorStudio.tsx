@@ -1486,6 +1486,14 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
         </button>
         {/* Right Fillout Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Keep theme controls outside the scrolling canvas in every editor view. */}
+          <button
+            onClick={() => setShowThemeModal(true)}
+            className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
+          >
+            <Paintbrush className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Theme</span>
+          </button>
           {/* Device Mockup Toggle */}
           <div className="hidden sm:flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
             <button
@@ -1753,15 +1761,9 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
 
               {/* White Document Card Container */}
               <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm p-8 min-h-[500px] space-y-6 relative">
-                {/* Floating Pill Buttons: Theme & Agent (Matches Fillout Canvas!) */}
+                {/* Canvas assistant */}
                 <div className="flex items-center gap-2 pb-2">
-                  <button
-                    onClick={() => setShowThemeModal(true)}
-                    className="px-3.5 py-1.5 rounded-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition"
-                  >
-                    <Paintbrush className="w-3.5 h-3.5 text-gray-500" />
-                    <span>Theme</span>
-                  </button>
+
 
                   <button
                     onClick={() => setShowAgentModal(true)}
