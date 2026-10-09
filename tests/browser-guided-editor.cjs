@@ -1,0 +1,19 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {launchTemplate}=require('../lib/launch-templates.ts');
+const base='http://127.0.0.1:3162';
+(async()=>{const b=await chromium.launch({channel:'chrome'});const ctx=await b.newContext({viewport:{width:390,height:844}}),p=await ctx.newPage(),id='qa-guided-'+Date.now(),headers={Origin:base};try{
+ await ctx.request.post(base+'/api/auth',{data:{local:true},headers});assert.equal((await ctx.request.post(base+'/api/forms',{data:launchTemplate('product_finder',id),headers})).status(),201);
+ await p.goto(base+'/editor/'+id);await p.getByRole('heading',{name:'Give your quiz a clear promise.'}).waitFor();await p.getByLabel('Quiz title',{exact:true}).fill('My guided carry quiz');
+ await p.getByRole('button',{name:'2. Questions',exact:true}).click();await p.getByLabel('Question wording',{exact:true}).fill('What do you carry?');await p.getByLabel('Points for answer 1 toward The Everyday Sling',{exact:true}).fill('7');
+ await p.getByRole('button',{name:'Full editor & advanced tools',exact:true}).click();await p.getByRole('button',{name:'Marketing',exact:true}).waitFor();await p.getByRole('button',{name:'Guided setup',exact:true}).click();await p.getByRole('button',{name:'2. Questions',exact:true}).click();assert.equal(await p.getByLabel('Question wording',{exact:true}).inputValue(),'What do you carry?');assert.equal(await p.getByLabel('Points for answer 1 toward The Everyday Sling',{exact:true}).inputValue(),'7');
+ await p.getByRole('button',{name:'3. Results',exact:true}).click();await p.getByText('Result 1: The Everyday Sling',{exact:true}).click();await p.getByLabel('Destination link',{exact:true}).first().fill('https://example.com/sling');
+ await p.getByRole('button',{name:'4. Design',exact:true}).click();await p.getByRole('button',{name:'Customize theme',exact:true}).click();await p.getByRole('heading',{name:'Make it yours',exact:true}).waitFor();await p.getByRole('button',{name:'Close theme editor',exact:true}).click();
+ await p.getByRole('button',{name:'5. Publish',exact:true}).click();await p.getByLabel('Privacy-policy link',{exact:true}).fill('https://example.com/privacy');await p.getByRole('button',{name:'Save draft',exact:true}).click();await p.waitForTimeout(1200);
+ const saved=await(await ctx.request.get(base+'/api/forms/'+id)).json();assert.equal(saved.title,'My guided carry quiz');assert.equal(saved.coverPage.title,saved.title);assert.equal(saved.questions[0].title,'What do you carry?');assert.equal(saved.marketing.rules.find(r=>r.id==='use-0').points,7);assert.equal(saved.capture.privacyUrl,'https://example.com/privacy');
+ assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.screenshot({path:'/tmp/pippi-guided-mobile.png',fullPage:true});
+ await p.getByRole('button',{name:'Review & publish',exact:true}).click();await p.getByRole('heading',{name:'Ready to publish?',exact:true}).waitFor();await p.getByRole('button',{name:'Back to editor',exact:true}).click();
+ await p.reload();await p.getByRole('heading',{name:'Give your quiz a clear promise.'}).waitFor();assert.equal(await p.getByLabel('Quiz title',{exact:true}).inputValue(),'My guided carry quiz');
+ await p.getByRole('button',{name:'Full editor & advanced tools',exact:true}).click();await p.reload();await p.getByRole('button',{name:'Marketing',exact:true}).waitFor();
+ console.log('PASS guided mobile editing, per-answer scoring, shared draft, theme dialog, saved recovery, mode preference, and publish checklist');
+ }finally{await ctx.request.delete(base+'/api/forms/'+id,{headers});await b.close();}})().catch(e=>{console.error(e);process.exitCode=1});

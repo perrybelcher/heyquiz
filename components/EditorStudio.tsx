@@ -118,6 +118,7 @@ import { SortableQuestionCard } from "./SortableQuestionCard";
 import MediaPickerModal from "./MediaPickerModal";
 import TextareaAutosize from "react-textarea-autosize";
 import PublishReadiness from "./PublishReadiness";
+import GuidedQuizEditor from "./GuidedQuizEditor";
 import { useAutosave } from "@/hooks/useAutosave";
 import { FormSchema } from "@/lib/schema";
 import {
@@ -144,6 +145,9 @@ interface EditorStudioProps {
 }
 
 export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "" }: EditorStudioProps) {
+  const [guided, setGuided] = useState(guest || (!initiallyPublished && Boolean(initialForm.marketing)));
+  useEffect(() => { try { const mode = localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); if (mode) setGuided(mode === "guided"); } catch {} }, [initialForm.id]);
+  function changeEditorMode(value: boolean) { setGuided(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
   const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
   const [publishing, setPublishing] = useState(false);
@@ -1371,6 +1375,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </button>
         </div>
       )}
+      {guided && <GuidedQuizEditor form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={guest ? "Draft stored in this browser" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsaved changes"} published={isPublished} />}
+      {!guided && <>
       {/* 1. FILLOUT TOP NAVIGATION BAR */}
       <header className="min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
         <div className="flex items-center gap-2.5">
@@ -1439,6 +1445,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         >
           Question settings
         </button>
+        <button className="hq-secondary" onClick={() => changeEditorMode(true)}>Guided setup</button>
         {/* Center Fillout Tabs Capsule */}
         <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
           <button
@@ -4394,6 +4401,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
 
+      </>}
       {showThemeModal && (
         <ThemeEditor theme={form.theme} onClose={() => setShowThemeModal(false)}
           onApply={(theme) => { setForm(current => ({ ...current, theme })); setShowThemeModal(false); }} />

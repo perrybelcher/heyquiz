@@ -5,7 +5,7 @@ const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3154';if(!/^http:\/\/127
 (async()=>{const browser=await chromium.launch({channel:'chrome'}),ctx=await browser.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage(),id='qa-scorebands-'+Date.now(),headers={Origin:base};try{
  await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
  assert.equal((await ctx.request.post(base+'/api/forms',{data:marketingTemplate('scorecard',id),headers})).status(),201);
- await p.goto(base+'/editor/'+id);await p.getByRole('button',{name:'Marketing',exact:true}).click();await p.getByRole('button',{name:'Customize score-based results',exact:true}).click();
+ await p.goto(base+'/editor/'+id);await p.getByRole('button',{name:'Full editor & advanced tools',exact:true}).click();await p.getByRole('button',{name:'Marketing',exact:true}).click();await p.getByRole('button',{name:'Customize score-based results',exact:true}).click();
  const sections=p.getByRole('region',{name:'Result page sections'});
  await sections.getByRole('button',{name:'FAQ',exact:true}).click();
  await sections.getByLabel('Question',{exact:true}).fill('What happens next?');
