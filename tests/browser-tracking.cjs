@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
-const base='http://127.0.0.1:3130',id='qa-tracking-'+Date.now(),headers={Origin:base};
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",id='qa-tracking-'+Date.now(),headers={Origin:base};
 (async()=>{const b=await chromium.launch({channel:'chrome',headless:true}),owner=await b.newContext(),visitor=await b.newContext(),p=await visitor.newPage();let checks=0,loads=0;
 try{
  await visitor.route(/https:\/\/(www\.googletagmanager\.com|connect\.facebook\.net)\//,route=>{loads++;return route.fulfill({contentType:'text/javascript',body:'/* Synthetic test: no vendor code or network delivery. */'});});

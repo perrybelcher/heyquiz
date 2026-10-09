@@ -1,0 +1,14 @@
+PASS empty rates are unavailable rather than fabricated zero
+PASS preview, foreign quizzes and future sessions excluded
+PASS start cohorts include later completions and leads
+PASS legacy completion data does not fabricate new tracking coverage
+PASS quiet is last observed question only; skipped branches not exits
+PASS recent unfinished sessions not labeled quiet
+PASS stored completion wins even if attempt finalization was interrupted
+PASS deleted response contact not recovered from attempt result
+PASS median time uses only timestamped completions
+PASS removed questions retained and hidden questions excluded
+PASS unlinked submissions kept out of funnel denominator
+PASS aggregate payload contains no contacts or raw answers
+PASS prior period uses equal calendar windows
+13 analytics checks passed.

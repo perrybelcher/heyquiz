@@ -1,0 +1,10 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3150';
+(async()=>{const b=await chromium.launch({channel:'chrome',headless:true});const c=await b.newContext();const p=await c.newPage();const id='resilience-'+Date.now();try{
+ await c.request.post(base+'/api/auth',{data:{local:true},headers:{Origin:base}});await c.request.post(base+'/api/forms',{data:{id,title:'Original',mode:'survey',questions:[{id:'q',type:'short_answer',title:'Answer'}]},headers:{Origin:base}});
+ await p.goto(base+'/editor/'+id);const title=p.locator('input').filter({visible:true}).first();
+ await p.route('**/api/forms/'+id, r=>r.request().method()==='PUT'?r.abort('failed'):r.continue());await title.fill('Network recovery');await p.locator('.hq-error').waitFor();assert.equal(await title.inputValue(),'Network recovery');await p.unroute('**/api/forms/'+id);await p.getByRole('button',{name:'Retry save',exact:true}).click();await p.locator('.hq-error').waitFor({state:'hidden'});
+ const p2=await c.newPage();await p2.goto(base+'/editor/'+id);const t2=p2.locator('input').filter({visible:true}).first();await title.fill('First tab wins');await p.waitForResponse(r=>r.url().endsWith('/api/forms/'+id)&&r.request().method()==='PUT'&&r.status()===200);await t2.fill('Stale tab edit');await p2.locator('.hq-error').waitFor();assert.equal((await(await c.request.get(base+'/api/forms/'+id)).json()).title,'First tab wins');
+ await p.setViewportSize({width:375,height:812});await p.getByRole('button',{name:'Theme',exact:true}).click();await p.getByRole('dialog').waitFor();await p.keyboard.press('Escape');await p.getByRole('dialog').waitFor({state:'hidden'});assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ console.log('PASS failed autosave retry, stale-tab conflict without overwrite, mobile editor width, keyboard dialog dismissal');
+}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

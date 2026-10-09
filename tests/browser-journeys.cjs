@@ -18,7 +18,7 @@ require.extensions[".ts"] = (m, f) =>
   );
 const { marketingTemplate } = require("../lib/marketing-templates.ts");
 (async () => {
-  const base = "http://127.0.0.1:3130",
+  const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
     b = await engine.launch({
       ...(browserType === "chrome" ? { channel: "chrome" } : {}),
       headless: true,

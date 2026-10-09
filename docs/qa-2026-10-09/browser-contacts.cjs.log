@@ -1,0 +1,12 @@
+[
+  "After-results capture shows recommendation before contact",
+  "After-results positive opt-in accepted",
+  "Opt-in consent persisted",
+  "CSV download contains expected contact and consent",
+  {
+    "mobileContactsViewport": {
+      "width": 390,
+      "scroll": 390
+    }
+  }
+]

@@ -1,0 +1,54 @@
+[
+  {
+    "kind": "scorecard",
+    "marketing": {
+      "kind": "scorecard",
+      "status": "scored",
+      "title": "Your scorecard",
+      "message": "A snapshot of the practices you reported, with a practical next step for each area.",
+      "reasons": [],
+      "categories": [
+        {
+          "id": "operations",
+          "title": "Inquiry handling",
+          "description": "Choose one shared place for inquiries, then assign an owner and a next action. This is a self-report checklist, not a prediction of sales.",
+          "score": 100,
+          "answered": 2,
+          "applicable": 2,
+          "minAnswers": 2
+        },
+        {
+          "id": "measurement",
+          "title": "Measurement",
+          "description": "Start with a simple count of inquiries and resulting customers over the same period.",
+          "score": 100,
+          "answered": 1,
+          "applicable": 1,
+          "minAnswers": 1
+        }
+      ]
+    }
+  },
+  {
+    "kind": "segmentation",
+    "marketing": {
+      "kind": "segmentation",
+      "status": "matched",
+      "title": "Your first-loaf path",
+      "message": "Start with one approachable recipe and a clear sequence.",
+      "reasons": [
+        "You asked for a clear first-bake walkthrough.",
+        "You want a loaf you’re proud to share."
+      ],
+      "categories": [],
+      "outcomeId": "beginner",
+      "advice": "Read the recipe all the way through and check the equipment before mixing. Keep notes so your next attempt builds on the first.",
+      "ctaLabel": "Explore beginner lessons",
+      "ctaUrl": ""
+    }
+  },
+  "Forward jump skips middle required question",
+  "Changing source answer restores skipped question",
+  "Revised branch completes",
+  "Hidden campaign query parameter persists with visible response"
+]

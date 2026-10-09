@@ -1,0 +1,11 @@
+PASS IDs reject script URLs and arbitrary code
+PASS enabled setup needs a tracker
+PASS declined tracking loads no scripts or queues
+PASS permission loads only fixed vendor scripts
+PASS question allowlist rejects other steps
+PASS events target the configured account and omit raw answers
+PASS repeat consent does not initialize duplicate trackers
+PASS withdrawal disables GA and revokes Meta consent
+PASS withdrawn consent blocks events at the sender
+PASS disabled event list suppresses configured events
+10 tracking checks passed.

@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const base='http://127.0.0.1:3130',id='qa-analytics-'+Date.now(),headers={Origin:base};
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",id='qa-analytics-'+Date.now(),headers={Origin:base};
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true}),ctx=await browser.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage();let checks=0;const errors=[];p.on('pageerror',e=>errors.push(e.message));
 try{
  await ctx.request.post(base+'/api/auth',{data:{local:true},headers});

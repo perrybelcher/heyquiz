@@ -1,0 +1,11 @@
+{
+  "passed": [
+    "Webhook setup and mapping",
+    "Secret redaction on reload",
+    "Credential-preserving edit",
+    "HighLevel setup and consent guard",
+    "No outbound calls from paused connections",
+    "Mobile viewport without page overflow"
+  ],
+  "errors": []
+}

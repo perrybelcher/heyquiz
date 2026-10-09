@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Anonymous administration is denied",
+    "passed": true
+  },
+  {
+    "name": "Create and save revision",
+    "passed": true
+  },
+  {
+    "name": "Draft is not publicly playable",
+    "passed": true
+  },
+  {
+    "name": "Stale save receives conflict",
+    "passed": true
+  },
+  {
+    "name": "Publish succeeds",
+    "passed": true
+  },
+  {
+    "name": "Public attempt contains no answer keys",
+    "passed": true
+  },
+  {
+    "name": "Unpublished edits do not change public snapshot",
+    "passed": true
+  },
+  {
+    "name": "Required answers are enforced on server",
+    "passed": true
+  },
+  {
+    "name": "Uploads contain real bytes and require access",
+    "passed": true
+  },
+  {
+    "name": "Duplicate selections cannot inflate score or leak keys",
+    "passed": true
+  },
+  {
+    "name": "Submitting again returns same response",
+    "passed": true
+  },
+  {
+    "name": "Owner can retrieve results",
+    "passed": true
+  }
+]

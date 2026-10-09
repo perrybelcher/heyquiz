@@ -18,7 +18,7 @@ require.extensions[".ts"] = (m, f) =>
   );
 const { QuestionTypeEnum } = require("../lib/schema.ts");
 const { singleTypes, multiTypes, displayTypes } = require("../lib/engine.ts");
-const base = "http://127.0.0.1:3130",
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
   results = [],
   created = [];
 const dir = require("node:path").resolve("../../outputs/browser-matrix");

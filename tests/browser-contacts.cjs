@@ -19,7 +19,7 @@ require.extensions[".ts"] = (m, f) =>
 const { marketingTemplate } = require("../lib/marketing-templates.ts");
 const { defaultCapture } = require("../lib/contacts.ts");
 (async () => {
-  const base = "http://127.0.0.1:3130",
+  const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
     id = "browser-contacts-" + Date.now(),
     checks = [];
   const b = await engine.launch({

@@ -15,7 +15,7 @@ require.extensions[".ts"] = (m, f) =>
     f,
   );
 const { listRecords, removeRecord } = require("../lib/records.ts");
-const base = "http://127.0.0.1:3130",
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
   id = "qa-browser-integrations-" + Date.now(),
   dir = path.resolve("../../outputs/integrations");
 fs.mkdirSync(dir, { recursive: true });

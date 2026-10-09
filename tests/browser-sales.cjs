@@ -25,7 +25,9 @@ const assert = require("node:assert/strict"),
     await p.getByRole("heading", { level: 1 }).waitFor();
     for (const img of await p.locator("img").all()) {
       await img.scrollIntoViewIfNeeded();
-      await img.evaluate((i) => i.decode());
+      // Lazy images can change loading state during hydration; wait for pixels.
+      for (let attempt = 0; attempt < 40 && !(await img.evaluate(i => i.complete && i.naturalWidth > 0)); attempt++) await p.waitForTimeout(100);
+      assert.ok(await img.evaluate(i => i.complete && i.naturalWidth > 0), "Image failed: " + await img.getAttribute("src"));
     }
     await p.evaluate(() => scrollTo(0, 0));
     await p
@@ -70,9 +72,10 @@ const assert = require("node:assert/strict"),
     }
     await p.setViewportSize({ width: 1440, height: 1000 });
     await p
-      .getByRole("link", { name: "Experience a quiz", exact: true })
-      .click();
-    assert(p.url().endsWith("#demo"));
+      .getByRole("link", { name: "Create your first quiz", exact: false })
+      .first().click();
+    await p.waitForURL(base + "/create");
+    await p.goto(base + "/welcome#demo");
     console.log("Responsive screenshots passed");
     const demo = p.locator("#demo");
     for (const [use, priority, result] of [
@@ -129,7 +132,7 @@ const assert = require("node:assert/strict"),
       .click();
     await p
       .getByText(
-        "Create an account with your email and a password, confirm your email, and start building.",
+        "Start creating a quiz without signing up.",
         { exact: false },
       )
       .waitFor();

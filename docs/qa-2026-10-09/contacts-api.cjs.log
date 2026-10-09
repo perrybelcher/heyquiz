@@ -1,0 +1,11 @@
+AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to: 200
+    at /Users/perry/Documents/Codex/2026-10-06/gr/outputs/heyquiz/tests/contacts-api.cjs:59:116
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async check (/Users/perry/Documents/Codex/2026-10-06/gr/outputs/heyquiz/tests/contacts-api.cjs:35:3)
+    at async /Users/perry/Documents/Codex/2026-10-06/gr/outputs/heyquiz/tests/contacts-api.cjs:54:28 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 200,
+  expected: 200,
+  operator: 'notStrictEqual'
+}

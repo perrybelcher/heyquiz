@@ -1,0 +1,29 @@
+PASS Anonymous callers cannot read or change integrations
+PASS Cross-origin connection mutation rejected
+PASS Non-owned or missing quiz does not reveal connections
+PASS Save paused webhook without returning secrets
+PASS Reload preserves configuration but never exposes credentials
+PASS Blank credentials preserve saved destination on edit
+PASS Stale edits cannot overwrite connection changes
+PASS Private URL, missing token and invalid mapping fail validation
+PASS Forged delivery and connection IDs rejected
+PASS Cron worker is inaccessible without its server credential
+PASS Public submission queues a lead, duplicate submit does not duplicate it, preview never delivers
+PASS After-results capture queues only after contact is saved
+{
+  "passed": 12,
+  "checks": [
+    "Anonymous callers cannot read or change integrations",
+    "Cross-origin connection mutation rejected",
+    "Non-owned or missing quiz does not reveal connections",
+    "Save paused webhook without returning secrets",
+    "Reload preserves configuration but never exposes credentials",
+    "Blank credentials preserve saved destination on edit",
+    "Stale edits cannot overwrite connection changes",
+    "Private URL, missing token and invalid mapping fail validation",
+    "Forged delivery and connection IDs rejected",
+    "Cron worker is inaccessible without its server credential",
+    "Public submission queues a lead, duplicate submit does not duplicate it, preview never delivers",
+    "After-results capture queues only after contact is saved"
+  ]
+}

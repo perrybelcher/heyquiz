@@ -1,0 +1,47 @@
+PASS Credential encryption is authenticated and owner-bound
+PASS Webhook validation rejects private networks, credentials and unsafe URLs
+PASS Mapping validation rejects duplicate and prototype targets
+PASS Saved connection hides credentials and checks ownership
+PASS Concurrent enqueue creates one durable job per response/destination
+PASS Signed webhook maps fields and concurrent workers send once
+PASS Declined consent records a skip without a network call
+PASS Transient failure backs off and preserves the same delivery ID
+PASS Authentication errors and redirects do not retry automatically
+PASS Repeated transport errors stop after six attempts
+PASS HighLevel upsert preserves tags and unsubscribe settings
+PASS HighLevel cannot be configured to send non-consenting leads
+PASS Synthetic HighLevel tests omit automation tags
+PASS Connection edits stop old pending jobs until explicit retry
+PASS Disabling a connection prevents pending delivery
+PASS Historical contacts are not backfilled on enabling
+PASS Reconciliation recovers after-results capture and is idempotent
+PASS Preview deployment never sends production data
+PASS History excludes lead payload and credentials
+PASS Scheduler authentication supports Vault hash and rejects wrong credentials
+PASS HTTP sender rejects mixed private DNS and pins the approved address
+{
+  "passed": 21,
+  "checks": [
+    "Credential encryption is authenticated and owner-bound",
+    "Webhook validation rejects private networks, credentials and unsafe URLs",
+    "Mapping validation rejects duplicate and prototype targets",
+    "Saved connection hides credentials and checks ownership",
+    "Concurrent enqueue creates one durable job per response/destination",
+    "Signed webhook maps fields and concurrent workers send once",
+    "Declined consent records a skip without a network call",
+    "Transient failure backs off and preserves the same delivery ID",
+    "Authentication errors and redirects do not retry automatically",
+    "Repeated transport errors stop after six attempts",
+    "HighLevel upsert preserves tags and unsubscribe settings",
+    "HighLevel cannot be configured to send non-consenting leads",
+    "Synthetic HighLevel tests omit automation tags",
+    "Connection edits stop old pending jobs until explicit retry",
+    "Disabling a connection prevents pending delivery",
+    "Historical contacts are not backfilled on enabling",
+    "Reconciliation recovers after-results capture and is idempotent",
+    "Preview deployment never sends production data",
+    "History excludes lead payload and credentials",
+    "Scheduler authentication supports Vault hash and rejects wrong credentials",
+    "HTTP sender rejects mixed private DNS and pins the approved address"
+  ]
+}

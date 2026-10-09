@@ -1,0 +1,78 @@
+[
+  {
+    "name": "Required capture cannot be bypassed",
+    "passed": true
+  },
+  {
+    "name": "required: rejects invalid contact without recording a response",
+    "passed": true
+  },
+  {
+    "name": "Temporary storage failure leaves answers available for a successful retry",
+    "passed": true
+  },
+  {
+    "name": "required: concurrent retries keep one contact and accept declined marketing",
+    "passed": true
+  },
+  {
+    "name": "required: contact list is private",
+    "passed": true
+  },
+  {
+    "name": "required: preview never creates a contact",
+    "passed": true
+  },
+  {
+    "name": "required: affirmative marketing consent is recorded independently",
+    "passed": true
+  },
+  {
+    "name": "optional: rejects invalid contact without recording a response",
+    "passed": true
+  },
+  {
+    "name": "optional: concurrent retries keep one contact and accept declined marketing",
+    "passed": true
+  },
+  {
+    "name": "optional: contact list is private",
+    "passed": true
+  },
+  {
+    "name": "Optional capture can be skipped",
+    "passed": true
+  },
+  {
+    "name": "optional: preview never creates a contact",
+    "passed": true
+  },
+  {
+    "name": "optional: affirmative marketing consent is recorded independently",
+    "passed": true
+  },
+  {
+    "name": "After-results capture cannot precede completion",
+    "passed": true
+  },
+  {
+    "name": "after: concurrent retries keep one contact and accept declined marketing",
+    "passed": true
+  },
+  {
+    "name": "after: contact list is private",
+    "passed": true
+  },
+  {
+    "name": "after: preview never creates a contact",
+    "passed": true
+  },
+  {
+    "name": "after: affirmative marketing consent is recorded independently",
+    "passed": true
+  },
+  {
+    "name": "CSV escapes spreadsheet formulas, quotes and line breaks",
+    "passed": true
+  }
+]

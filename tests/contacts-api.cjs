@@ -54,7 +54,7 @@ try {
   if (mode === "required") await check("Temporary storage failure leaves answers available for a successful retry", async () => {
    const attemptId = JSON.parse(Buffer.from(a.token.split(".")[0], "base64url").toString()).id;
    assert.match(attemptId, /^[a-zA-Z0-9_-]+$/);
-   const lock = `.heyquiz-data/submissions/${attemptId}.lock`;
+   const lock = `${process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data"}/submissions/${attemptId}.lock`;
    fs.mkdirSync(lock);
    try { const failed = await request(`/api/forms/${f.id}/submit`, "POST", { ...payload, contact }, false); assert.notEqual(failed.status, 200); assert.match(failed.data.error, /busy/); assert.equal((await request(`/api/forms/${f.id}/contacts`)).data.contacts.length, 0); }
    finally { fs.rmdirSync(lock); }
@@ -82,9 +82,9 @@ try {
  await check("CSV escapes spreadsheet formulas, quotes and line breaks", async () => { const csv = contactsCsv([{ name: '=HYPERLINK("x")', answer: "first\nsecond" }]); assert.ok(csv.includes(`"'=HYPERLINK(""x"")"`)); assert.ok(csv.includes('"first\nsecond"')); });
  console.log(JSON.stringify(results, null, 2));
 } finally { for (const id of created) await request(`/api/forms/${id}`, "DELETE");
- for (const kind of ["attempts", "submissions"]) for (const name of fs.readdirSync(`.heyquiz-data/${kind}`)) {
+ for (const kind of ["attempts", "submissions"]) for (const name of fs.readdirSync(`${process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data"}/${kind}`)) {
   if (!name.endsWith(".json")) continue;
-  const file = `.heyquiz-data/${kind}/${name}`, row = JSON.parse(fs.readFileSync(file, "utf8"));
+  const file = `${process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data"}/${kind}/${name}`, row = JSON.parse(fs.readFileSync(file, "utf8"));
   if (created.includes(row.payload.formId || row.payload.form?.id)) fs.unlinkSync(file);
  } }
 })().catch(e => { console.error(e); process.exitCode = 1; });

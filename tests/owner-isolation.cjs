@@ -16,7 +16,7 @@ const { writeRecord, removeRecord } = require("../lib/records.ts");
 const { FormSchema } = require("../lib/schema.ts");
 (async () => {
   const id = "qa-isolation-" + Date.now(),
-    base = "http://127.0.0.1:3130",
+    base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
     other = "qa-other-owner";
   const f = FormSchema.parse({
     id,

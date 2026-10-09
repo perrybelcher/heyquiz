@@ -1,0 +1,13 @@
+Product tour modes passed
+Images loaded
+Responsive screenshots passed
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByText('Create an account with your email and a password, confirm your email, and start building.') to be visible[22m
+
+    at /Users/perry/Documents/Codex/2026-10-06/gr/outputs/heyquiz/tests/browser-sales.cjs:138:8 {
+  log: [
+    "  - waiting for getByText('Create an account with your email and a password, confirm your email, and start building.') to be visible"
+  ],
+  name: 'TimeoutError'
+}

@@ -1,5 +1,5 @@
 const {chromium}=require('playwright');const assert=require('node:assert/strict');
-(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});const context=await browser.newContext();const page=await context.newPage();const base='http://127.0.0.1:3145';const id='share-'+Date.now();try{
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});const context=await browser.newContext();const page=await context.newPage();const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130";const id='share-'+Date.now();try{
  await context.request.post(base+'/api/auth',{data:{local:true},headers:{Origin:base}});
  await context.request.post(base+'/api/forms',{data:{id,title:'Sharing test',mode:'survey',questions:[{id:'q',type:'short_answer',title:'Your name?'}]},headers:{Origin:base}});
  await page.goto(base+'/editor/'+id);await page.getByRole('button',{name:'Share',exact:true}).click();

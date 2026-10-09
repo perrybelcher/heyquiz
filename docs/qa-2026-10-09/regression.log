@@ -1,0 +1,102 @@
+[
+  {
+    "name": "Duplicate multiselect selections cannot inflate score",
+    "passed": true
+  },
+  {
+    "name": "Hidden and jumped questions do not reduce scores",
+    "passed": true
+  },
+  {
+    "name": "Page order is consistent after appending to an earlier page",
+    "passed": true
+  },
+  {
+    "name": "Matrix survey fields do not cause automatic failure",
+    "passed": true
+  },
+  {
+    "name": "Display fields never block required validation",
+    "passed": true
+  },
+  {
+    "name": "Exact equality does not perform substring matching",
+    "passed": true
+  },
+  {
+    "name": "Show rules start hidden and become visible only on a match",
+    "passed": true
+  },
+  {
+    "name": "Branch-selected outcome is determined on server",
+    "passed": true
+  },
+  {
+    "name": "Public player data excludes answer keys and explanations",
+    "passed": true
+  },
+  {
+    "name": "Invalid emails and incomplete structured answers are rejected",
+    "passed": true
+  },
+  {
+    "name": "Logic cycles are rejected",
+    "passed": true
+  },
+  {
+    "name": "Calculation supports arithmetic, never executable input",
+    "passed": true
+  },
+  {
+    "name": "Atomic persistence rejects stale revisions and preserves corrupt data",
+    "passed": true
+  },
+  {
+    "name": "All three marketing templates pass schema and publish validation",
+    "passed": true
+  },
+  {
+    "name": "Product matching explains only selected benefits",
+    "passed": true
+  },
+  {
+    "name": "Hard product exclusions override high match scores",
+    "passed": true
+  },
+  {
+    "name": "Unknown product answers produce useful fallback",
+    "passed": true
+  },
+  {
+    "name": "Buyer preference routes to the requested help without a test grade",
+    "passed": true
+  },
+  {
+    "name": "Declining help does not force a sales recommendation",
+    "passed": true
+  },
+  {
+    "name": "Scorecards distinguish zero, unknown and incomplete coverage",
+    "passed": true
+  },
+  {
+    "name": "Hidden answers cannot influence marketing results",
+    "passed": true
+  },
+  {
+    "name": "Duplicate selections contribute only once to recommendation",
+    "passed": true
+  },
+  {
+    "name": "Equal marketing scores use declared result order",
+    "passed": true
+  },
+  {
+    "name": "Broken and duplicate marketing rules are rejected",
+    "passed": true
+  },
+  {
+    "name": "Public marketing payload omits the decision rules and catalog",
+    "passed": true
+  }
+]

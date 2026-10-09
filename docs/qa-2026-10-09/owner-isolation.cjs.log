@@ -1,0 +1,10 @@
+[
+  "GET /api/forms/qa-isolation-1791560781063 denies other owner",
+  "PUT /api/forms/qa-isolation-1791560781063 denies other owner",
+  "DELETE /api/forms/qa-isolation-1791560781063 denies other owner",
+  "POST /api/forms/qa-isolation-1791560781063/publish denies other owner",
+  "GET /api/forms/qa-isolation-1791560781063/contacts denies other owner",
+  "GET /api/forms/qa-isolation-1791560781063/submissions denies other owner",
+  "GET /api/forms/qa-isolation-1791560781063/analytics denies other owner",
+  "Cross-origin mutation rejected"
+]

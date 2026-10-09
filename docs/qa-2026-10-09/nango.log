@@ -1,0 +1,16 @@
+PASS Session restricts provider, contact scopes and opaque owner tags
+PASS Unexpected auth link is rejected
+PASS Foreign owner and quiz cannot finish authorization
+PASS Pending, spoofed tag and wrong provider do not connect
+PASS Invalid or errored authorization is rejected
+PASS Verified connection encrypted and paused, duplicate finish is idempotent
+PASS Client cannot forge HubSpot credentials or subscription mapping
+PASS Owner can map score and consent on saved connection
+PASS Partial updates preserve absent phone and unrelated properties
+PASS New contact and concurrent create race resolve by email
+PASS Authentication/rate-limit errors never attempt create
+PASS Worker retries transient HubSpot errors and records success once
+PASS Worker treats missing scopes and malformed success as terminal
+PASS No opt-in produces a skipped HubSpot delivery
+PASS Expired authorization and missing configuration fail clearly
+15 Nango / HubSpot checks passed.

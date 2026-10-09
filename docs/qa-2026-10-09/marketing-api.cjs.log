@@ -1,0 +1,50 @@
+[
+  {
+    "name": "product_finder: create, persist and publish configuration",
+    "passed": true
+  },
+  {
+    "name": "product_finder: public start keeps decision rules on server",
+    "passed": true
+  },
+  {
+    "name": "product_finder: server computes and stores the correct result",
+    "passed": true
+  },
+  {
+    "name": "product_finder: preview never creates a saved response",
+    "passed": true
+  },
+  {
+    "name": "segmentation: create, persist and publish configuration",
+    "passed": true
+  },
+  {
+    "name": "segmentation: public start keeps decision rules on server",
+    "passed": true
+  },
+  {
+    "name": "segmentation: server computes and stores the correct result",
+    "passed": true
+  },
+  {
+    "name": "segmentation: preview never creates a saved response",
+    "passed": true
+  },
+  {
+    "name": "scorecard: create, persist and publish configuration",
+    "passed": true
+  },
+  {
+    "name": "scorecard: public start keeps decision rules on server",
+    "passed": true
+  },
+  {
+    "name": "scorecard: server computes and stores the correct result",
+    "passed": true
+  },
+  {
+    "name": "scorecard: preview never creates a saved response",
+    "passed": true
+  }
+]

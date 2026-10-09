@@ -1,0 +1,4 @@
+locator.waitFor: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('heading', { name: 'Do new inquiries arrive in one place your team can check?', exact: true }) to be visible[22m
+

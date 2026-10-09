@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
-const base = 'http://127.0.0.1:3141';
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130";
 (async () => {
   const browser = await chromium.launch({channel:'chrome',headless:true,args:['--disable-gpu']});
   const context = await browser.newContext();

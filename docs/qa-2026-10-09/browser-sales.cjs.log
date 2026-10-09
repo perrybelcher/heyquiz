@@ -1,0 +1,4 @@
+locator.evaluate: EncodingError: The source image cannot be decoded.
+    at /Users/perry/Documents/Codex/2026-10-06/gr/outputs/heyquiz/tests/browser-sales.cjs:28:17 {
+  log: []
+}

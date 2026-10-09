@@ -1,0 +1,44 @@
+PASS hubspot authorization binds provider, owner, quiz and nonce
+PASS hubspot rejects mapping identity and unsubscribe fields
+PASS activecampaign authorization binds provider, owner, quiz and nonce
+PASS activecampaign rejects mapping identity and unsubscribe fields
+PASS klaviyo authorization binds provider, owner, quiz and nonce
+PASS klaviyo rejects mapping identity and unsubscribe fields
+PASS mailchimp authorization binds provider, owner, quiz and nonce
+PASS mailchimp rejects mapping identity and unsubscribe fields
+PASS keap authorization binds provider, owner, quiz and nonce
+PASS keap rejects mapping identity and unsubscribe fields
+PASS brevo authorization binds provider, owner, quiz and nonce
+PASS brevo rejects mapping identity and unsubscribe fields
+PASS zoho authorization binds provider, owner, quiz and nonce
+PASS zoho rejects mapping identity and unsubscribe fields
+PASS freshsales authorization binds provider, owner, quiz and nonce
+PASS freshsales rejects mapping identity and unsubscribe fields
+PASS salesforce authorization binds provider, owner, quiz and nonce
+PASS salesforce rejects mapping identity and unsubscribe fields
+PASS twenty authorization binds provider, owner, quiz and nonce
+PASS twenty rejects mapping identity and unsubscribe fields
+PASS activecampaign sends documented upsert and confirms ID
+PASS activecampaign preserves rate limits and rejects malformed success
+PASS klaviyo sends documented upsert and confirms ID
+PASS klaviyo preserves rate limits and rejects malformed success
+PASS mailchimp sends documented upsert and confirms ID
+PASS mailchimp preserves rate limits and rejects malformed success
+PASS keap sends documented upsert and confirms ID
+PASS keap preserves rate limits and rejects malformed success
+PASS brevo sends documented upsert and confirms ID
+PASS brevo preserves rate limits and rejects malformed success
+PASS zoho sends documented upsert and confirms ID
+PASS zoho preserves rate limits and rejects malformed success
+PASS freshsales sends documented upsert and confirms ID
+PASS freshsales preserves rate limits and rejects malformed success
+PASS salesforce sends documented upsert and confirms ID
+PASS salesforce preserves rate limits and rejects malformed success
+PASS Zoho HTTP success with record failure is not delivered
+PASS Brevo and Salesforce empty success verified with readback
+PASS Twenty updates exactly matched person and preserves email collections
+PASS Twenty retries use stable creation ID
+PASS Twenty fails closed on duplicates, wrong matches and filter injection
+PASS Provider-specific mappings preserve numeric scores and reject identity overrides
+PASS Mailchimp requires audience and oversized payload is rejected
+43 provider checks passed.

@@ -1,6 +1,6 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const names={hubspot:'HubSpot',activecampaign:'ActiveCampaign',klaviyo:'Klaviyo',mailchimp:'Mailchimp',keap:'Keap / Infusionsoft',brevo:'Brevo',zoho:'Zoho CRM',freshsales:'Freshworks / Freshsales',salesforce:'Salesforce',twenty:'Twenty CRM'};
-const base='http://127.0.0.1:3130',id='qa-providers-'+Date.now();
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",id='qa-providers-'+Date.now();
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true}),c=await browser.newContext({viewport:{width:1280,height:1000}}),p=await c.newPage();let checks=0;const errors=[];p.on('pageerror',e=>errors.push(e.message));
 try{
  await c.request.post(base+'/api/auth',{data:{local:true},headers:{Origin:base}});

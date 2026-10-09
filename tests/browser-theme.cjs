@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
- const context=await browser.newContext(); const page=await context.newPage(); const base='http://127.0.0.1:3143';
+ const context=await browser.newContext(); const page=await context.newPage(); const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130";
  try {
  await page.goto(base+'/create');
  await page.getByRole('button',{name:'Theme',exact:true}).click();

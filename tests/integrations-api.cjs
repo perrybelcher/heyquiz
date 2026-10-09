@@ -3,7 +3,7 @@ require.extensions[".ts"] = (m,f) => m._compile(ts.transpileModule(fs.readFileSy
 const { defaultCapture } = require("../lib/contacts.ts");
 const { listRecords, removeRecord } = require("../lib/records.ts");
 const assert = require("node:assert/strict");
-const base = "http://127.0.0.1:3130",
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
   id = "qa-integrations-" + Date.now();
 let cookie = "";
 const checks = [];

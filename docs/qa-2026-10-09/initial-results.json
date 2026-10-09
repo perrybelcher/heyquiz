@@ -1,0 +1,74 @@
+[
+  {
+    "suite": "browser-guest-builder.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-auth.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-save-auth.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-sharing.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-answer-scoring.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-theme.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "api.mjs",
+    "exit": 0
+  },
+  {
+    "suite": "marketing-api.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "contacts-api.cjs",
+    "exit": 1
+  },
+  {
+    "suite": "owner-isolation.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "integrations-api.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-matrix.cjs",
+    "exit": 1
+  },
+  {
+    "suite": "browser-journeys.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-contacts.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-analytics.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-tracking.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-integrations.cjs",
+    "exit": 0
+  },
+  {
+    "suite": "browser-sales.cjs",
+    "exit": 1
+  }
+]

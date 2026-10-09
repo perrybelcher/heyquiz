@@ -1,0 +1,8 @@
+{"type":"email","status":"passed","responseSaved":true}
+{"type":"multiple_choice","status":"passed","responseSaved":true}
+{"type":"multiselect","status":"passed","responseSaved":true}
+{"type":"dropdown","status":"passed","responseSaved":true}
+{"type":"choice_matrix","status":"passed","responseSaved":true}
+{"type":"date","status":"passed","responseSaved":true}
+{"type":"file_upload","status":"passed","responseSaved":true}
+{"type":"signature","status":"passed","responseSaved":true}

@@ -1,0 +1,21 @@
+PASS pippi callback preserves PKCE origin
+PASS legacy callback preserves existing email flows
+PASS untrusted callback origin rejected
+PASS invalid email rejected before provider
+PASS short password rejected
+PASS cross-origin account submission rejected
+PASS signup waits for verification
+PASS normalized email and PKCE challenge
+PASS signed HttpOnly secure verifier
+PASS email redirect fixed to app, never supplied host
+PASS confirmed signup establishes session and consumes verifier
+PASS verifier exchanged server-side, tokens never returned
+PASS replayed callback rejected
+PASS recovery request has distinct bound flow
+PASS recovery does not authenticate workspace
+PASS reset updates password and clears recovery grant
+PASS reset without recovery cookie rejected
+PASS expired verifier rejected
+PASS SMTP rejection is an error, never false email success
+PASS provider rate limit preserved
+20 account checks passed (mock provider; no email sent).
