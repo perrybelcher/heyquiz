@@ -18,6 +18,16 @@ export default function MarketingResultCard({
       <p className="text-slate-600 leading-relaxed whitespace-pre-line">
         {result.message}
       </p>
+      {result.overallScore !== undefined && <div className="rounded-2xl border border-slate-200 p-5">
+        <p className="text-sm font-medium">Overall score</p>
+        <p className="text-4xl font-semibold mt-2">{result.overallScore === null ? "Not enough information" : `${result.overallScore}%`}</p>
+        <p className="text-sm text-slate-600 mt-2">{result.overallScore === null ? "Every category needs enough scored answers before an overall recommendation is available." : "Each category contributes equally to this score."}</p>
+      </div>}
+      {Boolean(result.priorities?.length) && <section className="rounded-2xl border border-slate-200 p-5">
+        <h2 className="font-semibold">Your next priorities</h2>
+        <p className="text-sm text-slate-600 mt-1">Starting with your lowest scored areas.</p>
+        <ol className="list-decimal pl-5 mt-4 space-y-4">{result.priorities!.map(p=><li key={p.categoryId}><strong>{p.title}</strong><p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{p.action}</p></li>)}</ol>
+      </section>}
       {result.reasons.length > 0 && (
         <div className="rounded-2xl bg-indigo-50 p-5">
           <h2 className="font-semibold mb-3">Why this fits</h2>
@@ -52,6 +62,10 @@ export default function MarketingResultCard({
           )}
           <p className="text-sm text-slate-600 mt-3 whitespace-pre-line">
             {c.description}
+          </p>
+          {c.bandTitle && <h3 className="font-semibold mt-4">{c.bandTitle}</h3>}
+          <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">
+            {c.advice}
           </p>
           <p className="text-xs text-slate-400 mt-3">
             {c.answered} of {c.applicable} applicable questions scored

@@ -10,6 +10,7 @@ import {
   validateMarketing,
 } from "@/lib/marketing";
 import MarketingResultCard from "./MarketingResultCard";
+import ScorecardResultsEditor from "./ScorecardResultsEditor";
 import { multiTypes, type Answers } from "@/lib/engine";
 const kinds = {
   product_finder: "Product finder",
@@ -159,6 +160,7 @@ export default function MarketingStudio({
             )}
             <div className="grid xl:grid-cols-[1.3fr_1fr] gap-7">
               <div className="space-y-6">
+                {m.kind === "scorecard" && <ScorecardResultsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />}
                 <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold">

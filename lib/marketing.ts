@@ -13,8 +13,27 @@ const webUrl = z
     (v) => !v || /^https?:\/\//i.test(v),
     "Use a complete http or https URL.",
   );
+// Bands use inclusive integer percentages. Publication requires full coverage,
+// so a boundary score can never silently lose its recommendation.
+export const ScoreBandSchema = z.object({
+  id,
+  min: z.number().int().min(0).max(100),
+  max: z.number().int().min(0).max(100),
+  title: z.string().trim().min(1).max(200),
+  advice: z.string().max(4000).default(""),
+  action: z.string().max(1000).default(""),
+  ctaLabel: z.string().max(100).default("Continue"),
+  ctaUrl: webUrl.default(""),
+});
+export type ScoreBand = z.infer<typeof ScoreBandSchema>;
+export const ScorecardPresentationSchema = z.object({
+  title: z.string().trim().min(1).max(200).default("Your scorecard"),
+  message: z.string().max(4000).default("Your results are based on the answers you shared."),
+  bands: z.array(ScoreBandSchema).max(10).default([]),
+});
 export const MarketingSchema = z.object({
   kind: z.enum(["product_finder", "segmentation", "scorecard"]),
+  scorecard: ScorecardPresentationSchema.optional(),
   fallbackTitle: z
     .string()
     .min(1)
@@ -47,6 +66,7 @@ export const MarketingSchema = z.object({
         title: z.string().min(1).max(200),
         description: z.string().max(2000).default(""),
         minAnswers: z.number().int().min(1).max(200).default(1),
+        bands: z.array(ScoreBandSchema).max(10).optional(),
       }),
     )
     .max(20)
@@ -76,6 +96,8 @@ export interface MarketingResult {
   advice?: string;
   ctaLabel?: string;
   ctaUrl?: string;
+  overallScore?: number | null;
+  priorities?: { categoryId: string; title: string; action: string }[];
   reasons: string[];
   categories: {
     id: string;
@@ -85,6 +107,9 @@ export interface MarketingResult {
     answered: number;
     applicable: number;
     minAnswers: number;
+    bandTitle?: string;
+    advice?: string;
+    action?: string;
   }[];
 }
 export function validateMarketing(form: FormSchemaType, publishing = false) {
@@ -98,6 +123,22 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
     throw Error(
       "Add a result and at least one answer rule before publishing this marketing quiz.",
     );
+  if (m.kind === "scorecard") {
+    const groups = [{ title: "Overall result", bands: m.scorecard?.bands }, ...m.categories];
+    for (const group of groups) {
+      const bands = [...(group.bands || [])].sort((a, b) => a.min - b.min);
+      if (!unique(bands.map(b => b.id))) throw Error(`${group.title}: band IDs must be unique.`);
+      for (let i = 0; i < bands.length; i++) {
+        if (bands[i].min > bands[i].max) throw Error(`${group.title}: minimum score exceeds maximum.`);
+        if (i && bands[i].min <= bands[i - 1].max) throw Error(`${group.title}: score bands overlap.`);
+        if (publishing && bands[i].min !== (i ? bands[i - 1].max + 1 : 0))
+          throw Error(`${group.title}: score bands must cover every percentage from 0 to 100.`);
+        if (bands[i].ctaUrl && !bands[i].ctaLabel.trim()) throw Error(`${group.title}: add a button label.`);
+      }
+      if (publishing && bands.length && bands[bands.length - 1].max !== 100)
+        throw Error(`${group.title}: score bands must end at 100.`);
+    }
+  }
   const pairs = new Set<string>();
   for (const rule of m.rules) {
     const q = form.questions.find((q) => q.id === rule.questionId);
@@ -196,27 +237,39 @@ export function evaluateMarketing(
           picked.reduce((n, r) => n + r.points, 0),
         );
       }
+      const score = answered >= c.minAnswers && possible > 0
+        ? Math.round((100 * earned) / possible) : null;
+      const band = score === null ? undefined : c.bands?.find(b => score >= b.min && score <= b.max);
       return {
         id: c.id,
         title: c.title,
         description: c.description,
-        score:
-          answered >= c.minAnswers && possible > 0
-            ? Math.round((100 * earned) / possible)
-            : null,
+        score,
+        ...(band ? { bandTitle: band.title, advice: band.advice, action: band.action } : {}),
         answered,
         applicable: ids.length,
         minAnswers: c.minAnswers,
       };
     });
     const hasScore = categories.some((c) => c.score !== null);
+    // Equal category weighting; withhold overall advice until all categories
+    // meet their configured coverage, rather than treating missing data as zero.
+    const overallScore = categories.length && categories.every(c => c.score !== null)
+      ? Math.round(categories.reduce((n, c) => n + c.score!, 0) / categories.length) : null;
+    const band = overallScore === null ? undefined : m.scorecard?.bands.find(b => overallScore >= b.min && overallScore <= b.max);
+    const priorities = categories.filter(c => c.score !== null && c.action)
+      .sort((a, b) => a.score! - b.score!).slice(0, 3)
+      .map(c => ({ categoryId: c.id, title: c.title, action: c.action! }));
     return {
       ...base,
       status: hasScore ? "scored" : "no_match",
-      title: hasScore ? "Your scorecard" : base.title,
+      title: hasScore ? band?.title || m.scorecard?.title || "Your scorecard" : base.title,
       message: hasScore
         ? "A snapshot of the practices you reported, with a practical next step for each area."
         : base.message,
+      ...(hasScore && m.scorecard ? { message: m.scorecard.message } : {}),
+      ...(m.scorecard ? { overallScore, priorities } : {}),
+      ...(band ? { outcomeId: band.id, advice: band.advice, ctaLabel: band.ctaLabel, ctaUrl: band.ctaUrl } : {}),
       categories,
     };
   }
