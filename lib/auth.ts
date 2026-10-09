@@ -1,3 +1,4 @@
+import { recordFailure } from "./diagnostics";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -82,5 +83,11 @@ export function apiError(e: unknown) {
         : message.includes("another tab")
           ? 409
           : 400;
-  return Response.json({ error: message }, { status });
+  // Expected validation/auth failures stay quiet. Record unexpected failures and
+  // service outages without logging messages, credentials or submitted answers.
+  const unexpected = !(e instanceof HttpError) && !(e instanceof Error &&
+    (e.name === "ZodError" || message.includes("another tab")));
+  const reference = status >= 500 || unexpected ? recordFailure("api", status) : undefined;
+  return Response.json({ error: message, ...(reference ? { reference } : {}) },
+    { status, headers: { "Cache-Control": "no-store", ...(reference ? { "X-Pippi-Reference": reference } : {}) } });
 }

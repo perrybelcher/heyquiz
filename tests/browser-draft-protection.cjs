@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
-const base='http://127.0.0.1:3157';
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3157';
 (async()=>{const browser=await chromium.launch({channel:'chrome'}),ctx=await browser.newContext();const id='qa-draft-'+Date.now(),headers={Origin:base};try{
  await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
  assert.equal((await ctx.request.post(base+'/api/forms',{data:{id,title:'Original',mode:'survey',questions:[{id:'q',type:'short_answer',title:'Question'}]},headers})).status(),201);

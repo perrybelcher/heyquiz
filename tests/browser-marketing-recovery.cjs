@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
-const base='http://127.0.0.1:3156';
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3156';
 (async()=>{const browser=await chromium.launch({channel:'chrome'}),ctx=await browser.newContext({viewport:{width:390,height:844}}),p=await ctx.newPage();try{
  assert.equal((await ctx.request.post(base+'/api/auth',{data:{local:true},headers:{Origin:base}})).status(),200);
  await p.goto(base+'/create/marketing');
