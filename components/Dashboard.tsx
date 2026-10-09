@@ -128,8 +128,8 @@ export default function Dashboard({
     }
   }
   return (
-    <div className="min-h-screen bg-[#f8f9f5] text-slate-900">
-      <header className="h-20 bg-[#f8f9f5] border-b border-[#e4e5de] flex items-center justify-between px-6 sm:px-10">
+    <div className="pippi-app min-h-screen bg-[#f8f9f5] text-slate-900">
+      <header className="workspace-header h-20 bg-[#f8f9f5] border-b border-[#e4e5de] flex items-center justify-between px-6 sm:px-10">
         <img src="/pippi-logo.svg" alt="pippi" className="h-8" />
         <div className="flex items-center gap-4">
           <nav aria-label="Workspace navigation" className="hidden sm:flex items-center gap-6 text-sm text-slate-500"><a href="#quiz-starters" className="hover:text-slate-900">Quiz starters</a><a href="#your-quizzes" className="hover:text-slate-900">My quizzes</a></nav>
@@ -192,7 +192,7 @@ export default function Dashboard({
             {filtered.map((f) => (
               <article
                 key={f.id}
-                className="bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-md transition relative group"
+                className="quiz-library-card bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-md transition relative group"
               >
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">

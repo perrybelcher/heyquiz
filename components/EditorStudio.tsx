@@ -1378,7 +1378,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       {guided && <GuidedQuizEditor form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={guest ? "Draft stored in this browser" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsaved changes"} published={isPublished} />}
       {!guided && <>
       {/* 1. FILLOUT TOP NAVIGATION BAR */}
-      <header className="min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
+      <header className="studio-toolbar min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
         <div className="flex items-center gap-2.5">
           <Link
             href="/"
@@ -1447,7 +1447,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </button>
         <button className="hq-secondary" onClick={() => changeEditorMode(true)}>Guided setup</button>
         {/* Center Fillout Tabs Capsule */}
-        <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
+        <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
           <button
             onClick={() => setActiveNavTab("edit")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
@@ -1511,7 +1511,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           <Settings size={15} /> Form settings
         </button>
         {/* Right Fillout Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="studio-actions flex items-center gap-2">
           {/* Keep theme controls outside the scrolling canvas in every editor view. */}
           <button
             onClick={() => setShowThemeModal(true)}
