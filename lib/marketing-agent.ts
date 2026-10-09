@@ -23,5 +23,7 @@ export async function generateMarketingQuiz(input: unknown) {
     const raw = data.candidates?.[0]?.content?.parts?.map((p:{text?:string})=>p.text || "").join("");
     return compileMarketingDraft(brief, JSON.parse(raw || ""));
   }
-  catch { throw new HttpError(502, "The AI draft did not pass our scoring and structure checks. Nothing was saved. Please try again or simplify your brief."); }
+  catch (error) {
+    console.error("AI draft validation", error instanceof z.ZodError ? error.issues.map(issue => ({code:issue.code,path:issue.path})) : error instanceof SyntaxError ? "invalid_json" : error instanceof Error ? error.message : "unknown");
+    throw new HttpError(502, "The AI draft did not pass our scoring and structure checks. Nothing was saved. Please try again or simplify your brief."); }
 }
