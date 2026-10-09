@@ -1,0 +1,26 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3155';if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(base))throw Error('Local tests only');
+(async()=>{const browser=await chromium.launch({channel:'chrome'}),ctx=await browser.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage();let id;const headers={Origin:base};try{
+ assert.equal((await ctx.request.post(base+'/api/agent/marketing',{data:{},headers})).status(),401);
+ await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
+ await p.goto(base+'/');await p.getByRole('link',{name:'Build a marketing quiz'}).click();
+ await p.getByLabel('Who is this quiz for?').fill('Small business owners');
+ await p.getByLabel('What do you offer?').fill('Practical follow-up coaching');
+ await p.getByLabel('What should the right person do next?').fill('Explore coaching');
+ await p.reload();assert.equal(await p.getByLabel('Who is this quiz for?').inputValue(),'Small business owners');
+ await p.getByRole('button',{name:'Continue',exact:true}).click();await p.getByLabel('Quiz goal').selectOption('scorecard');
+ const categories=[['Operations','How consistently inquiries are handled'],['Measurement','How consistently outcomes are reviewed']];
+ for(let i=0;i<2;i++){const field=p.getByRole('group',{name:`Category ${i+1}`,exact:true});await field.getByLabel('Name',{exact:true}).fill(categories[i][0]);await field.getByLabel('What does this category measure?').fill(categories[i][1]);}
+ await p.getByRole('button',{name:'Continue',exact:true}).click();await p.getByLabel('Default destination URL').fill('https://example.com/coaching');
+ assert.equal(await p.getByRole('button',{name:'Generate my quiz',exact:true}).isDisabled(),true);
+ await p.getByRole('button',{name:'Create starter without AI'}).click();await p.getByRole('heading',{name:'Find your next area of focus'}).waitFor();
+ const radios=p.getByRole('radio',{name:'Established and consistent',exact:true});for(let i=0;i<await radios.count();i++)await radios.nth(i).check();
+ assert.ok(await p.getByText('100%',{exact:true}).count()>0);
+ await p.setViewportSize({width:390,height:844});assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.setViewportSize({width:1440,height:1000});
+ await p.evaluate(()=>window.scrollTo(0,0));await p.screenshot({path:'../quiznick/marketing-brief-preview.png',fullPage:true});
+ await p.getByRole('button',{name:'Save draft & open editor'}).click();await p.waitForURL(/\/editor\//);id=p.url().split('/').pop();
+ const f=await(await ctx.request.get(base+'/api/forms/'+id)).json();assert.equal(f.questions.length,6);assert.equal(f.capture.marketingEnabled,false);assert.equal(f.publishedAt,undefined);
+ assert.equal((await ctx.request.post(base+'/api/forms/'+id+'/publish',{data:{},headers})).status(),200);
+ const anon=await browser.newContext();const start=await(await anon.request.post(base+'/api/forms/'+id+'/start',{data:{},headers})).json();const sub=await anon.request.post(base+'/api/forms/'+id+'/submit',{data:{token:start.token,answers:Object.fromEntries(f.questions.map(q=>[q.id,'answer-0']))},headers});assert.equal(sub.status(),200);const body=await sub.json();assert.equal((body.result||body).marketing.overallScore,100);await anon.close();
+ console.log('PASS brief persistence, missing-provider recovery, no-AI starter, live simulator, mobile layout, save, publish and anonymous scoring');
+}finally{if(id)await ctx.request.delete(base+'/api/forms/'+id,{headers});await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

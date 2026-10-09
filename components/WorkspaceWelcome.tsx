@@ -19,6 +19,7 @@ export default function WorkspaceWelcome({busy,onCreate,onAI,projectCount,publis
         </div>
       </div>
     </section>
+    <section className="rounded-2xl border border-red-100 bg-white p-6 sm:p-8 mb-10 flex flex-wrap items-center justify-between gap-5"><div><p className="text-xs font-semibold uppercase tracking-widest text-red-800">Marketing quiz studio</p><h2 className="mt-2 text-2xl font-semibold">Turn your offer into a useful conversation.</h2><p className="mt-2 text-sm text-slate-500 max-w-xl">Start with your audience, products, and next step. Create an editable starter with scoring and personalized results, or generate a tailored draft when AI is connected.</p></div><a href="/create/marketing" className="hq-primary"><Sparkles size={17}/>Build a marketing quiz<ArrowRight size={16}/></a></section>
     <section id="quiz-starters" aria-label="Marketing quiz templates" className="scroll-mt-8 mb-10">
       <div className="flex flex-wrap justify-between items-end gap-4 mb-6"><div><p className="text-[10px] uppercase tracking-[.2em] text-indigo-600 font-semibold mb-2">Start with the outcome</p><h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#282a26]">What would you like to make happen?</h2></div><p className="text-xs text-slate-500 max-w-52">Editable starting points.<br/>Your questions. Your voice. Your offer.</p></div>
       <div className="grid md:grid-cols-3 gap-5">
