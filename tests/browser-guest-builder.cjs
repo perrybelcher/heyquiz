@@ -8,7 +8,7 @@ const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:3142';
  try {
   await page.goto(base+'/welcome');
   await page.getByRole('link',{name:'Create your first quiz'}).first().click();
-  await page.waitForURL(base+'/create');
+  await page.waitForURL(base+'/create');await page.getByRole('button',{name:/^Test knowledge/}).click();
   const title=page.locator('input').filter({visible:true}).first();
   await title.fill('My guest quiz');
   await page.waitForFunction(()=>Object.keys(localStorage).some(k=>k.startsWith('heyquiz-draft:') && localStorage.getItem(k).includes('My guest quiz')));

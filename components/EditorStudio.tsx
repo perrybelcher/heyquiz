@@ -127,6 +127,7 @@ import {
 } from "@/lib/engine";
 import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
+import { publicationFingerprint } from "@/lib/publication";
 import AnswerScoring, { ScoringMode } from "./AnswerScoring";
 import ThemeEditor from "./ThemeEditor";
 import ContactsStudio from "./ContactsStudio";
@@ -138,9 +139,11 @@ interface EditorStudioProps {
   initialForm: FormSchemaType;
   guest?: boolean;
   initiallyPublished?: boolean;
+  publishedFingerprint?: string;
 }
 
-export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false }: EditorStudioProps) {
+export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "" }: EditorStudioProps) {
+  const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
   const [publishing, setPublishing] = useState(false);
   const [form, setForm] = useState<FormSchemaType>(initialForm);
@@ -952,6 +955,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Publishing failed.");
+      setLiveFingerprint(publicationFingerprint(form));
       setIsPublished(true);
       setShowPublishModal(true);
     } catch (err) {
@@ -1503,6 +1507,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <span>Theme</span>
           </button>
           <ScoringMode form={form} onChange={setForm} />
+          <span className="text-xs font-semibold text-gray-600">{!isPublished ? "Draft · Not public" : liveFingerprint !== publicationFingerprint(form) ? "Published · Unpublished changes" : "Published · Up to date"}</span>
           {/* Device Mockup Toggle */}
           <div className="hidden sm:flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
             <button
@@ -2088,7 +2093,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                               totalQuestions={displayedQuestions.length}
                               isSelected={isSelected}
                               mode={form.marketing ? "survey" : form.mode}
-                              scoring={form.marketing ? <AnswerScoring q={q} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
+                              scoring={form.marketing ? <AnswerScoring form={form} q={q} onLabelChange={(id,label)=>updateOption(q.id,id,{label})} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
                               hasLogic={hasLogic}
                               onSelect={() => setSelectedQuestionId(q.id)}
                               onMoveQuestion={moveQuestion}
@@ -2134,7 +2139,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                                   totalQuestions={displayedQuestions.length}
                                   isSelected={isSelected}
                                   mode={form.marketing ? "survey" : form.mode}
-                              scoring={form.marketing ? <AnswerScoring q={q} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
+                              scoring={form.marketing ? <AnswerScoring form={form} q={q} onLabelChange={(id,label)=>updateOption(q.id,id,{label})} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
                                   hasLogic={hasLogic}
                                   onSelect={() => setSelectedQuestionId(q.id)}
                                   onMoveQuestion={moveQuestion}
@@ -4056,7 +4061,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-emerald-700">Published · Your public link is ready. Publish again after editing to update the live quiz.</p>
+                  <p className="text-sm text-emerald-700">{liveFingerprint !== publicationFingerprint(form) ? "Your link shows the previous published version. Publish again to make these edits live." : "Published · Your public link is ready."}</p>
               {/* Direct Link Box */}
               <div className="space-y-1.5 pt-2">
                 <label className="text-xs font-semibold text-gray-700">

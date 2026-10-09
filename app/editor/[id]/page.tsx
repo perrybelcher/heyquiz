@@ -1,3 +1,4 @@
+import { publicationFingerprint } from "@/lib/publication";
 import { notFound } from "next/navigation";
 import { ownedForm, getPublishedForm } from "@/lib/storage";
 import { requirePageUser } from "@/lib/auth";
@@ -12,5 +13,5 @@ export default async function EditorPage({
     form = await ownedForm(id, user.id);
   if (!form) notFound();
   const published = await getPublishedForm(id);
-  return <EditorStudio initialForm={form} initiallyPublished={Boolean(published)} />;
+  return <EditorStudio initialForm={form} initiallyPublished={Boolean(published)} publishedFingerprint={published ? publicationFingerprint(published) : ""} />;
 }

@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});const context=await browser.newContext();const page=await context.newPage();const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130";try{
- await page.goto(base+'/create');await page.getByLabel('Scoring mode').selectOption('scorecard');
+ await page.goto(base+'/create');await page.getByRole('button',{name:/^Test knowledge/}).click();await page.getByLabel('Scoring mode').selectOption('scorecard');
  await page.getByLabel('New category name').fill('Readiness');await page.getByRole('button',{name:'Add category',exact:true}).click();
  await page.getByLabel('First option: Readiness points').fill('0');await page.getByLabel('Second option: Readiness points').fill('10');
  await context.request.post(base+'/api/auth',{data:{local:true},headers:{Origin:base}});

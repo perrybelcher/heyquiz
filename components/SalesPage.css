@@ -1850,3 +1850,11 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
   font-size: var(--sales-body-size);
   line-height: 1.5;
 }
+
+/* Small explanatory text must remain readable against the warm demo surfaces. */
+.hq-sales-page .journey-example,
+.hq-sales-page .journey-card-label,
+.hq-sales-page .logic-caption,
+.hq-sales-page .outcome-eyebrow,
+.hq-sales-page .journey-outcome > p,
+.hq-sales-page .journey-window-footer { color: #69514e; }

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch({channel:'chrome',headless:true});
  const context=await browser.newContext(); const page=await context.newPage(); const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130";
  try {
- await page.goto(base+'/create');
+ await page.goto(base+'/create');await page.getByRole('button',{name:/^Test knowledge/}).click();
  await page.getByRole('button',{name:'Theme',exact:true}).click();
  const dialog=page.getByRole('dialog');
  await dialog.getByRole('button',{name:'Midnight',exact:true}).click();
@@ -30,7 +30,7 @@ const assert=require('node:assert/strict');
  await page.goto(base+'/play/'+id);
  const styles=await page.locator('.hq-player').evaluate(e=>({bg:getComputedStyle(e).backgroundColor,font:getComputedStyle(e).fontFamily,radius:getComputedStyle(e).getPropertyValue('--hq-radius'),button:getComputedStyle(e).getPropertyValue('--hq-button-text')}));
  assert.equal(styles.bg,'rgb(17, 24, 39)'); assert.ok(styles.font.includes('Georgia')); assert.equal(styles.radius,'0px'); assert.equal(styles.button,'#111111');
- await page.setViewportSize({width:390,height:844}); await page.goto(base+'/create'); await page.getByRole('button',{name:'Theme',exact:true}).click();
+ await page.setViewportSize({width:390,height:844}); await page.goto(base+'/create');await page.getByRole('button',{name:/^Test knowledge/}).click(); await page.getByRole('button',{name:'Theme',exact:true}).click();
  assert.equal(await dialog.evaluate(e=>e.scrollWidth<=e.clientWidth),true);
  console.log('PASS cancel, hex validation, custom colors, font, corners, save/publish rendering, mobile dialog width');
  }finally{await browser.close();}
