@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Plus, Sparkles, Trash2 } from "lucide-rea
 import { MarketingBriefSchema, createMarketingStarter, type MarketingBrief } from "@/lib/marketing-brief";
 import { FormSchema, type FormSchemaType } from "@/lib/schema";
 import { evaluateMarketing } from "@/lib/marketing";
+import BrandProfilePicker from "./BrandProfilePicker";
 import MarketingResultCard from "./MarketingResultCard";
 
 const empty: MarketingBrief = {audience:"",offer:"",goal:"",concerns:"",voice:"Warm, clear, helpful, and never pushy",kind:"segmentation",numQuestions:6,ctaLabel:"Explore my next step",ctaUrl:"",targets:[{title:"",description:"",ctaUrl:""},{title:"",description:"",ctaUrl:""}]};
@@ -61,6 +62,7 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
     <p className="text-sm font-semibold text-red-800 flex items-center gap-2"><Sparkles size={17}/>Marketing quiz studio</p>
     <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mt-3">Help people discover what matters—and what fits.</h1>
     <p className="mt-4 text-slate-600 max-w-2xl leading-relaxed">Turn your expertise into a thoughtful sequence: their goal, what gets in the way, what matters in a solution, and a relevant next step. Review the wording, test the scoring, and make it yours before publishing.</p>
+    {!preview && ready && <BrandProfilePicker brief={brief} disabled={busy} onApply={value=>{setBrief(value);setStep(0);setError("");setAuthError(false);}}/>}
     {recovered&&preview&&<p role="status" className="mt-5 rounded-xl bg-green-50 p-4 text-sm text-green-900">Your unsaved draft was restored from this tab. Review it and save it to your account when ready.</p>}
     {storageWarning&&<p role="status" className="mt-5 rounded-xl bg-amber-50 p-4 text-sm">This browser could not back up your draft. Keep this tab open and save to your account before leaving.</p>}
     {error&&<div role="alert" className="hq-error mt-6">{error}<p className="mt-2">{authError&&<><a href="/login?next=%2Fcreate%2Fmarketing" className="underline">Sign in again</a> · </>}{!preview&&<button disabled={busy} onClick={starter} className="underline">Create starter from this brief</button>}</p></div>}

@@ -1,0 +1,33 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {writeRecord,removeRecord}=require('../lib/records.ts');
+const {randomUUID}=require('node:crypto');
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3162';if(new URL(base).hostname!=='127.0.0.1')throw Error('Local only');
+const brief={audience:'Home office workers',offer:'Desk accessories with clear fit guidance',goal:'Explore a suitable accessory',concerns:'Limited desk space',voice:'Warm and practical',kind:'segmentation',numQuestions:3,ctaLabel:'Explore my setup',ctaUrl:'https://example.com/setup',targets:[{title:'Compact desk',description:'People with limited workspace',ctaUrl:''},{title:'Large desk',description:'People with a larger home office',ctaUrl:''}]};
+(async()=>{const b=await chromium.launch({channel:'chrome'}),ctx=await b.newContext({viewport:{width:1280,height:900}}),anon=await b.newContext(),p=await ctx.newPage(),headers={Origin:base};const ids=[];const foreign=randomUUID();try{
+ assert.equal((await anon.request.get(base+'/api/brand-profiles')).status(),401);
+ assert.equal((await ctx.request.post(base+'/api/auth',{data:{local:true},headers})).status(),200);
+ assert.equal((await ctx.request.post(base+'/api/brand-profiles',{data:{name:'Invalid',brief:{}} ,headers})).status(),400);
+ assert.equal((await ctx.request.post(base+'/api/brand-profiles',{data:{name:'Cross origin',brief},headers:{Origin:'https://evil.test'}})).status(),403);
+ await writeRecord('brand_profiles',foreign,'other-owner',{name:'Private other account',brief,updatedAt:new Date().toISOString()},0);
+ assert.equal((await ctx.request.get(base+'/api/brand-profiles/'+foreign)).status(),404);
+ assert.equal((await ctx.request.put(base+'/api/brand-profiles/'+foreign,{data:{name:'No',brief,revision:1},headers})).status(),404);
+ assert.ok(!(await(await ctx.request.get(base+'/api/brand-profiles')).json()).profiles.some(x=>x.id===foreign));
+ await p.goto(base+'/create/marketing');
+ await p.getByLabel('Who is this quiz for?').fill(brief.audience);await p.getByLabel('What do you offer?').fill(brief.offer);await p.getByLabel('What should the right person do next?').fill(brief.goal);
+ await p.getByRole('button',{name:'2. Results & fit'}).click();
+ for(let i=0;i<2;i++){const g=p.getByRole('group',{name:`Result ${i+1}`,exact:true});await g.getByLabel('Name',{exact:true}).fill(brief.targets[i].title);await g.getByLabel('Who is this for?').fill(brief.targets[i].description);}
+ await p.getByLabel('Profile name',{exact:true}).fill('QA Home office');
+ const response=p.waitForResponse(r=>r.url()===base+'/api/brand-profiles'&&r.request().method()==='POST');await p.getByRole('button',{name:'Save as new profile',exact:true}).click();const saved=await(await response).json();ids.push(saved.id);
+ await p.getByText('Profile saved to your account.',{exact:false}).waitFor();
+ await p.reload();await p.getByLabel('Saved profile',{exact:true}).selectOption(saved.id);
+ await p.getByLabel('Who is this quiz for?').fill('Changed draft audience');await p.getByRole('button',{name:'Use selected profile',exact:true}).click();await p.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await p.getByLabel('Who is this quiz for?').inputValue(),'Changed draft audience');
+ await p.getByRole('button',{name:'Use selected profile',exact:true}).click();await p.getByRole('button',{name:'Replace brief',exact:true}).click();assert.equal(await p.getByLabel('Who is this quiz for?').inputValue(),brief.audience);
+ await p.getByLabel('Who is this quiz for?').fill('Updated home office audience');assert.equal((await(await ctx.request.get(base+'/api/brand-profiles/'+saved.id)).json()).brief.audience,brief.audience);
+ await p.getByRole('button',{name:'Update selected profile',exact:true}).click();await p.getByRole('button',{name:'Confirm profile update',exact:true}).click();await p.getByText('Profile updated.',{exact:false}).waitFor();
+ const current=await(await ctx.request.get(base+'/api/brand-profiles/'+saved.id)).json();assert.equal(current.brief.audience,'Updated home office audience');assert.equal(current.revision,2);
+ assert.equal((await ctx.request.put(base+'/api/brand-profiles/'+saved.id,{data:{name:'Stale overwrite',brief,revision:1},headers})).status(),409);
+ await p.setViewportSize({width:390,height:844});assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.screenshot({path:'/tmp/pippi-brand-profiles.png',fullPage:true});
+ await p.getByRole('button',{name:'3. Voice & action'}).click();await p.getByRole('button',{name:'Create starter without AI'}).click();await p.getByRole('button',{name:'Save draft & open editor'}).waitFor();
+ console.log('PASS profile API auth, owner isolation, CSRF, validation, browser save/reload/reuse/cancel, independent draft edits, revision conflict, starter generation and mobile width');
+}finally{for(const id of ids)await removeRecord('brand_profiles',id,'local');await removeRecord('brand_profiles',foreign,'other-owner');await b.close();}})().catch(e=>{console.error(e);process.exitCode=1});
