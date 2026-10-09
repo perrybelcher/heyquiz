@@ -34,3 +34,11 @@ Security advisor reports RLS enabled with no policies for hq_records. This is in
 - npm run build passed.
 
 CRM and Stripe remain deferred. A physical-device check, fresh signup/email round trip and alert routing remain separate evidence gaps.
+
+## Production follow-up
+
+Deployment 861f4bd169556decbb7975bfac4f6b57160258e5 completed successfully. One synthetic diagnostic request returned HTTP 200 with reference dfa1266b-de0a-4351-b55c-23b8d1dd4a6a; that exact structured event was found in Vercel production logs.
+
+A separate fresh signup using a dedicated alias of the user's authorized Gmail mailbox passed real mobile UI registration, receipt in Inbox, same-browser PKCE confirmation and authenticated workspace access. The first email-link extraction in the test harness incorrectly retained a Markdown closing bracket; retrying with the HTML href passed. This was a harness issue, not an application callback defect. No provider mocking was used for the successful email round trip. Physical devices and automatic alert routing remain unverified/unconfigured.
+
+The SMTP sender display name was still Quiznick. It was updated to Pippi in Supabase; a reload confirmed the saved value. SMTP credentials were not changed.

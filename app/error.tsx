@@ -13,11 +13,12 @@ export default function AppError({ retry }: { error: Error & { digest?: string }
       .catch(() => {});
     return () => { active = false; };
   }, []);
-  return <main style={{ maxWidth: 560, margin: '10vh auto', padding: 24 }}>
-    <h1>Something interrupted this page.</h1>
-    <p>Try opening it again. If you were editing, check for a saved browser draft when the editor returns.</p>
-    <button onClick={() => retry()} style={{ padding: '12px 20px', margin: '16px 0' }}>Try again</button>
-    <p><a href="/">Go to your workspace</a></p>
-    {reference && <p style={{ fontSize: 13, overflowWrap: 'anywhere' }}>Support reference: {reference}</p>}
+  return <main style={{ maxWidth: 560, margin: '10vh auto', padding: 32, border: '1px solid #e7e3df', borderRadius: 20, background: '#faf9f6', color: '#242020' }}>
+    <img src="/pippi-logo.svg" alt="Pippi" style={{ width: 120, marginBottom: 28 }} />
+    <h1 style={{ fontSize: 28, fontWeight: 650, lineHeight: 1.2, marginBottom: 16 }}>Something interrupted this page.</h1>
+    <p style={{ lineHeight: 1.6, color: "#625b58" }}>Try opening it again. If you were editing, check for a saved browser draft when the editor returns.</p>
+    <button onClick={() => retry()} style={{ padding: '12px 20px', margin: '24px 0 16px', borderRadius: 10, background: '#a91d25', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Try again</button>
+    <p><a href="/" style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>Go to your workspace</a></p>
+    {reference && <p style={{ fontSize: 12, overflowWrap: 'anywhere', marginTop: 24, color: '#766f6b' }}>Support reference: {reference}</p>}
   </main>;
 }
