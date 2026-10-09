@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ownedForm } from "@/lib/storage";
+import { ownedForm, getPublishedForm } from "@/lib/storage";
 import { requirePageUser } from "@/lib/auth";
 import EditorStudio from "@/components/EditorStudio";
 export default async function EditorPage({
@@ -11,5 +11,6 @@ export default async function EditorPage({
     { id } = await params,
     form = await ownedForm(id, user.id);
   if (!form) notFound();
-  return <EditorStudio initialForm={form} />;
+  const published = await getPublishedForm(id);
+  return <EditorStudio initialForm={form} initiallyPublished={Boolean(published)} />;
 }

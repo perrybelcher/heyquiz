@@ -1,0 +1,3 @@
+export default function QuizUnavailable() {
+  return <main className="min-h-screen grid place-items-center bg-slate-50 p-6"><section className="max-w-lg rounded-2xl border bg-white p-8 text-center"><h1 className="text-2xl font-semibold">This quiz isn’t available yet</h1><p className="mt-4 text-slate-600">It may not have been published, or the link may be incorrect. Ask the person who shared it for an updated link.</p><p className="mt-4 text-sm text-slate-500">If this is your quiz, sign in and publish it from the editor’s Share tab.</p><a className="hq-primary mt-6 inline-block" href="/login">Sign in to your workspace</a></section></main>;
+}

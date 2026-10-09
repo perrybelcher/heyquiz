@@ -137,9 +137,12 @@ import IntegrationStudio from "./IntegrationStudio";
 interface EditorStudioProps {
   initialForm: FormSchemaType;
   guest?: boolean;
+  initiallyPublished?: boolean;
 }
 
-export default function EditorStudio({ initialForm, guest = false }: EditorStudioProps) {
+export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false }: EditorStudioProps) {
+  const [isPublished, setIsPublished] = useState(initiallyPublished);
+  const [publishing, setPublishing] = useState(false);
   const [form, setForm] = useState<FormSchemaType>(initialForm);
   const [activeNavTab, setActiveNavTab] = useState<
     "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
@@ -939,18 +942,21 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
   };
 
   const handlePublish = async () => {
+    if (publishing) return;
     setActionError("");
     if (!(await saveNow())) return;
+    setPublishing(true);
     try {
       const res = await fetch(`/api/forms/${form.id}/publish`, {
         method: "POST",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Publishing failed.");
+      setIsPublished(true);
       setShowPublishModal(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Publishing failed.");
-    }
+    } finally { setPublishing(false); }
   };
 
   // Field Palette Categories (Comprehensive 51-Field Catalog - Beats Fillout's 48)
@@ -4039,6 +4045,18 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
                 </div>
               </div>
 
+              {!isPublished ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3">
+                  <h3 className="font-semibold text-gray-900">Publish your quiz to get a working share link</h3>
+                  <p className="text-sm text-gray-700">Saved means your draft is stored in your account. It is not public yet. Publishing makes it available to visitors and enables embedding.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button disabled={publishing} onClick={handlePublish} className="hq-primary disabled:opacity-50">{publishing ? "Publishing…" : "Publish and enable sharing"}</button>
+                    <a href={`/play/${form.id}?preview=1`} target="_blank" rel="noopener noreferrer" className="hq-secondary">Preview privately</a>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-emerald-700">Published · Your public link is ready. Publish again after editing to update the live quiz.</p>
               {/* Direct Link Box */}
               <div className="space-y-1.5 pt-2">
                 <label className="text-xs font-semibold text-gray-700">
@@ -4063,8 +4081,7 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
                     <span>{shareCopied ? "Copied!" : "Copy Link"}</span>
                   </button>
                   <Link
-                    onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
-            href={guest ? "/create" : `/play/${form.id}?preview=1`}
+                    href={`/play/${form.id}`}
                     target="_blank"
                     className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition"
                     title="Open in new tab"
@@ -4101,6 +4118,8 @@ export default function EditorStudio({ initialForm, guest = false }: EditorStudi
                   </button>
                 </div>
               </div>
+                </>
+              )}
             </div>
           </div>
         </div>
