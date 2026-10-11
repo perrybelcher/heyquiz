@@ -85,10 +85,10 @@ export default function AccountForm({ mode }: { mode: Mode }) {
         <p className="account-eyebrow">
           A little curiosity. A lot of possibility.
         </p>
-        <h1>{message ? "Check your inbox" : copy[mode][0]}</h1>
+        <h1>{message ? ((mode === "signup" || mode === "resend") ? "Your next step" : "Check your inbox") : copy[mode][0]}</h1>
         <p className="account-intro">
           {message
-            ? "You’re one email away from your next step."
+            ? ((mode === "signup" || mode === "resend") ? "New account? Check your email. Already verified? Sign in." : "If an email is available for this address, follow its instructions.")
             : copy[mode][1]}
         </p>
         {error && (
@@ -100,6 +100,7 @@ export default function AccountForm({ mode }: { mode: Mode }) {
           <div className="account-success" role="status">
             <MailCheck size={28} />
             <p>{message}</p>
+            {(mode === "signup" || mode === "resend") && <div className="mt-4 flex flex-wrap gap-4"><a className="account-text" href="/login">Sign in to your account</a><a className="account-text" href="/forgot-password">Reset your password</a></div>}
             <button className="account-text" onClick={() => setMessage("")}>
               Use a different email or try again
             </button>

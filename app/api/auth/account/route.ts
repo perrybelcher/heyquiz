@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       }
       return Response.json({
         message:
-          "Check your inbox to confirm your email, then open the link in this browser. If you already have an account, sign in or reset your password.",
+          "If this email needs verification, check your inbox and spam folder for a confirmation link and open it in this browser. If you have already verified an account, no new confirmation is needed: sign in or reset your password instead.",
       });
     }
     if (body.action === "recover" || body.action === "resend") {
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       }
       return Response.json({
         message:
-          "If this address is eligible, an email is on its way. Open the link in this browser. Check spam too, and wait a minute before requesting another.",
+          "If this address is eligible for this request, check your inbox and spam folder. Open the link in this browser. Already verified? Sign in instead of requesting another confirmation. Wait a minute before trying again.",
       });
     }
     if (body.action === "exchange") {
