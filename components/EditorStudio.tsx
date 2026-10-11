@@ -119,6 +119,7 @@ import MediaPickerModal from "./MediaPickerModal";
 import TextareaAutosize from "react-textarea-autosize";
 import PublishReadiness from "./PublishReadiness";
 import GuidedQuizEditor from "./GuidedQuizEditor";
+import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
 import { FormSchema } from "@/lib/schema";
 import {
@@ -148,6 +149,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const [guided, setGuided] = useState(guest || (!initiallyPublished && Boolean(initialForm.marketing)));
   useEffect(() => { try { const mode = localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); if (mode) setGuided(mode === "guided"); } catch {} }, [initialForm.id]);
   function changeEditorMode(value: boolean) { setGuided(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
+  const [showConversationMap, setShowConversationMap] = useState(false);
+  const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number}) | undefined>();
   const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
   const [publishing, setPublishing] = useState(false);
@@ -184,6 +187,31 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   );
   const [actionError, setActionError] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
+
+  function editFromConversation(where: ConversationEdit) {
+    setShowConversationMap(false);
+    if (where.target === "design") { setShowThemeModal(true); return; }
+    if (where.target === "results" && !form.marketing) {
+      changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("ending"); setMobilePanel(null); return;
+    }
+    if (guided && (where.target !== "questions" || form.questions.length > 0)) {
+      setGuidedJump({ ...where, requestId: Date.now() });
+      return;
+    }
+    // Advanced editor navigation must select both the question and its page.
+    changeEditorMode(false);
+    if (where.target === "results") { setActiveNavTab("marketing"); return; }
+    if (where.target === "capture" || where.target === "publish") {
+      changeEditorMode(true); setGuidedJump({ ...where, requestId: Date.now() }); return;
+    }
+    setActiveNavTab("edit");
+    if (where.target === "promise") { setCanvasView("cover"); return; }
+    const question = form.questions.find(q => q.id === where.questionId) || form.questions[0];
+    setCanvasView("page");
+    setActivePageId(question?.pageId || form.pages?.[0]?.id || "page-1");
+    setSelectedQuestionId(question?.id || null);
+    setMobilePanel(question ? "settings" : "fields");
+  }
 
   // Page Management Helpers
   const addPage = () => {
@@ -1377,7 +1405,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </button>
         </div>
       )}
-      {guided && <GuidedQuizEditor form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={backedUp && (guest || authRequired) ? "Saved on this device · Sign in to sync" : guest ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} />}
+      {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
+      {guided && <GuidedQuizEditor onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={backedUp && (guest || authRequired) ? "Saved on this device · Sign in to sync" : guest ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} />}
       {!guided && <>
       {/* 1. FILLOUT TOP NAVIGATION BAR */}
       <header className="studio-toolbar min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
@@ -1447,7 +1476,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         >
           Question settings
         </button>
-        <button className="hq-secondary" onClick={() => changeEditorMode(true)}>Guided setup</button>
+        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Guided setup</button>
         {/* Center Fillout Tabs Capsule */}
         <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
           <button

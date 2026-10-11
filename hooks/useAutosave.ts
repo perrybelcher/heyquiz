@@ -9,7 +9,13 @@ import {
 } from "react";
 import { FormSchema, type FormSchemaType } from "@/lib/schema";
 const fingerprint = (form: FormSchemaType) =>
-  JSON.stringify({ ...form, revision: undefined, updatedAt: undefined });
+  // Schema parsing can reorder object keys without changing a draft. Compare
+  // canonical objects while preserving question/answer order and content.
+  JSON.stringify({ ...form, revision: undefined, updatedAt: undefined }, (_key, value) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]))
+      : value,
+  );
 export function useAutosave(form: FormSchemaType, guest = false) {
   const [status, setStatus] = useState<
       "saved" | "unsaved" | "saving" | "error"
