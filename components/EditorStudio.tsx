@@ -174,6 +174,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     error: saveError,
     authRequired,
     storageWarning,
+    backedUp,
     saveNow,
     recovery,
     dismissRecovery,
@@ -1340,6 +1341,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   ? "Create a free account or sign in in a new tab. After confirming your email and signing in, return here and retry saving. Your draft stays in this browser. All accounts are free—no charges or credit card."
                   : "Keep this editor tab open so you don’t lose your edits. Sign in with the account that owns this quiz, then return here and retry saving. New to pippi? You can create an account in a new tab."}
               </p>
+              <p className="mt-2 font-medium">{backedUp ? "Your latest changes are saved on this device. Return here after signing in to sync them." : "Your latest changes are not confirmed as backed up. Keep this tab open."}</p>
               <div className="mt-3 flex flex-wrap gap-4">
                 {/* A separate tab keeps the unsaved editor state intact during authentication. */}
                 <a href="/login" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Sign in ↗</a>
@@ -1375,7 +1377,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </button>
         </div>
       )}
-      {guided && <GuidedQuizEditor form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={guest ? "Draft stored in this browser" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsaved changes"} published={isPublished} />}
+      {guided && <GuidedQuizEditor form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={backedUp && (guest || authRequired) ? "Saved on this device · Sign in to sync" : guest ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} />}
       {!guided && <>
       {/* 1. FILLOUT TOP NAVIGATION BAR */}
       <header className="studio-toolbar min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
@@ -1423,7 +1425,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                 className="text-rose-600 underline"
                 onClick={() => void saveNow()}
               >
-                {guest ? "Sign in to save" : "Save failed · Retry"}
+                {authRequired ? (backedUp ? "Saved on device · Sign in to sync" : "Sign in to save") : "Save failed · Retry"}
               </button>
             )}
           </span>

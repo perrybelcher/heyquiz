@@ -44,7 +44,7 @@ export async function generateQuizWithAgent(
   if (!process.env.GEMINI_API_KEY)
     throw new HttpError(
       503,
-      "AI generation is not connected yet. Add your Gemini API key in the server settings, or build a quiz with the field palette.",
+      "AI creation is temporarily unavailable. You do not need to supply an API key. Start with a template or a blank quiz while we restore the connection.",
     );
   const schema = {
     type: "object",

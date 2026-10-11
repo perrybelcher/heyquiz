@@ -15,6 +15,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
       "saved" | "unsaved" | "saving" | "error"
     >("saved"),
     [storageWarning, setStorageWarning] = useState(false),
+    [backupFingerprint, setBackupFingerprint] = useState(""),
     [error, setError] = useState(""),
     [authRequired, setAuthRequired] = useState(false),
     [recoveryDismissed, setRecoveryDismissed] = useState(false),
@@ -23,6 +24,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     revision = useRef(form.revision || 0),
     saved = useRef(fingerprint(form)),
     pending = useRef<Promise<boolean> | null>(null);
+  const retryable = useRef(true);
   const key = `heyquiz-draft:${form.id}`;
   const draftSnapshot = useRef<string | null | undefined>(undefined);
   const initialDraftSnapshot = useCallback(() => {
@@ -53,6 +55,8 @@ export function useAutosave(form: FormSchemaType, guest = false) {
         // A tab-local copy prevents another editor tab from overwriting recovery.
         sessionStorage.setItem(key, JSON.stringify(form));
         localStorage.setItem(key, JSON.stringify(form));
+        setBackupFingerprint(fingerprint(form));
+        setStorageWarning(false);
       // Surface failure to synchronize the browser backup.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       } catch { setStorageWarning(true); }
@@ -93,6 +97,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           return false;
         }
       }
+      retryable.current = true;
       while (fingerprint(latest.current) !== saved.current) {
         const snapshot = latest.current;
         setStatus("saving");
@@ -103,6 +108,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
             body: JSON.stringify({ ...snapshot, revision: revision.current }),
           });
           const data = await res.json();
+          retryable.current = res.ok || res.status === 401 || res.status >= 500;
           if (!res.ok) {
             setAuthRequired(res.status === 401);
             throw new Error(data.error || "Save failed.");
@@ -145,6 +151,18 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     return () => clearTimeout(timer);
   }, [form, saveNow, guest]);
   useEffect(() => {
+    // Resume interrupted saves on return/reconnection, but never replay conflicts or
+    // validation failures automatically. Revision checks still guard every write.
+    if (guest) return;
+    const resume = () => {
+      if (document.visibilityState === "visible" && navigator.onLine && retryable.current && !pending.current && fingerprint(latest.current) !== saved.current) void saveNow();
+    };
+    window.addEventListener("online", resume);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => { window.removeEventListener("online", resume); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", resume); };
+  }, [guest, saveNow]);
+  useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (fingerprint(latest.current) !== saved.current) {
         e.preventDefault();
@@ -162,6 +180,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     error,
     authRequired,
     storageWarning,
+    backedUp: backupFingerprint === fingerprint(form),
     saveNow,
     recovery,
     dismissRecovery: () => setRecoveryDismissed(true),

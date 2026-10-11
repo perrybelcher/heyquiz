@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import WorkspaceWelcome from "./WorkspaceWelcome";
 import { nanoid } from "nanoid";
@@ -33,6 +33,15 @@ export default function Dashboard({
     [topic, setTopic] = useState(""),
     [count, setCount] = useState(5),
     [menu, setMenu] = useState<string | null>(null);
+  const menuTrigger = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const outside = (event: PointerEvent) => { if (event.target instanceof Element && !event.target.closest("[data-quiz-menu]")) setMenu(null); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setMenu(null); menuTrigger.current?.focus(); } };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [menu]);
   const filtered = forms.filter(
     (f) =>
       (filter === "all" || f.mode === filter) &&
@@ -180,16 +189,18 @@ export default function Dashboard({
                         {f.publishedAt ? "Published" : "Draft"}
                       </span>
                       <button
+                        data-quiz-menu
+                        aria-expanded={menu === f.id}
                         aria-label={`Actions for ${f.title}`}
                         className="hq-icon text-slate-400"
-                        onClick={() => setMenu(menu === f.id ? null : f.id)}
+                        onClick={event => { menuTrigger.current = event.currentTarget; setMenu(menu === f.id ? null : f.id); }}
                       >
                         <MoreHorizontal size={18} />
                       </button>
                     </div>
                   </div>
                   {menu === f.id && (
-                    <div className="absolute right-5 top-16 z-10 bg-white rounded-xl border shadow-lg p-2 min-w-40">
+                    <div data-quiz-menu className="absolute right-5 top-16 z-10 bg-white rounded-xl border shadow-lg p-2 min-w-40">
                       <button
                         className="w-full flex gap-2 text-sm p-2 hover:bg-slate-50"
                         onClick={() => void create(f)}
