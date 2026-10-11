@@ -1,18 +1,22 @@
 import { FormSchema, type Question } from "./schema";
 import { MarketingSchema } from "./marketing";
+import { catalogTemplate, catalogTemplates } from "./template-catalog";
 import { marketingTemplate } from "./marketing-templates";
 
 export const launchTemplates = [
-  { id: "product_finder", name: "Everyday carry finder", summary: "Help shoppers choose a bag around their real day, with fit exclusions and three personalized recommendations.", detail: "5 questions · 3 products · fit checks" },
-  { id: "scorecard", name: "Follow-up readiness scorecard", summary: "Turn six answers into a practical action plan across capture, follow-up, and measurement.", detail: "6 questions · 3 categories · action plans" },
-  { id: "consultation", name: "Find your next growth step", summary: "Guide prospects toward a self-guided plan, a focused review, or a planning conversation without forcing a booking.", detail: "5 questions · 3 paths · optional contact capture" },
+  { id: "product_finder", name: "Everyday carry finder", industry: "Retail & gifts", goal: "Product finder", summary: "Help shoppers choose a bag around their real day, with fit exclusions and three personalized recommendations.", detail: "5 questions · 3 products · fit checks" },
+  { id: "scorecard", name: "Follow-up readiness scorecard", industry: "Professional services", goal: "Scorecard", summary: "Turn six answers into a practical action plan across capture, follow-up, and measurement.", detail: "6 questions · 3 categories · action plans" },
+  { id: "consultation", name: "Find your next growth step", industry: "Professional services", goal: "Service & audience match", summary: "Guide prospects toward a self-guided plan, a focused review, or a planning conversation without forcing a booking.", detail: "5 questions · 3 paths · optional contact capture" },
+  ...catalogTemplates,
 ] as const;
 export type LaunchTemplateId = typeof launchTemplates[number]["id"];
 const question = (id: string, title: string, labels: string[]): Question => ({ id, title, type: "multiple_choice", required: true, points: 0, options: labels.map((label, i) => ({ id: `a${i}`, label })) });
 
 /** Independent drafts: template IDs stay stable for scoring; each caller supplies a new form ID. */
 export function launchTemplate(kind: LaunchTemplateId, id: string) {
-  const f = marketingTemplate(kind === "consultation" ? "segmentation" : kind, id);
+  if (!["product_finder", "scorecard", "consultation"].includes(kind)) return catalogTemplate(kind, id);
+  const legacyKind = kind as "product_finder" | "scorecard" | "consultation";
+  const f = marketingTemplate(legacyKind === "consultation" ? "segmentation" : legacyKind, id);
   const m = f.marketing!;
   f.theme = { ...f.theme, primaryColor: "#a9232b", backgroundColor: "#faf8f4" };
   f.capture = { enabled: true, placement: "before_results", required: false, name: "optional", phone: "off", title: "Your next step is ready", description: "Share your details if you would like the quiz owner to follow up, or skip to see your results.", buttonText: "See my results", marketingEnabled: false, marketingLabel: "Yes, I would like marketing emails.", privacyUrl: "" };
