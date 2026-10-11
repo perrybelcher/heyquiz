@@ -7,6 +7,7 @@ export default function TemplateVisual({form,large=false}:{form:FormSchemaType;l
  const scorecard=form.marketing?.kind==='scorecard';
  const title=form.coverPage?.title||form.title;
  return <div aria-label="Quiz design preview" className={`relative overflow-hidden ${large?'rounded-xl p-7 sm:p-10':'rounded-xl p-5'}`} style={{background:theme.backgroundColor,color:theme.textColor,minHeight:large?260:220}}>
+  <>{form.coverPage?.imageUrl&&<img src={form.coverPage.imageUrl} alt="" loading="lazy" decoding="async" className={`mb-5 w-full rounded-lg object-cover ${large?'max-h-72':'h-36'}`} width={1280} height={720}/>}</>
   <div className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-[.18em] opacity-70"><span>{scorecard?'A little clarity goes a long way':'Find what feels right for you'}</span><span>01 / {String(form.questions.length).padStart(2,'0')}</span></div>
   <div className={`relative z-10 mt-7 max-w-[78%] font-semibold leading-[1.12] tracking-tight ${large?'text-3xl sm:text-4xl':'text-2xl'}`} style={{fontFamily:theme.font==='serif'?'Georgia, serif':undefined}}>{title}</div>
   {large&&<p className="relative z-10 mt-4 max-w-md text-sm leading-relaxed opacity-80">{form.coverPage?.subtitle}</p>}

@@ -17,6 +17,7 @@ const palettes: Record<string, [string,string,string,'sans'|'serif'|'mono']> = {
  'Community & nonprofit':['#25675c','#eaf5ee','#213f37','sans'],
  'Technology':['#5743ac','#f1efff','#2e2653','sans'],
 };
+const illustratedTemplates = new Set(['coffee','home-style','garden','wedding','travel','course','web-design','gifts']);
 const covers: Record<string,[string,string,string]> = {
  coffee:['Your next favorite cup starts here.','Bright and lively? Smooth and familiar? Discover a coffee direction that suits your taste.','Find my coffee style'],
  tea:['Make a little room for your tea moment.','A few thoughtful choices can turn an ordinary cup into a ritual you look forward to.','Find my tea moment'],
@@ -54,7 +55,7 @@ export function applyTemplateDesign(form:FormSchemaType,templateId:string,indust
  const cover=covers[templateId];
  form.theme={...form.theme,primaryColor,backgroundColor,textColor,font,cardColor:'#ffffff',borderRadius:'lg',layout:'step'};
  if(form.coverPage){
-  form.coverPage={...form.coverPage,...(cover?{title:cover[0],subtitle:cover[1],buttonText:cover[2]}:{buttonText:form.marketing?.kind==='scorecard'?'See my scorecard':'Find my next step'})};
+  form.coverPage={...form.coverPage,...(illustratedTemplates.has(templateId)?{imageUrl:`/template-images/${templateId}.webp`}:{}),...(cover?{title:cover[0],subtitle:cover[1],buttonText:cover[2]}:{buttonText:form.marketing?.kind==='scorecard'?'See my scorecard':'Find my next step'})};
  }
  return form;
 }
