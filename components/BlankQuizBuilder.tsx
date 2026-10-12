@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { blankQuiz } from "@/lib/blank-quiz";
-import { FormSchema, type FormSchemaType } from "@/lib/schema";
+import type { FormSchemaType } from "@/lib/schema";
+import { readGuestDraft, recoverBuilderReload } from "@/lib/guest-draft";
 import EditorStudio from "./EditorStudio";
 
 export default function BlankQuizBuilder() {
@@ -14,10 +15,9 @@ export default function BlankQuizBuilder() {
     initialized.current = true;
     try {
       // Reload this tab's blank draft, without replacing any earlier guest draft contents.
-      const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-      const previous = navigation?.type === "reload" ? sessionStorage.getItem("pippi-blank-draft") : null;
-      const saved = previous && localStorage.getItem(`heyquiz-draft:${previous}`);
-      const draft = saved ? FormSchema.parse(JSON.parse(saved)) : blankQuiz(`quiz-${nanoid(10)}`);
+      const previous = recoverBuilderReload("/create/blank") ? sessionStorage.getItem("pippi-blank-draft") : null;
+      const saved = previous ? readGuestDraft(localStorage, sessionStorage, previous) : null;
+      const draft = saved ?? blankQuiz(`quiz-${nanoid(10)}`);
       localStorage.setItem(`heyquiz-draft:${draft.id}`, JSON.stringify(draft));
       localStorage.setItem(`pippi-editor-mode:${draft.id}`, "advanced");
       sessionStorage.setItem("pippi-blank-draft", draft.id);

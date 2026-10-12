@@ -1,5 +1,6 @@
 const {chromium,firefox,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),ts=require('typescript');
 require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {cleanupLocalPlayerFixtures}=require('./player-local-fixtures.cjs');
 const {FormSchema}=require('../lib/schema.ts'),{defaultCapture}=require('../lib/contacts.ts'),{quizPopupCode,quizEmbedCode}=require('../lib/embed.ts'),{cloudEnabled}=require('../lib/records.ts');
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3163';if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(base)||!process.env.HEYQUIZ_DATA_DIR||cloudEnabled())throw Error('Isolated local compiled server/data only');
 const artifacts=path.resolve(process.env.ARTIFACT_DIR||'../pippi-overnight-2026-10-12/compiled-verification-batch-9/popup');fs.mkdirSync(artifacts,{recursive:true});
@@ -33,6 +34,6 @@ for(const failure of ['script','stylesheet','native','javascript']){const contex
 const context=await contextFor(browser,{viewport:{width:390,height:844}}),p=await context.newPage();active=p;await context.route('**/play/**',route=>route.abort());await p.goto(hostOrigin);await p.locator('#a a').click();const d=p.getByRole('dialog',{name:'Practical quiz',exact:true});await d.waitFor();assert.ok(await d.getByRole('link',{name:'Open quiz in a new tab',exact:true}).isVisible());await d.getByRole('button',{name:'Close quiz',exact:true}).click();await d.waitFor({state:'hidden'});await context.close();checks.push('Blocked iframe keeps Close and direct-link fallback');
 }
 assert.deepEqual(errors,[]);console.log('PASS '+name+' popup desktop/mobile flow');
-}catch(error){if(active&&!active.isClosed())await active.screenshot({path:path.join(artifacts,name+'-failure.png'),fullPage:true}).catch(()=>{});throw error}finally{for(const id of ids)await owner.request.delete(base+'/api/forms/'+id,{headers});await browser.close()}}
+}catch(error){if(active&&!active.isClosed())await active.screenshot({path:path.join(artifacts,name+'-failure.png'),fullPage:true}).catch(()=>{});throw error}finally{for(const context of browser.contexts())for(const page of context.pages())await page.close();await cleanupLocalPlayerFixtures(ids,owner,base);await browser.close()}}
 fs.writeFileSync(path.join(artifacts,'results.json'),JSON.stringify({passed:true,checks},null,2));console.log('PASS click-to-open popup: '+checks.length+' groups; no live providers/emails.');
 }finally{await new Promise(resolve=>host.close(resolve))}})().catch(error=>{console.error(error);process.exitCode=1});

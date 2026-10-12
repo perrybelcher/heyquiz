@@ -111,6 +111,12 @@ export default function SalesPage() {
                 See how Pippi works <ArrowDown size={16} />
               </a>
             </div>
+            <nav className="hero-creation-paths" aria-label="Ways to create a quiz">
+              <a href="/create/blank">Start blank</a>
+              <a href="/templates">Use a template</a>
+              <a href="/create/guided">Guided wizard</a>
+              <a href="/create/ai">Create with AI</a>
+            </nav>
             <p className="hero-note">
               <Check size={14} /> Free to build. Free to publish. <Check size={14} /> Start without signing up
             </p>

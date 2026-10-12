@@ -376,7 +376,7 @@ export default function QuizPlayer({
                               Your answer: {g.userAnswer}
                             </p>
                             {g.correctAnswer && (
-                              <p className="text-sm mt-1 text-emerald-700">
+                              <p className="text-sm mt-1 font-medium">
                                 Answer: {g.correctAnswer}
                               </p>
                             )}

@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import Image from "next/image";
 import { useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { ArrowRight, BarChart3, ShoppingBag, Users, Search, SlidersHorizontal, Check, X } from "lucide-react";
@@ -38,11 +40,11 @@ export default function TemplateLibrary() {
   function closePreview(){setSelected(null);selectedButton.current?.focus();}
   if (form) return <EditorStudio initialForm={form} guest />;
   return <main className="min-h-screen bg-[#faf8f4] px-5 py-10 text-slate-900"><div className="mx-auto max-w-6xl">
-    <nav className="mb-12 flex items-center justify-between gap-4"><a href="/welcome"><img src="/pippi-logo.svg" alt="Pippi home" className="w-36" /></a><a href="/create" className="text-sm underline">Return to my draft</a></nav>
+    <nav className="mb-12 flex items-center justify-between gap-4"><Link prefetch={false} href="/welcome"><Image width={144} height={48} src="/pippi-logo.svg" alt="Pippi home" className="w-36" /></Link><Link prefetch={false} href="/create" className="text-sm underline">All ways to create</Link></nav>
     <p className="text-sm font-semibold uppercase tracking-widest text-red-800">{launchTemplates.length} free templates. Your next idea starts here.</p>
     <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">A head start for<br />your kind of business.</h1>
     <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">Help shoppers find their fit. Match prospects with the right service. Give people a useful scorecard. Start with real questions and results, then make every word your own.</p>
-    <div className="mt-6 flex flex-wrap items-center gap-5 text-sm"><span className="inline-flex items-center gap-2"><Check size={16} className="text-red-800"/>Questions and scoring included</span><span className="inline-flex items-center gap-2"><Check size={16} className="text-red-800"/>No credit card required</span><a href="/create/blank" className="font-semibold underline">Prefer a blank quiz? Start here →</a></div>
+    <div className="mt-6 flex flex-wrap items-center gap-5 text-sm"><span className="inline-flex items-center gap-2"><Check size={16} className="text-red-800"/>Questions and scoring included</span><span className="inline-flex items-center gap-2"><Check size={16} className="text-red-800"/>No credit card required</span><Link prefetch={false} href="/create/blank" className="font-semibold underline">Prefer a blank quiz? Start here →</Link></div>
     <section aria-label="Find a template" className="mt-10 rounded-2xl border border-stone-200 bg-white p-5">
       <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr]">
         <label className="text-sm font-medium">Search templates<div className="relative mt-2"><Search size={18} className="absolute left-3 top-3 text-stone-400"/><input value={query} onChange={e=>{setQuery(e.target.value);setVisible(pageSize);}} placeholder="Try coffee, wedding, website…" className="w-full rounded-lg border border-stone-300 py-2.5 pl-10 pr-3 font-normal" /></div></label>

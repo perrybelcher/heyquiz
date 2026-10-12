@@ -117,8 +117,8 @@ const proposal = { id:'generated', title:'Unwanted generated title',mode:'quiz',
     try {
       await guestPage.addInitScript(form=>{localStorage.setItem('pippi-guest-draft',form.id);localStorage.setItem('heyquiz-draft:'+form.id,JSON.stringify(form));localStorage.setItem('pippi-editor-mode:'+form.id,'advanced');},original);
       await guestPage.route('**/api/forms',r=>r.fulfill({status:401,json:{error:'Sign in to save your quiz'}}));
-      await guestPage.goto(base+'/create');await guestPage.getByRole('button',{name:'Save to preview',exact:true}).click();
-      await guestPage.getByRole('link',{name:'Sign in ↗',exact:true}).waitFor();await guestPage.getByRole('link',{name:'Create account ↗',exact:true}).waitFor();
+      await guestPage.goto(base+'/create/draft');await guestPage.getByRole('button',{name:'Save to preview',exact:true}).click();
+      const account = guestPage.getByRole('dialog',{name:'See your quiz come to life.',exact:true});await account.getByRole('link',{name:/^Sign in/}).waitFor();await account.getByRole('link',{name:/^Create free account/}).waitFor();assert.equal(await guestPage.locator('.hq-error').count(),0);
       assert.equal(guestContext.pages().length,1);assert.ok(await guestPage.evaluate(id=>sessionStorage.getItem('heyquiz-draft:'+id),id));
     } finally { await guestContext.close(); }
     await page.getByRole('button',{name:'Draft history',exact:true}).click();await page.keyboard.press('Escape');assert.equal(await page.getByRole('button',{name:'Draft history',exact:true}).evaluate(el=>el===document.activeElement),true);

@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(loaded,file)=>loaded._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,file);
+const {parseResultDeliveryListing}=require('../lib/result-delivery-view.ts');
+const row={responseId:'synthetic-response',requestedAt:1,state:'accepted',message:'The email service accepted your result email.',attempts:1,nextAttemptAt:null};
+const body=jobs=>({mode:'resend',total:jobs.length,jobs});let checks=0;
+function test(name,fn){fn();checks++;console.log('PASS '+name);}
+const invalid=value=>assert.throws(()=>parseResultDeliveryListing(value),/^Error: Delivery status could not be read\. Refresh and try again\.$/);
+test('valid empty and populated private status projection',()=>{assert.deepEqual(parseResultDeliveryListing(body([])),body([]));assert.deepEqual(parseResultDeliveryListing(body([row])),body([row]));});
+test('status states remain distinct and future client clocks do not invalidate server times',()=>{for(const state of ['queued','sending','accepted','delivered','delivery_delayed','bounced','complained','unknown','failed','cancelled'])assert.equal(parseResultDeliveryListing(body([{...row,state,requestedAt:Date.now()+86400000}])).jobs[0].state,state);});
+test('malformed success data rejects before rendering',()=>{for(const value of [null,[],{},{mode:'resend',total:0,jobs:null},{...body([]),mode:'synthetic'},body([{...row,state:null}]),body([{...row,state:'unrecognized'}]),body([{...row,message:{private:'hidden'}}]),body([{...row,responseId:''}]),body([{...row,nextAttemptAt:undefined}])])invalid(value);});
+test('numeric and collection bounds reject nonsense, excessive lists and duplicate keys',()=>{for(const extra of [{requestedAt:Infinity},{requestedAt:-1},{requestedAt:8640000000000001},{attempts:-1},{attempts:1.5},{nextAttemptAt:NaN},{message:'x'.repeat(1001)}])invalid(body([{...row,...extra}]));invalid({...body([row]),total:0});invalid({...body([]),total:NaN});invalid(body([row,row]));invalid(body(Array.from({length:101},(_,i)=>({...row,responseId:'response-'+i}))));assert.equal(parseResultDeliveryListing(body(Array.from({length:100},(_,i)=>({...row,responseId:'response-'+i})))).jobs.length,100);});
+test('unknown fields are discarded rather than becoming UI or diagnostics',()=>{const parsed=parseResultDeliveryListing({...body([{...row,recipient:'private@example.test',providerId:'hidden'}]),token:'private-token'});assert.deepEqual(parsed,body([row]));assert.ok(!JSON.stringify(parsed).includes('private'));});
+console.log(checks+' delivery view groups passed');

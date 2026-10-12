@@ -12,7 +12,7 @@ function SaveResultLinkForAttempt({ formId, token }: Props) {
         resultEmail?: "synthetic" | "resend" | null;
     } | null>(null);
     const [busy, setBusy] = useState(false), [error, setError] = useState(''), [copied, setCopied] = useState(false);
-    const emailFlight = useRef(false);
+    const emailFlight = useRef(false), copyFlight = useRef(false);
     const [email, setEmail] = useState(""), [requested, setRequested] = useState(false), [emailBusy, setEmailBusy] = useState(false), [emailError, setEmailError] = useState("");
     const [emailJob, setEmailJob] = useState<{ state: "queued" | "preparing" | "prepared" | "sending" | "accepted" | "delivered" | "delivery_delayed" | "bounced" | "complained" | "unknown" | "failed" | "cancelled"; message: string; nextAttemptAt: number | null; canRetry: boolean } | null>(null);
     const scope = `${formId}:${token}`;
@@ -63,13 +63,16 @@ function SaveResultLinkForAttempt({ formId, token }: Props) {
     return <section aria-label="Keep your result" className="text-left border-t border-slate-200 mt-8 pt-6 space-y-3">
     <h2 className="font-semibold">Keep your result</h2><p className="text-sm text-slate-500">Create a private link to revisit or print your result for 30 days after completion. Anyone with the link can view it.</p>
     {!link ? <button type="button" className="hq-secondary" disabled={busy} onClick={() => void create()}><Bookmark size={16} aria-hidden="true"/>{busy ? 'Preparing your link…' : 'Create private result link'}</button> : <>
-      <div className="flex flex-wrap gap-3"><a href={link.path} target="_blank" rel="noreferrer" className="hq-primary">Open saved result <ExternalLink size={15}/></a><button type="button" className="hq-secondary" onClick={async () => { try {
+      <div className="flex flex-wrap gap-3"><a href={link.path} target="_blank" rel="noreferrer" className="hq-primary">Open saved result <ExternalLink size={15}/></a><button type="button" className="hq-secondary" onClick={async () => {
+        if (copyFlight.current) return;
+        copyFlight.current = true; setCopied(false); setError('');
+        try {
             await navigator.clipboard.writeText(new URL(link.path, window.location.origin).href);
             setCopied(true);
         }
         catch {
             setError('Could not copy automatically. Select and copy the link below.');
-        } }}>{copied ? 'Copied' : 'Copy private link'}</button></div>
+        } finally { copyFlight.current = false; } }}>{copied ? 'Copied' : 'Copy private link'}</button></div>
       <label className="block text-xs text-slate-500">Private result link<input readOnly value={new URL(link.path, window.location.origin).href} className="hq-input w-full mt-2" onFocus={e => e.target.select()}/></label>
       <p className="text-xs text-slate-500">Available until {new Date(link.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}.</p>
     </>}

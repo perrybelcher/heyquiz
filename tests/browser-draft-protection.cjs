@@ -1,5 +1,8 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3157';
+assert.match(base,/^http:\/\/127\.0\.0\.1:\d+$/);assert.ok(process.env.HEYQUIZ_DATA_DIR,'Isolated local records required');
+const artifacts=path.resolve(process.env.ARTIFACT_DIR||'../pippi-overall-qa-2026-10-12/creation/draft-protection');fs.mkdirSync(artifacts,{recursive:true});
 (async()=>{const browser=await chromium.launch({channel:'chrome'}),ctx=await browser.newContext();const id='qa-draft-'+Date.now(),headers={Origin:base};try{
  await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
  assert.equal((await ctx.request.post(base+'/api/forms',{data:{id,title:'Original',mode:'survey',questions:[{id:'q',type:'short_answer',title:'Question'}]},headers})).status(),201);
@@ -14,6 +17,6 @@ const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3157';
  // A is stale: the server must refuse silently overwriting B's newer revision.
  await a.locator('input').first().fill('Stale overwrite attempt');await a.locator('.hq-error').waitFor();assert.equal((await(await ctx.request.get(base+'/api/forms/'+id)).json()).title,'Tab B unsaved');
  const broken=await ctx.newPage();await broken.addInitScript(()=>{Storage.prototype.getItem=()=>{throw Error('blocked')};Storage.prototype.setItem=()=>{throw Error('blocked')};});await broken.goto(base+'/editor/'+id);await broken.locator('input').first().fill('Storage unavailable');await broken.getByText('Browser backup is unavailable.',{exact:false}).waitFor();await broken.getByText('Saved',{exact:true}).waitFor();
- await a.screenshot({path:'/tmp/pippi-draft-conflict.png',fullPage:false});
+ await a.screenshot({path:path.join(artifacts,'draft-conflict.png'),fullPage:false});
  console.log('PASS two-tab isolation, failed-save reload recovery, successful restore, stale revision rejection, unavailable storage warning');
-}finally{await ctx.request.delete(base+'/api/forms/'+id,{headers});await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
+}finally{for(const page of ctx.pages())await page.close();await ctx.request.delete(base+'/api/forms/'+id,{headers});await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

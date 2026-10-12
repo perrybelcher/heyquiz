@@ -1,0 +1,44 @@
+# Reporting QA — 12 October 2026
+
+Status: complete. Local baseline checks passed; three confirmed presentation/recovery defects are corrected and their final compiled regressions passed. No production, provider, real email, AI or cloud calls were made by this lane.
+
+## Environment and evidence
+
+Baseline: parent-owned frozen compiled app at `http://127.0.0.1:3173`, isolated records in `/private/tmp/pippi-overall-qa-20261012/reporting-data`, local login, cloud/provider credentials blank. Evidence lives in `outputs/pippi-overall-qa-2026-10-12/reporting/` relative to the project root. Synthetic fixtures are independently named and scoped cleanup checks owner and form identity. No build, server restart or Git mutation was performed by this lane.
+
+## Confirmed defects and corrections
+
+1. **Malformed delivery history interrupted the entire Contacts page.** A successful HTTP response with `jobs[0].state=null` reached rendering unchecked and triggered the application error boundary (“Something interrupted this page.”). New bounded client parser `lib/result-delivery-view.ts` validates the listing before either initial or refreshed state is installed; invalid responses show an actionable refresh error while retaining the last valid history. Unknown fields are projected away. State/timestamp/ID/string/collection bounds and duplicate IDs are covered by five pure groups. Evidence: `delivery-before-screenshot/{owner-failure.png,failure-view.json}` and retained preceding failure logs.
+2. **Clipboard feedback contradicted the actual result.** Copy success followed by a rejected clipboard write still displayed “Copied”; successful retry could retain the prior error. `SaveResultLink.tsx` clears prior feedback before a new attempt and synchronously prevents overlapping writes. The strict browser regression checks success → failure → success. Before evidence: `clipboard-before/failure-view.json` retains the contradictory success label and manual-copy error without a report URL/token.
+3. **Dark-theme recommendation reasons were hard to read.** `MarketingResultCard.tsx` used a fixed dark slate text color over the themed dark background. Actual computed contrast was 1.47:1, with an axe color-contrast violation. Its reasons now use the existing theme-aware body-copy class. New `browser-marketing-result-contrast.cjs` passed all 12 combinations of product/outcome results, light/dark palettes and 320/390/1440 widths. It renders the real current source component against the compiled local stylesheet, with no quiz writes or starts. Before/after screenshots and computed colors are in `result-contrast-before/` and `result-contrast-after/`; all 12 after scans have zero violations. This is component/CSS evidence, not a claim that the old compiled server contains the new component.
+
+## Passed baseline verification
+
+| Suite | Meaningful acceptance |
+|---|---|
+| `browser-creator-reconciliation.cjs` | Two actual UI-created quizzes: blank knowledge and meal-planning template. Two completed previews plus two anonymous completions; preview exclusion, literal score/results, immutable published snapshot after a different draft is saved, exact answers/contact consent, Contacts/Results/API/CSV agreement, one saved report/native PDF. Test-only navigation wait now distinguishes history replacement from the new editor document. |
+| `browser-contact-answers.cjs` | 44 historical synthetic rows, exact 30-match CSV; skipped/invalid/missing/snapshot coverage, multi-select deduplication, stale response/export gates, formula-safe CSV, mobile keyboard. |
+| `browser-analytics-cohorts.cjs` | Literal publication/source/campaign/legacy/unknown membership, owner-preview exclusion, compatible denominators, previous-period and snapshot CSV, empty cohorts, request errors/abort, 320px table keyboard access. |
+| `browser-contact-segments.cjs` | Real local saved-filter API with synthetic contact data: create/apply/rename/update/delete, exact CSV membership, pinned conflicting edits and stale/error/quiz-switch protection; seven accessibility/reflow scans. |
+| `browser-contact-result-links.cjs` | Selected-contact saved-link management, focus/return filter preservation, late response isolation, correct revocation target and cancellation; other contact preserved. |
+| `browser-contact-result-retention.cjs` | Historical selected result remains explicit when absent, zero matching rows never broadens CSV, restored membership, loading/503/malformed/stale guards, three exact CSVs. |
+| `browser-report-design.cjs` | Guided/full editor, pending recovery, invalid URL cannot apply/autosave, save failure/retry/reset, immutable publication and saved design after republish, real native download/custom CTA; six editor/report accessibility scans at 320/390/1440. |
+| `browser-native-result-pdf.cjs` — WebKit | Native keyboard download, exact PDF file/MIME/private headers, 100% literal result, Latin/Greek/Cyrillic text, private-data exclusion, 503 retry, unsupported-script 422/browser-print fallback, revoked 404, mobile report. |
+
+The preceding eight browser suites passed on compiled3173 before source corrections. Most used Chrome; native PDF additionally used WebKit. They are not a full cross-browser matrix. No new real-email transport claim is made: delivery tests intercept only delivery endpoints, and provider service tests use synthetic mocks.
+
+Ten offline scripts passed 144 named checks/groups total: analytics 30; analytics-cohorts 11; contact-filters 11; contact-answer-cohort 12; contact-segments 13; result-pdf-model 18; result-pdf-api 15; report-customization-independent 10; result-delivery-independent 19; result-delivery-view 5. Counts describe assertions/groups of differing breadth, not a quality percentage or exhaustive coverage.
+
+## PDF visual inspection
+
+Seven generated PDFs / 14 actual pages were rasterized and visually inspected: meal-planning saved report (1), customized executive cover report (2), native WebKit download (1), and four direct native renderer style/cover combinations (2+3+2+3). Every page was inspected, including continuations. No clipping, overlap, missing mandatory score/null/coverage information or footer collision was seen. The four direct variants additionally passed literal text/link/privacy assertions; their four render groups are additional to, not duplicates of, the ten model groups above. Cover-page whitespace is intentional. Evidence: `reconciliation/pdf-page-1.png`, `browser-report-design/pdf-page-{1,2}.png`, `browser-native-result-pdf-webkit/download-1.png`, and all ten PNG pages in `native-layouts/`.
+
+## Final source and compiled acceptance
+
+Application files: `components/ResultEmailDeliveryManager.tsx`, `components/SaveResultLink.tsx`, `components/MarketingResultCard.tsx`, new `lib/result-delivery-view.ts`.
+
+Tests: new `tests/result-delivery-view.cjs`, new `tests/browser-marketing-result-contrast.cjs`; updated `tests/browser-result-delivery-ui.cjs` and navigation-only correction in `tests/browser-creator-reconciliation.cjs`.
+
+Final scoped ESLint passed with zero errors and the existing `MarketingResultCard` image warning; TypeScript passed. Logs: `final-scoped-lint.log` and `final-typecheck.log`. Parent’s final combined build from `work/pippi-qa-final-2026-10-12` then served the same local port/data with a fresh session secret. The complete updated `browser-result-delivery-ui.cjs` passed on that build: clipboard success → failure → success; malformed successful listing retains prior history and retries; 503 recovery; explicit request and duplicate prevention; truthful accepted versus delivered status; bounded status-only polling; explicit retry/drain; quiz-switch isolation. Six respondent/owner accessibility and reflow scans at 320/390/1440 had zero violations and zero incomplete checks. One real synthetic public start/completion; all delivery endpoints mocked, two explicit request attempts (first intentionally failed), one explicit delivery retry and one owner drain, no external requests or page errors. Final evidence: `delivery-final.log` and `delivery-final/summary.json`; mobile and desktop screenshots were visually inspected. The 12-case component contrast probe also passed against the final compiled CSS, in `result-contrast-final.log` and `result-contrast-final/observations.json`. Dark reasons contrast improved from1.47:1 to8.81:1 in the selected palette. Initial failing runs remain evidence and are not counted as passing coverage. No application changes followed these final passing checks.
+
+Limitations: synthetic local ownership and data; no production load/performance audit, real email/inbox/deliverability check, manual screen-reader study, actual human beta or promise of exhaustive paths. The report parser intentionally does not trust successful HTTP status alone. Existing finite read/transport semantics, consent, storage, scoring and report capabilities remain unchanged.

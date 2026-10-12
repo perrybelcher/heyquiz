@@ -148,6 +148,34 @@ Cascade order is intentional: see docs/sales-page-maintenance.md before moving r
 .hq-sales-page .sales-text-link:hover {
   color: var(--accent);
 }
+.hq-sales-page .hero-creation-paths {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 2px;
+  margin-top: 16px;
+}
+.hq-sales-page .hero-creation-paths a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #922c3b;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: #d7b5bb;
+  text-underline-offset: 4px;
+}
+.hq-sales-page .hero-creation-paths a:hover {
+  color: #6e1c29;
+  text-decoration-color: currentColor;
+}
+.hq-sales-page .hero-creation-paths a:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #922c3b;
+  outline-offset: 4px;
+}
 .hq-sales-page .hero-note {
   display: flex;
   gap: 8px;

@@ -66,7 +66,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base)) throw Error('Use an i
     await page.screenshot({ path: path.join(artifactDir, 'guided-editing-mobile.png'), fullPage: false });
     // The AI chooser makes the business brief the obvious marketing path.
     await page.goto(base);
-    await page.getByRole('button', { name: 'Start with AI', exact: true }).click();
+    await page.getByRole('button', { name: /^Create with AI(?:\s|$)/ }).click();
     const dialog = page.getByRole('dialog');
     assert.equal(await dialog.getByRole('link', { name: /Recommend, segment, or assess/ }).getAttribute('href'), '/create/marketing');
     assert.equal(await dialog.getByRole('link', { name: 'Browse templates', exact: true }).getAttribute('href'), '/templates');
@@ -77,7 +77,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base)) throw Error('Use an i
     await page.screenshot({ path: path.join(artifactDir, 'ai-goal-chooser-mobile.png'), fullPage: false });
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('dialog').count(), 0);
-    await page.getByRole('button', { name: 'Start blank', exact: true }).waitFor();
+    await page.getByRole('button', { name: /^Start blank(?:\s|$)/ }).waitFor();
     assert.deepEqual(errors, []);
     console.log('PASS mobile guided creation, guarded reorder, reviewed/cancelled deletion, stable scoring, saved recovery, AI goal routing, blank/template access; no AI request made');
   } catch (error) {

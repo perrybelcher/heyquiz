@@ -1,14 +1,19 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3171';
 if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Local-only fault injection');
-(async()=>{const b=await chromium.launch({channel:'chrome'}),ctx=await b.newContext(),p=await ctx.newPage();const id='qa-error-'+Date.now(),file=path.resolve('.heyquiz-data/forms',id+'.json'),headers={Origin:base};let saved;
+// Fault injection must use the same explicitly isolated store as the test server.
+// Never infer the data location from the caller's current working directory.
+const dataDir=process.env.HEYQUIZ_DATA_DIR,expectedDir=process.env.EXPECTED_TEST_DATA_DIR;
+if(process.env.HEYQUIZ_LOCAL_MODE!=='1'||!dataDir||!expectedDir||path.resolve(dataDir)!==path.resolve(expectedDir))throw Error('Matching HEYQUIZ_DATA_DIR and EXPECTED_TEST_DATA_DIR required in local mode');
+const artifacts=path.resolve(process.env.ARTIFACT_DIR||'../pippi-error-recovery-review');
+(async()=>{const b=await chromium.launch({channel:'chrome'}),ctx=await b.newContext(),p=await ctx.newPage();const id='qa-error-'+Date.now(),file=path.resolve(dataDir,'forms',id+'.json'),headers={Origin:base};let saved;
 try{
  assert.equal((await ctx.request.post(base+'/api/auth',{headers,data:{local:true}})).status(),200);
  assert.equal((await ctx.request.post(base+'/api/forms',{headers,data:{id,title:'Recovered QA quiz',mode:'survey',questions:[{id:'q',type:'short_answer',title:'Question'}]}})).status(),201);
- saved=await fs.readFile(file);await fs.writeFile(file,'{invalid synthetic data');
+ saved=await fs.readFile(file);assert.equal(JSON.parse(saved).payload.id,id,'Only this run’s newly created fixture can be corrupted');await fs.writeFile(file,'{invalid synthetic data');
  const api=await ctx.request.get(base+'/api/forms/'+id);const body=await api.json();assert.match(body.reference,/^[a-f0-9-]{36}$/);assert.equal(api.headers()['x-pippi-reference'],body.reference);
  await p.goto(base+'/editor/'+id);await p.getByRole('heading',{name:'Something interrupted this page.'}).waitFor();await p.getByText('Support reference:',{exact:false}).waitFor();
- await p.screenshot({path:'/tmp/pippi-error-recovery.png',fullPage:true});
+ await fs.mkdir(artifacts,{recursive:true});await p.screenshot({path:path.join(artifacts,'pippi-error-recovery.png'),fullPage:true});
  await fs.writeFile(file,saved);await p.getByRole('button',{name:'Try again',exact:true}).click();await p.locator('input').first().waitFor();assert.equal(await p.locator('input').first().inputValue(),'Recovered QA quiz');
  assert.equal((await ctx.request.post(base+'/api/diagnostics',{headers:{Origin:'https://untrusted.example','Content-Type':'application/pippi-error'}})).status(),403);
  assert.equal((await ctx.request.post(base+'/api/diagnostics',{headers,data:{secret:'must not log'}})).status(),400);
