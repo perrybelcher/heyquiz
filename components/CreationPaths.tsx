@@ -16,7 +16,7 @@ export default function CreationPaths({ busy = false, onBlank, onAI }: {
   onBlank?: () => void;
   onAI?: () => void;
 }) {
-  const cardClass = "group min-w-0 rounded-2xl border border-stone-200 bg-white p-4 text-left text-slate-900 shadow-sm transition-colors hover:border-[#a92335] hover:bg-[#fffaf8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#a92335] disabled:cursor-wait disabled:opacity-60 sm:p-5";
+  const cardClass = "group min-w-0 rounded-2xl border border-stone-200 bg-white p-4 text-left text-slate-900 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.12)] transition-[border-color,background-color,box-shadow] hover:shadow-md hover:border-[#a92335] hover:bg-[#fffaf8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#a92335] disabled:cursor-wait disabled:opacity-60 sm:p-6";
   return <div role="group" aria-label="Ways to create a quiz" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     {paths.map(({ id, title, description, href, icon: Icon }) => {
       const action = id === "blank" ? onBlank : id === "ai" ? onAI : undefined;
@@ -24,7 +24,7 @@ export default function CreationPaths({ busy = false, onBlank, onAI }: {
         <span className="flex items-center gap-3 sm:flex-wrap">
           <span className="inline-flex shrink-0 rounded-xl bg-[#f8eeeb] p-2.5 text-[#922c3b]"><Icon size={21} aria-hidden="true" /></span>
           <span className="min-w-0 flex-1 text-base font-semibold tracking-tight sm:order-3 sm:basis-full">{title}</span>
-          <ArrowUpRight size={17} className="ml-auto shrink-0 text-stone-500 group-hover:text-[#922c3b]" aria-hidden="true" />
+          <ArrowUpRight size={17} className="ml-auto shrink-0 text-stone-400 transition-transform motion-safe:group-hover:-translate-y-0.5 motion-safe:group-hover:translate-x-0.5 group-hover:text-[#922c3b]" aria-hidden="true" />
         </span>
         <span className="mt-3 block text-sm leading-relaxed text-slate-600">{description}</span>
       </>;
