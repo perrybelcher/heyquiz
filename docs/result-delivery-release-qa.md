@@ -1,8 +1,8 @@
 # Independent result delivery and report customization QA
 
-Independent local acceptance passed on 12 October 2026: **19 result-delivery groups**, **10 report model/snapshot groups**, and **4 actual native PDF combinations**. All **10 generated PDF pages** were rendered and visually inspected. No application blocker was found in this lane. This is mocked-provider and local rendering evidence; it does not establish inbox delivery, production configuration, scheduler execution or hosted browser acceptance.
+Independent local acceptance passed on 12 October 2026: **19 result-delivery groups**, **10 report model/snapshot groups**, and **4 actual native PDF combinations**. All **10 generated PDF pages** were rendered and visually inspected. The first service/rendering pass found no blocker. A later independent UI review found and prompted the transient-status fix documented below; its compiled regression passes. This is mocked-provider and local rendering evidence; it does not establish inbox delivery, production configuration, scheduler execution or hosted browser acceptance.
 
-This lane owns only `tests/result-delivery-independent.cjs`, `tests/report-customization-independent.cjs` and this note. Root owns builds, hosted/account/provider acceptance and release operations. Email and report implementation owners remain separate.
+This lane owns `tests/result-delivery-independent.cjs`, `tests/report-customization-independent.cjs`, the later-authorized `tests/browser-result-delivery-ui.cjs` and this note. Root owns builds, hosted/account/provider acceptance and release operations. Email and report implementation owners remain separate.
 
 ## Real result-email checks
 
@@ -70,6 +70,25 @@ REPORT_CUSTOMIZATION_RENDER=1 REPORT_CUSTOMIZATION_ARTIFACT_DIR=/absolute/eviden
 npx eslint tests/result-delivery-independent.cjs tests/report-customization-independent.cjs
 ```
 
-The first report test attempt had a test-only fixture omission (`mode` in a legacy form) after eight checks; it was corrected before the passing runs. Initial 3/12/18-group delivery logs remain alongside final evidence and are not counted as additional distinct coverage. No application fix resulted from these test executions.
+The first report test attempt had a test-only fixture omission (`mode` in a legacy form) after eight checks; it was corrected before the passing runs. Initial 3/12/18-group delivery logs remain alongside final evidence and are not counted as additional distinct coverage. No application fix resulted from the service/model test executions; the later owner-status UI finding is recorded below.
 
 Installed Next route-handler guidance, Supabase security/ownership guidance and the PDF skill were read. The PDF artifact marker was run before generating the four files. No live customer records, provider messages, private report tokens or credentials were written to evidence. No build, server, deployment, email, provider or cloud operation was performed by this lane.
+
+## Additional compiled delivery UI acceptance
+
+Root subsequently authorized `tests/browser-result-delivery-ui.cjs` against the isolated compiled app at `http://127.0.0.1:3165` with `/private/tmp/pippi-delivery-local-data`. The final Chrome run passed on root’s final delivery build. Real local quiz creation, publication, one public start and completion are used; only the result-email availability/DTO endpoints are mocked. No mocked live delivery response reaches a real provider.
+
+Independent read-only review caught one concrete application issue before this run: the owner manager hid itself on every503, including a transient storage outage after a successful listing, leaving no history/error/retry controls. Root and the email owner corrected this using an explicit `RESULT_EMAIL_UNAVAILABLE` code only for disabled-mode responses. The compiled regression now verifies that ordinary503 retains previous history and an actionable refresh, followed by successful recovery.
+
+The final browser suite also verifies:
+
+- Unchecked transactional consent and disabled request before consent; synchronous duplicate submissions produce only one in-flight request. A failed request retains typed email and consent for explicit retry.
+- Queued/accepted/delivered wording, no extra recipient editor after acceptance, no automatic resend, at most eight automatic status reads, duplicate refresh guards, and exactly one explicit permitted retry.
+- Owner refresh uses GET only; an explicit “Check pending delivery” action produces one POST under synchronous duplicate clicks. Late results for an unmounted quiz cannot replace the next quiz’s history.
+- Six settled WCAG A/AA scans (respondent and owner at320/390/1440) have **zero violations and zero incomplete findings**; no horizontal overflow, page errors or external requests. Both narrow mobile screenshots were visually inspected.
+
+Final evidence is `independent/browser-delivery-final-3.log` and `independent/browser-delivery-final-3/` (six screenshots and sanitized summary). The accepted run records one local start/completion, two request actions (one deliberately failed then explicitly retried), one explicit retry, eleven status reads (initial/manual plus bounded automatic checks), seven owner GETs and one owner POST. All delivery actions are mocked.
+
+Two preceding logs are retained: the first sandbox launch failed before fixtures; `browser-delivery-final-2.log` passed respondent and503 checks then hit a **test-only wait bug**, clicking a disabled pending-action button before refresh finished. The test now waits for completion before asserting duplicate-click behavior. That prior actual run adds one local start/completion; cumulative actual browser work was two starts and two completions. Each run cleaned only its unique synthetic forms/responses/reports/visits and exact owner/form retirement receipt, with owner and deleted-form checks. No real customer data, email, credential or private token appears in the evidence.
+
+The new browser test passes scoped ESLint. This adds compiled UI confidence, not hosted provider/inbox validation.
