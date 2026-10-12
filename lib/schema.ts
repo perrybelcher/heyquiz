@@ -2,6 +2,7 @@ import { TrackingSchema, type TrackingConfig } from "./tracking";
 import { CaptureSchema, type CaptureConfig, type ContactRecord } from "./contacts";
 import { z } from "zod";
 import { ResultEmailCopySchema, type ResultEmailCopy } from "./result-email-copy";
+import { ReportDesignSchema, type ReportDesign } from "./report-design";
 import { LandingSectionSchema, landingSectionLimit, safeLandingImageUrl, type LandingSection } from "./landing";
 import {
   MarketingSchema,
@@ -425,6 +426,7 @@ export const LogicRuleSchema: z.ZodType<LogicRule> = z.object({
 });
 
 export interface FormSchemaType {
+  reportDesign?: ReportDesign;
   resultEmailCopy?: ResultEmailCopy;
   tracking?: TrackingConfig;
   capture?: CaptureConfig;
@@ -448,6 +450,7 @@ export interface FormSchemaType {
 }
 
 export const FormSchema: z.ZodType<FormSchemaType> = z.object({
+  reportDesign: ReportDesignSchema.optional(),
   resultEmailCopy: ResultEmailCopySchema.optional(),
   tracking: TrackingSchema.optional(),
   capture: CaptureSchema.optional(),

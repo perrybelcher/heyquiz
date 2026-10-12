@@ -45,7 +45,7 @@ const paragraphs = (text: string) => text ? text.split(/\n{2,}/).map(part => `<p
 export interface ResultEmailCopyMessage { subject: string; text: string; html: string }
 /** Server callers must supply their validated canonical result URL. Omitting it
  * gives an inert example; previews cannot generate or mutate a live capability. */
-export function renderResultEmailCopy(value: ResolvedResultEmailCopy, options: { expiresOn: string; privateUrl?: string }): ResultEmailCopyMessage {
+export function renderResultEmailCopy(value: ResolvedResultEmailCopy, options: { expiresOn: string; privateUrl?: string; mode?: "synthetic" | "resend" }): ResultEmailCopyMessage {
   const copy = validateResolvedResultEmailCopy(value);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(options.expiresOn)) throw new Error("Use a valid result expiry date.");
   if (options.privateUrl !== undefined) {
@@ -59,12 +59,13 @@ export function renderResultEmailCopy(value: ResolvedResultEmailCopy, options: {
   const linkHtml = options.privateUrl ? `<a href="${escape(link)}">Open your saved result</a>` : escape(link);
   const expiry = `This link expires on ${options.expiresOn} (UTC). Anyone with the link can view the saved result.`;
   const consent = "This request does not subscribe you to marketing emails.";
+  const synthetic = options.mode !== "resend";
   return {
-    subject: `${copy.subject} — local test`,
-    text: ["LOCAL TEST ONLY — no email was sent.", copy.introduction, link, copy.signOff, `${expiry} ${consent}`].filter(Boolean).join("\n\n"),
-    html: `<p><strong>LOCAL TEST ONLY — no email was sent.</strong></p>${paragraphs(copy.introduction)}<p>${linkHtml}</p>${paragraphs(copy.signOff)}<p>${expiry}</p><p>${consent}</p>`,
+    subject: synthetic ? `${copy.subject} — local test` : copy.subject,
+    text: [synthetic ? "LOCAL TEST ONLY — no email was sent." : "", copy.introduction, link, copy.signOff, `${expiry} ${consent}`].filter(Boolean).join("\n\n"),
+    html: `${synthetic ? "<p><strong>LOCAL TEST ONLY — no email was sent.</strong></p>" : ""}${paragraphs(copy.introduction)}<p>${linkHtml}</p>${paragraphs(copy.signOff)}<p>${expiry}</p><p>${consent}</p>`,
   };
 }
-export function previewResultEmailCopy(value: unknown): ResultEmailCopyMessage {
-  return renderResultEmailCopy(resolveResultEmailCopy(value, { quizTitle: "Your sample quiz", brandName: "Your brand" }), { expiresOn: "2030-01-31" });
+export function previewResultEmailCopy(value: unknown, mode: "synthetic" | "resend" = "synthetic"): ResultEmailCopyMessage {
+  return renderResultEmailCopy(resolveResultEmailCopy(value, { quizTitle: "Your sample quiz", brandName: "Your brand" }), { expiresOn: "2030-01-31", mode });
 }

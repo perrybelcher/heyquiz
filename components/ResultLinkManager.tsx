@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpLeft, Clock3, Link2, Link2Off, RefreshCw, Trash2, Search } from "lucide-react";
+import ResultEmailDeliveryManager from "./ResultEmailDeliveryManager";
 import type { ManagedResultLink, ResultLinkListing } from "@/lib/report-management";
 
 const statusLabels = { not_created: "Not created", active: "Active", expired: "Expired", revoked: "Revoked" };
@@ -14,7 +15,7 @@ export default function ResultLinkManager({ formId, selection, onReturnToContact
   // Keyed inner state also prevents a late request for one quiz updating another.
   // A new contact selection resets the view atomically; a late response from the
   // previous selection cannot replace the newly targeted contact's status.
-  return <ResultLinkManagerForQuiz key={`${formId}:${selection?.requestId ?? 0}`} formId={formId} selection={selection} onReturnToContact={onReturnToContact}/>;
+  return <><ResultLinkManagerForQuiz key={`${formId}:${selection?.requestId ?? 0}`} formId={formId} selection={selection} onReturnToContact={onReturnToContact}/><ResultEmailDeliveryManager key={formId} formId={formId}/></>;
 }
 function ResultLinkManagerForQuiz({ formId, selection, onReturnToContact }: ManagerProps) {
   const [page, setPage] = useState(1), [refresh, setRefresh] = useState(0);

@@ -60,6 +60,7 @@ export default function ResultEmailCopyEditor({ value, quizTitle, brandName, dra
   restored?: boolean; storageWarning?: boolean;
 }) {
   const id = useId(), current = value ?? DEFAULT_RESULT_EMAIL_COPY, copy = draft?.copy ?? current;
+  const [previewMode, setPreviewMode] = useState<"resend" | "synthetic">("resend");
   const stale = !!draft && draft.baseline !== resultEmailCopyIdentity(value);
   const errors: Partial<Record<keyof ResultEmailCopy | "general", string>> = {};
   let preview: ReturnType<typeof previewResultEmailCopy> | undefined;
@@ -69,7 +70,7 @@ export default function ResultEmailCopyEditor({ value, quizTitle, brandName, dra
     // Preview always uses fixed samples; validation additionally catches a real
     // quiz/brand title that would exceed bounds after one-pass substitution.
     resolveResultEmailCopy(valid, { quizTitle, brandName });
-    try { preview = previewResultEmailCopy(valid); }
+    try { preview = previewResultEmailCopy(valid, previewMode); }
     catch { sampleTooLong = true; }
   } catch (error) {
     if (error instanceof ZodError) for (const issue of error.issues) {
@@ -93,10 +94,10 @@ export default function ResultEmailCopyEditor({ value, quizTitle, brandName, dra
   return <details className="min-w-0 rounded-xl border border-stone-200 bg-white p-4">
     <summary className="cursor-pointer font-semibold text-stone-900">Result email copy <span className="font-normal text-stone-600">· preview only{draft ? " · unapplied changes" : ""}</span></summary>
     <section aria-label="Result email copy settings" className="mt-5 min-w-0 space-y-5 text-sm text-stone-800">
-      <p className="rounded-lg bg-stone-100 p-3 leading-relaxed">Production email sending is unavailable. This editor previews wording only; it does not send email or queue a test.</p>
+      <p className="rounded-lg bg-stone-100 p-3 leading-relaxed">Write the email people can request after completing your published quiz. Sending requires configured delivery; this editor previews wording only and never sends a message.</p>
       {restored && <p role="status" className="rounded-lg bg-blue-50 p-3 text-blue-950">Unapplied copy was recovered in this browser tab. Review it and choose Apply; your quiz has not changed.</p>}
       {storageWarning && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-amber-950">Pending copy could not be backed up or cleared in this tab. Keep this editor open and apply or copy your wording before leaving.</p>}
-      <p className="leading-relaxed">Use <code className="break-all">{"{quiz_title}"}</code> and <code className="break-all">{"{brand_name}"}</code> for personalization. The sample uses “Your sample quiz” and “Your brand.” Privacy, expiry and local-test notices stay fixed.</p>
+      <p className="leading-relaxed">Use <code className="break-all">{"{quiz_title}"}</code> and <code className="break-all">{"{brand_name}"}</code> for personalization. The sample uses “Your sample quiz” and “Your brand.” Privacy and expiry notices stay fixed. Emails use the verified Pippi sender configured for delivery; the subject, introduction and sign-off below are yours to customize.</p>
       {([
         ["subject", "Email subject", 120, 1],
         ["introduction", "Email introduction", 1200, 5],
@@ -118,6 +119,11 @@ export default function ResultEmailCopyEditor({ value, quizTitle, brandName, dra
       </div>
       <section aria-label="Sample email preview" className="min-w-0 rounded-xl border border-stone-200 bg-stone-50 p-4">
         <h3 className="font-semibold text-stone-900">Sample email · no message will be sent</h3>
+        <label htmlFor={`${id}-preview-mode`} className="mt-3 block font-semibold">Preview wording for</label>
+        <select id={`${id}-preview-mode`} value={previewMode} onChange={event => setPreviewMode(event.target.value === "synthetic" ? "synthetic" : "resend")} className="mt-2 w-full min-w-0 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:outline-2 focus:outline-offset-2 focus:outline-stone-700">
+          <option value="resend">Requested result email</option><option value="synthetic">Local test copy</option>
+        </select>
+        <p className="mt-3 text-xs leading-relaxed text-stone-600">This choice changes the sample only. Delivery status shows whether the email service or recipient’s mail server accepted a message; it cannot guarantee inbox placement or that someone read it.</p>
         {preview ? <><p className="mt-4 break-words font-semibold">Subject: {preview.subject}</p><div className="mt-4 whitespace-pre-wrap break-words leading-relaxed">{preview.text}</div></> : <p className="mt-3 text-stone-700">{sampleTooLong ? "The fixed sample names make this preview too long. Your actual quiz and brand values fit, so you can apply this copy." : "Correct the fields above to see the sample. Invalid copy has not changed your quiz."}</p>}
       </section>
     </section>

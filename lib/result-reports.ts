@@ -3,6 +3,7 @@ import { HttpError, signToken, verifyToken } from "./auth";
 import { readRecord, writeRecord } from "./records";
 import type { Attempt } from "./attempts";
 import type { FormSchemaType, FormTheme, QuizSubmissionResult } from "./schema";
+import type { ReportDesign } from "./report-design";
 export const RESULT_REPORT_LIFETIME = 30 * 24 * 60 * 60 * 1000;
 export type ResultLinkRevocation = { formId: string; submissionId: string; revokedAt: number };
 /** Per-response receipts never contain bearer tokens, contact details or result content. */
@@ -44,6 +45,8 @@ export interface ResultReport {
     expiresAt: number;
     quizTitle: string;
     theme: FormTheme;
+    /** Freeze creator-selected report presentation with the completed attempt. */
+    reportDesign?: ReportDesign;
     heading: string;
     message: string;
     cta?: {
@@ -65,6 +68,7 @@ export function makeResultReport(form: FormSchemaType, result: QuizSubmissionRes
         expiresAt: submitted + RESULT_REPORT_LIFETIME,
         quizTitle: form.title,
         theme: form.theme,
+        ...(form.reportDesign ? { reportDesign: form.reportDesign } : {}),
         heading: result.matchedTier?.title || form.endingPage?.title || "Your results",
         message: result.matchedTier?.message || form.endingPage?.message || "Thank you for completing this quiz.",
         cta: url && /^https?:\/\//i.test(url) ? { label: result.matchedTier?.ctaText || form.endingPage?.buttonText || "Continue", url } : undefined,

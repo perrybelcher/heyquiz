@@ -246,6 +246,8 @@ export function publicForm(form: FormSchemaType): FormSchemaType {
     // Creator email drafts stay server-side; respondents receive only the
     // requested message assembled from their frozen attempt, never its config.
     resultEmailCopy: undefined,
+    // Report-only copy and destinations are released with the completed result.
+    reportDesign: undefined,
     marketing: form.marketing
       ? { ...form.marketing, scorecard: undefined, resultSections: undefined, rules: [], outcomes: [], categories: [] }
       : undefined,

@@ -1,13 +1,19 @@
 "use client";
 import { Download, Loader2, Printer } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ResultReport } from "@/lib/result-reports";
 import { quizThemeStyle } from "@/lib/theme-style";
+import { buildResultPdfModel } from "@/lib/result-pdf-model";
+import ReportDesignPreview from "./ReportDesignPreview";
 import MarketingResultCard from "./MarketingResultCard";
 export default function ResultReportView({ report, token }: {
     report: ResultReport;
     token: string;
 }) {
+    const designedModel = useMemo(() => {
+      if (!report.reportDesign) return null;
+      try { return buildResultPdfModel(report); } catch { return null; }
+    }, [report]);
     const downloadController = useRef<AbortController | null>(null);
     const [downloading, setDownloading] = useState(false), [downloadError, setDownloadError] = useState("");
     useEffect(() => () => { downloadController.current?.abort(); downloadController.current = null; }, []);
@@ -61,7 +67,8 @@ export default function ResultReportView({ report, token }: {
         {downloadError && <p role="alert" className="w-full rounded-xl bg-white border border-red-200 px-4 py-3 text-sm text-red-800">{downloadError}</p>}
         <p className="w-full text-xs opacity-75">Anyone with this private link can view this result until {new Date(report.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}. Keep it somewhere safe. This is a saved copy; later quiz edits do not change it.</p>
       </div>
-      <article className="rounded-3xl border border-black/10 p-7 sm:p-12 shadow-sm" style={{ backgroundColor: report.theme.cardColor || '#fff' }}>
+      {report.reportDesign && !designedModel && <p role="alert" className="mb-4 rounded-lg bg-white p-4 text-red-900">The custom report layout could not be read. Your saved result is shown below.</p>}
+      {designedModel ? <ReportDesignPreview model={designedModel}/> : <article className="rounded-3xl border border-black/10 p-7 sm:p-12 shadow-sm" style={{ backgroundColor: report.theme.cardColor || '#fff' }}>
         <header className="mb-8 border-b border-black/10 pb-6">
           {report.theme.logoUrl ? <img src={report.theme.logoUrl} alt={report.theme.logoAlt || report.theme.brandName || 'Quiz logo'} className="max-w-full object-contain object-left" style={{ height: report.theme.logoHeight || 40 }} referrerPolicy="no-referrer"/> : report.theme.brandName ? <p className="text-xl font-semibold">{report.theme.brandName}</p> : !report.theme.hidePippiBranding ? <img src="/pippi-logo.svg" alt="pippi" className="h-7"/> : null}
           <p className="text-sm mt-4 opacity-70">{report.quizTitle}</p>
@@ -71,8 +78,8 @@ export default function ResultReportView({ report, token }: {
           {report.result.totalPointsPossible > 0 && <div><p className="text-3xl font-semibold">{report.result.percentageScore}%</p><p className="text-sm mt-2">{report.result.totalPointsEarned} of {report.result.totalPointsPossible} points</p></div>}
           {report.cta && <a href={report.cta.url} className="hq-primary" rel="noreferrer">{report.cta.label} →</a>}
         </div>}
-      </article>
-      {!report.theme.hidePippiBranding && <p className="text-center text-xs opacity-60 mt-8">Made with Pippi</p>}
+      </article>}
+      {!designedModel && !report.theme.hidePippiBranding && <p className="text-center text-xs opacity-60 mt-8">Made with Pippi</p>}
     </div>
   </main>;
 }

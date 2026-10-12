@@ -30,9 +30,15 @@ async function until(check, message) { for (let n = 0; n < 100; n++) { if (await
   assert.deepEqual(await getFields(), [DEFAULT_RESULT_EMAIL_COPY.subject, DEFAULT_RESULT_EMAIL_COPY.introduction, '']);
   await summary().focus(); await page.keyboard.press('Enter'); assert.equal(await panel.isVisible(), false); await page.keyboard.press('Enter'); await panel.waitFor();
   await field('Email subject').focus(); await page.keyboard.press('Tab'); assert.ok(await field('Email introduction').evaluate(element => element === document.activeElement));
-  assert.ok((await panel.innerText()).includes('Production email sending is unavailable.'));
+  assert.ok((await panel.innerText()).includes('Sending requires configured delivery; this editor previews wording only and never sends a message.'));
   const preview = panel.getByRole('region', { name: 'Sample email preview', exact: true }); assert.equal(await preview.locator('a').count(), 0);
-  for (const text of ['Your sample quiz', 'LOCAL TEST ONLY', 'Anyone with the link', 'does not subscribe', '2030-01-31']) assert.ok((await preview.innerText()).includes(text));
+  assert.equal(await preview.getByRole('combobox', { name: 'Preview wording for' }).inputValue(), 'resend');
+  assert.ok(!(await preview.innerText()).includes('LOCAL TEST ONLY'));
+  await preview.getByRole('combobox', { name: 'Preview wording for' }).selectOption('synthetic');
+  assert.ok((await preview.innerText()).includes('LOCAL TEST ONLY'));
+  await preview.getByRole('combobox', { name: 'Preview wording for' }).selectOption('resend');
+  assert.ok(!(await preview.innerText()).includes('LOCAL TEST ONLY'));
+  for (const text of ['Your sample quiz', 'Anyone with the link', 'does not subscribe', '2030-01-31']) assert.ok((await preview.innerText()).includes(text));
   assert.equal((await draft()).resultEmailCopy, undefined);
 
   for (const [name, value] of [['Email subject', 'x'.repeat(121)], ['Email introduction', '{contact.email}'], ['Email introduction', 'x'.repeat(1201)], ['Email sign-off (optional)', 'x'.repeat(161)], ['Email subject', ''], ['Email subject', '{quiz_title} {quiz_title} {quiz_title} {quiz_title} {quiz_title}']]) {

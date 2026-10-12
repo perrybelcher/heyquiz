@@ -119,6 +119,7 @@ import {
 import { SortableQuestionCard } from "./SortableQuestionCard";
 import MediaPickerModal from "./MediaPickerModal";
 import LandingPageEditor from "./LandingPageEditor";
+import ReportDesignEditor, { useReportDesignDraft } from "./ReportDesignEditor";
 import ResultEmailCopyEditor, { useResultEmailCopyDraft } from "./ResultEmailCopyEditor";
 import TextareaAutosize from "react-textarea-autosize";
 import PublishReadiness from "./PublishReadiness";
@@ -231,14 +232,16 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   }
   const [form, setForm] = useState<FormSchemaType>(initialForm);
   const { draft: emailCopyDraft, update: setEmailCopyDraft, restored: emailCopyRestored, storageWarning: emailCopyStorageWarning } = useResultEmailCopyDraft(initialForm.id);
+  const { draft: reportDesignDraft, update: setReportDesignDraft, restored: reportDesignRestored, storageWarning: reportDesignStorageWarning } = useReportDesignDraft(initialForm.id);
   useEffect(() => {
-    if (!emailCopyDraft) return;
+    if (!emailCopyDraft && !reportDesignDraft) return;
     // Pending copy is deliberately outside autosave. Keep it across editor tabs,
     // and warn before a document navigation can discard it.
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [emailCopyDraft]);
+  }, [emailCopyDraft, reportDesignDraft]);
+  const reportDesignEditor = <ReportDesignEditor value={form.reportDesign} quizTitle={form.title} theme={form.theme} draft={reportDesignDraft} restored={reportDesignRestored} storageWarning={reportDesignStorageWarning} onDraftChange={setReportDesignDraft} onChange={reportDesign => setForm(current => ({ ...current, reportDesign }))} />;
   const resultEmailEditor = <ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={setEmailCopyDraft} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} />;
   const [activeNavTab, setActiveNavTab] = useState<
     "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
@@ -1646,7 +1649,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error"} mobileStatus={mobileSaveStatus} />}
+      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error"} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
       <EditorMobileHeader
         title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
@@ -2332,6 +2335,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                         </div>
                       ))}
                     </div>
+                    {reportDesignEditor}
                     {resultEmailEditor}
                   </div>
                 )}

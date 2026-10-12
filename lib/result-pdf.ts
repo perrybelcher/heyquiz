@@ -1,4 +1,5 @@
 // Node-only document generation. The renderer never opens URLs or reads user-selected paths.
+import { readableReportAccent } from "./report-design";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { setImmediate as yieldImmediate } from "node:timers/promises";
@@ -17,7 +18,6 @@ const MARGIN = 48;
 const FOOTER_SPACE = 54;
 const INK = "#17202D";
 const MUTED = "#526174";
-const FALLBACK_ACCENT = "#8A1C2B";
 const FONT_REGULAR = "ReportRegular";
 const FONT_BOLD = "ReportBold";
 const graphemes = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -63,16 +63,6 @@ function checkGlyphs(texts: string[], regular: Buffer, bold: Buffer) {
   }
 }
 
-function readableAccent(value: string) {
-  const match = /^#([0-9a-f]{6})$/i.exec(value);
-  if (!match) return FALLBACK_ACCENT;
-  const channels = [0, 2, 4].map(offset => {
-    const channel = parseInt(match[1].slice(offset, offset + 2), 16) / 255;
-    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-  return 1.05 / (luminance + 0.05) >= 4.5 ? value : FALLBACK_ACCENT;
-}
 
 /** Native, bounded PDF for an already-authorized frozen result; access checks belong to the route. */
 export async function renderResultPdf(report: ResultReport, options: { signal?: AbortSignal } = {}): Promise<Buffer> {
@@ -83,7 +73,7 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
   const [regular, bold] = await loadFontBytes();
   if (signal?.aborted) throw aborted();
   try {
-    checkGlyphs([model.title, model.brandName, ...model.blocks.flatMap(block => {
+    checkGlyphs([model.title, model.brandName, ...(model.design ? [model.design.quizTitle, model.design.subtitle, model.design.introduction, model.design.footer] : []), ...model.blocks.flatMap(block => {
       if (block.kind === "rule") return [];
       if (block.kind === "score") return [block.label, block.coverage || ""];
       if (block.kind === "link") return [block.label];
@@ -113,7 +103,8 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
   let continuationTitle: string | undefined;
   const started = performance.now();
   const chunks: Buffer[] = [];
-  const accent = readableAccent(model.accent);
+  const accent = readableReportAccent(model.accent);
+  const designed = !!model.design, executive = model.design?.style === "executive";
   const tooLarge = () => new PdfRenderError("report_too_large", 422, "This report is too large for a PDF download. Please use Print / Save as PDF.");
   const finish = new Promise<Buffer>((resolve, reject) => {
     doc.on("data", (chunk: Buffer) => {
@@ -150,6 +141,10 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
     check();
     if (pages >= MAX_PAGES) throw tooLarge();
     doc.addPage(); pages++; y = MARGIN;
+    if (designed) artifact(() => {
+      if (executive) doc.rect(0, 0, doc.page.width, 9).fill(INK);
+      else doc.rect(MARGIN, 16, 44, 3).fill(accent);
+    });
     if (pages > 1) {
       artifact(() => {
         setFont(false, 8.5);
@@ -224,6 +219,9 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
   }
   async function drawScore(block: Extract<ResultPdfBlock, { kind: "score" }>) {
     ensureSpace(scoreHeight(block));
+    if (executive && scoreHeight(block) < bottom() - MARGIN) artifact(() => {
+      doc.roundedRect(MARGIN - 10, y - 5, width() + 20, scoreHeight(block) - 4, 6).fill("#F0F3F6");
+    });
     await drawText(block.label, 11, 16, { bold: true, tag: "H3", gap: 4 });
     await drawText(block.value === null ? "Not enough information" : `${block.value}%`, block.value === null ? 14 : 25, 32, { bold: true, color: accent, gap: 4 });
     if (block.value !== null) {
@@ -277,12 +275,33 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
 
   try {
     newPage();
-    if (model.brandName || !model.hideBranding) await drawText(model.brandName || "Pippi", 11, 16, { bold: true, color: accent, gap: 8 });
-    await drawText(model.title, 13, 18, { bold: true, gap: 5 });
     const completed = new Date(model.createdAt).toLocaleDateString("en-GB", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" });
-    await drawText(`Saved result - ${completed}`, 9, 13, { color: MUTED, gap: 14 });
-    artifact(() => doc.moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).lineWidth(1).stroke(accent));
-    y += 18;
+    if (model.design) {
+      if (executive) {
+        artifact(() => doc.rect(MARGIN - 10, y - 10, width() + 20, 42).fill(INK));
+        await drawText("PERSONAL REPORT", 10, 16, { bold: true, color: "#FFFFFF", gap: 0 });
+        y += 34;
+      }
+      if (model.brandName || !model.hideBranding) await drawText(model.brandName || "Pippi", 11, 16, { bold: true, color: accent, gap: 18 });
+      if (model.design.cover) y = Math.max(y, executive ? 190 : 165);
+      await drawText(model.title, model.design.cover ? 34 : 28, model.design.cover ? 43 : 36, { bold: true, tag: "H1", gap: 16 });
+      if (model.design.subtitle) await drawText(model.design.subtitle, 14, 21, { color: MUTED, gap: 18 });
+      if (model.design.quizTitle !== model.title) await drawText(model.design.quizTitle, 10, 16, { color: MUTED, gap: 8 });
+      await drawText(`Saved result - ${completed}`, 9, 13, { color: MUTED, gap: 20 });
+      artifact(() => doc.moveTo(MARGIN, y).lineTo(executive ? doc.page.width - MARGIN : MARGIN + 76, y).lineWidth(executive ? 1 : 3).stroke(accent));
+      y += 24;
+      if (model.design.cover) newPage();
+      if (model.design.introduction) {
+        await drawText("About this report", 11, 17, { bold: true, color: accent, tag: "H2", keepNext: 48 });
+        await drawText(model.design.introduction, 10.5, 17, { gap: 22 });
+      }
+    } else {
+      if (model.brandName || !model.hideBranding) await drawText(model.brandName || "Pippi", 11, 16, { bold: true, color: accent, gap: 8 });
+      await drawText(model.title, 13, 18, { bold: true, gap: 5 });
+      await drawText(`Saved result - ${completed}`, 9, 13, { color: MUTED, gap: 14 });
+      artifact(() => doc.moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).lineWidth(1).stroke(accent));
+      y += 18;
+    }
     for (const [index, block] of model.blocks.entries()) {
       await yieldImmediate(); check();
       const next = model.blocks[index + 1];
@@ -290,6 +309,12 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
         if (block.level < 3) continuationTitle = undefined;
         const [size, lineHeight] = headingSizes[block.level];
         const keepNext = 9 + blockEntryHeight(index + 1);
+        if (designed && block.level === 2) {
+          ensureSpace(22 + keepNext);
+          y += 6;
+          artifact(() => doc.moveTo(MARGIN, y - 3).lineTo(executive ? MARGIN + 28 : doc.page.width - MARGIN, y - 3).lineWidth(executive ? 3 : 0.5).stroke(executive ? accent : "#DCE1E7"));
+          y += 5;
+        }
         await drawText(block.text, size, lineHeight, { bold: true, tag: `H${block.level}`, gap: 9, keepNext });
         if (block.level === 2 && next?.kind === "score" && next.label === "Score") continuationTitle = block.text;
       } else if (block.kind === "paragraph") await drawText(block.text, 10.5, 16, { keepNext: labelHeight(next) });
@@ -297,6 +322,12 @@ export async function renderResultPdf(report: ResultReport, options: { signal?: 
       else if (block.kind === "score") await drawScore(block);
       else if (block.kind === "link") await drawText(block.label, 11, 16, { bold: true, color: accent, tag: "Link", link: block.url, gap: 14 });
       else { continuationTitle = undefined; ensureSpace(20); artifact(() => doc.moveTo(MARGIN, y + 5).lineTo(doc.page.width - MARGIN, y + 5).lineWidth(0.5).stroke("#DCE1E7")); y += 20; }
+    }
+    if (model.design?.footer) {
+      ensureSpace(50); y += 10;
+      artifact(() => doc.moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).lineWidth(0.5).stroke("#DCE1E7"));
+      y += 12;
+      await drawText(model.design.footer, 9, 14, { color: MUTED });
     }
     for (let page = 0; page < pages; page++) {
       check(); doc.switchToPage(page);

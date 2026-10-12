@@ -1,4 +1,4 @@
-import { resultEmailAvailable } from "@/lib/result-email-config";
+import { resultEmailMode } from "@/lib/result-email-config";
 import { apiError, checkOrigin } from "@/lib/auth";
 import { getAttempt } from "@/lib/attempts";
 import { rateLimit } from "@/lib/rate-limit";
@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: {
         rateLimit(req, "result-link", 30);
         const body = await req.json();
         const attempt = await getAttempt(body.token, (await params).id);
-        return Response.json({ ...await issueResultReport(attempt), resultEmail: resultEmailAvailable() ? "synthetic" : null }, { headers: { "Cache-Control": "private, no-store" } });
+        return Response.json({ ...await issueResultReport(attempt), resultEmail: resultEmailMode() }, { headers: { "Cache-Control": "private, no-store" } });
     }
     catch (error) {
         return apiError(error);

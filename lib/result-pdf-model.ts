@@ -1,3 +1,4 @@
+import { ReportDesignSchema, safeReportUrl, type ReportDesign } from "./report-design";
 import { PdfRenderError } from "./result-pdf-errors";
 export { PdfRenderError } from "./result-pdf-errors";
 
@@ -11,6 +12,7 @@ export type ResultPdfBlock =
 export type ResultPdfModel = {
     title: string; brandName: string; hideBranding: boolean; createdAt: string;
     layout: ResultPdfLayout; accent: string; blocks: ResultPdfBlock[];
+    design?: Pick<ReportDesign, "style" | "cover" | "subtitle" | "introduction" | "footer"> & { quizTitle: string };
 };
 export const RESULT_PDF_TEXT_LIMIT = 200 * 1024;
 export const RESULT_PDF_BLOCK_LIMIT = 2000;
@@ -65,18 +67,7 @@ function completionDate(value: unknown): string {
 }
 
 /** Ordinary annotations only. Never fetch a URL or carry a report capability. */
-export function safeResultPdfLink(value: unknown): string | null {
-    if (typeof value !== "string" || !value || value.length > 2000 || /[\u0000-\u0020\u007f-\u009f\\]/u.test(value)) return null;
-    try {
-        const url = new URL(value);
-        if (!["http:", "https:"].includes(url.protocol) || !url.hostname || url.username || url.password) return null;
-        const decoded = decodeURIComponent(url.pathname + url.search + url.hash);
-        if (/[\u0000-\u001f\u007f-\u009f\\]/u.test(decoded)) return null;
-        // A portable document must not embed another result's bearer capability.
-        if (/\/result\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:[/?#]|$)/u.test(decoded)) return null;
-        return url.href;
-    } catch { return null; }
-}
+export const safeResultPdfLink = safeReportUrl;
 
 type Category = { title: string; description: string; score: number | null; answered: number; applicable: number; minAnswers: number; bandTitle: string; advice: string };
 function category(value: unknown): Category {
@@ -92,13 +83,20 @@ function coverage(row: Category) {
 /** Builds only the frozen, visible result. It never reads today's quiz or inputs. */
 export function buildResultPdfModel(input: unknown): ResultPdfModel {
     const report = object(input), theme = object(report.theme), result = object(report.result);
-    const title = text(report.quizTitle), createdAt = completionDate(report.createdAt);
+    const quizTitle = text(report.quizTitle), createdAt = completionDate(report.createdAt);
+    let design: ReportDesign | undefined;
+    if (report.reportDesign !== undefined) {
+        const parsed = ReportDesignSchema.safeParse(report.reportDesign);
+        if (!parsed.success) return invalid();
+        design = parsed.data;
+    }
+    const title = design?.title.trim() || quizTitle;
     if (theme.hidePippiBranding !== undefined && typeof theme.hidePippiBranding !== "boolean") return invalid();
     const hideBranding = theme.hidePippiBranding === true;
     const brandName = text(theme.brandName, true) || (text(theme.logoUrl, true) ? text(theme.logoAlt, true) || title : "");
     const accent = typeof theme.primaryColor === "string" && /^#[0-9a-f]{6}$/i.test(theme.primaryColor) ? theme.primaryColor : "#922c3b";
     const blocks: ResultPdfBlock[] = [];
-    let bytes = new TextEncoder().encode(title + brandName + createdAt).length;
+    let bytes = new TextEncoder().encode(title + brandName + createdAt + (design ? quizTitle + design.subtitle + design.introduction + design.footer : "")).length;
     function add(block: ResultPdfBlock) {
         const content = block.kind === "rule" ? "" : "text" in block ? block.text : block.kind === "link" ? block.label + block.url : block.label + (block.value === null ? "Not enough information" : block.value + "%") + (block.coverage || "");
         bytes += new TextEncoder().encode(content).length;
@@ -122,7 +120,10 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
         heading(text(report.heading), 1); paragraph(text(report.message));
         const possible = number(result.totalPointsPossible), earned = number(result.totalPointsEarned), percentage = number(result.percentageScore, 100);
         if (possible > 0) { add({ kind: "score", label: "Score", value: percentage }); label(earned + " of " + possible + " points"); }
-        if (report.cta !== undefined) { const cta = object(report.cta); link(cta.url, text(cta.label), "Continue"); }
+        if (!design || design.sections.includes("action")) {
+            const ctaValue = design?.cta ?? report.cta;
+            if (ctaValue !== undefined) { const cta = object(ctaValue); link(cta.url, text(cta.label), "Continue"); }
+        }
     } else {
         const marketing = object(result.marketing);
         if (typeof marketing.kind !== "string" || !["product_finder", "segmentation", "scorecard"].includes(marketing.kind)) return invalid();
@@ -159,7 +160,7 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
             heading(row.title); add({ kind: "score", label: "Score", value: row.score });
             paragraph(row.description); heading(row.bandTitle, 3); paragraph(row.advice); label(coverage(row));
         });
-        const addAction = () => link(marketing.ctaUrl, text(marketing.ctaLabel, true), "Explore this option");
+        const addAction = () => link(design?.cta?.url ?? marketing.ctaUrl, design?.cta?.label ?? text(marketing.ctaLabel, true), "Explore this option");
         const addSections = () => sections.forEach(section => {
             add({ kind: "rule" });
             if (section.type === "testimonial") { paragraph(section.body); label(section.title); return; }
@@ -171,7 +172,13 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
             paragraph(section.body);
             if (section.type === "cta") link(section.url, section.label, "Learn more");
         });
-        if (layout === "action_plan") {
+        if (design) {
+            // Saved facts always remain complete. Supporting prose can be composed
+            // without concealing score/null states, coverage or category guidance.
+            addOverall(); addCategories();
+            const addGroup = { priorities: addPriorities, reasons: addReasons, advice: addAdvice, details: addSections, action: addAction };
+            for (const section of design.sections) addGroup[section]();
+        } else if (layout === "action_plan") {
             addAdvice(); addPriorities(); addAction();
             if (overall !== undefined || categories.length || reasons.length) {
                 add({ kind: "rule" }); heading("How your answers shaped this");
@@ -192,5 +199,5 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
         } else { addOverall(); addPriorities(); addReasons(); addAdvice(); addCategories(); addSections(); addAction(); }
     }
     if (bytes > RESULT_PDF_TEXT_LIMIT) return tooLarge();
-    return { title, brandName, hideBranding, createdAt, layout, accent, blocks };
+    return { title, brandName, hideBranding, createdAt, layout, accent, blocks, ...(design ? { design: { style: design.style, cover: design.cover, subtitle: design.subtitle, introduction: design.introduction, footer: design.footer, quizTitle } } : {}) };
 }
