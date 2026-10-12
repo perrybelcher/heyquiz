@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {FormThemeSchema}=require('../lib/schema.ts');const {VisualBrandKitInput}=require('../lib/visual-brand-kits.ts');const {quizThemeStyle}=require('../lib/theme-style.ts');
+assert.equal(FormThemeSchema.safeParse({font:'serif'}).success,true);
+for(const logoUrl of ['javascript:alert(1)','data:image/svg+xml,x','//evil.test/logo.png','https://user:pass@example.com/x','http://example.com/x']) assert.equal(FormThemeSchema.safeParse({logoUrl}).success,false,logoUrl);
+const theme={brandName:'Sunday Studio',logoUrl:'/pippi-logo.svg',logoAlt:'Sunday Studio',logoHeight:56,headingFont:'georgia',bodyFont:'verdana',bodySize:18,headingScale:1.1,primaryColor:'#111111',cardColor:'#ffffff',backgroundColor:'#faf8f4',textColor:'#172033',hidePippiBranding:true};
+const kit=VisualBrandKitInput.parse({name:'My studio',theme});const copy=structuredClone(kit.theme);kit.theme.primaryColor='#222222';assert.equal(copy.primaryColor,'#111111');
+assert.equal(VisualBrandKitInput.safeParse({name:'Bad',theme:{logoUrl:'/logo.png'}}).success,false);
+assert.equal(VisualBrandKitInput.safeParse({name:'Bad',theme:{primaryColor:'red'}}).success,false);
+assert.equal(FormThemeSchema.safeParse({bodySize:99}).success,false);assert.equal(FormThemeSchema.safeParse({headingScale:10}).success,false);
+const style=quizThemeStyle(theme);assert.ok(style['--hq-heading-font'].includes('Georgia'));assert.ok(style.fontFamily.includes('Verdana'));assert.equal(style['--hq-body-size'],'18px');assert.equal(style['--hq-button-text'],'#ffffff');assert.ok(quizThemeStyle({font:'serif'}).fontFamily.includes('Georgia'));
+console.log('PASS visual kit schema, safe logo URLs, size bounds, snapshot independence, legacy fallback, heading/body typography and contrast');

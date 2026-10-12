@@ -383,9 +383,14 @@ async function test(name, fn) {
     assert.throws(() => validateMarketing(f, true), /missing/);
   });
   await test("Public marketing payload omits the decision rules and catalog", () => {
-    const f = publicForm(marketingTemplate("product_finder", "f"));
+    const original = marketingTemplate("product_finder", "f");
+    original.resultEmailCopy = { version: 1, subject: "PRIVATE COPY", introduction: "Only in a requested message", signOff: "A private draft" };
+    const f = publicForm(original);
     assert.equal(f.marketing.rules.length, 0);
     assert.equal(f.marketing.outcomes.length, 0);
+    assert.equal(f.resultEmailCopy, undefined);
+    assert.ok(!JSON.stringify(f).includes("PRIVATE COPY"));
+    assert.equal(original.resultEmailCopy.subject, "PRIVATE COPY", "Public projection must not mutate the frozen server snapshot");
   });
   console.log(JSON.stringify(results, null, 2));
   if (results.some((r) => !r.passed)) process.exitCode = 1;

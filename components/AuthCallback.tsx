@@ -12,6 +12,9 @@ export default function AuthCallback() {
     // Remove authorization data from the address bar before rendering any other navigation.
     window.history.replaceState(null, "", "/auth/callback");
     if (!code) {
+      // This mount-only effect synchronizes with the external URL after stripping
+      // its authorization data; delaying the missing-link state adds no value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Browser URL validation is external synchronization, not derived React state.
       setError(
         "This email link is missing or has expired. Please request a new one.",
       );

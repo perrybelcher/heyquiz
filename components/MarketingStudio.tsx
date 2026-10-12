@@ -13,6 +13,7 @@ import { scoringDiagnostics } from "@/lib/scoring-diagnostics";
 import MarketingResultCard from "./MarketingResultCard";
 import ResultSectionsEditor from "./ResultSectionsEditor";
 import ScorecardResultsEditor from "./ScorecardResultsEditor";
+import ResultLayoutEditor from "./ResultLayoutEditor";
 import { multiTypes, type Answers } from "@/lib/engine";
 const kinds = {
   product_finder: "Product finder",
@@ -168,6 +169,7 @@ export default function MarketingStudio({
             )}
             <div className="grid xl:grid-cols-[1.3fr_1fr] gap-7">
               <div className="space-y-6">
+                <ResultLayoutEditor marketing={m} onChange={presentation => change({ presentation })} />
                 <ResultSectionsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />
                 {m.kind === "scorecard" && <ScorecardResultsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />}
                 <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
@@ -635,7 +637,7 @@ export default function MarketingStudio({
                   ))}
                 </section>
                 {simulated && (
-                  <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <section aria-label="Simulated result" className="bg-white rounded-2xl border border-slate-200 p-6">
                     <MarketingResultCard result={simulated} />
                   </section>
                 )}

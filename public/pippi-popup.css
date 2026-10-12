@@ -1,0 +1,29 @@
+/* The loader enhances links only after this stylesheet has loaded. */
+:root { --pippi-popup-ready: 1; }
+.pippi-popup-dialog { box-sizing: border-box; margin: auto; padding: 0; border: 1px solid #d8dde5; border-radius: 20px; width: min(960px, calc(100% - 32px)); max-width: none; height: min(900px, calc(100vh - 32px)); height: min(900px, calc(100dvh - 32px)); max-height: none; background: #fff; color: #172033; font: 400 16px/1.5 system-ui, sans-serif; box-shadow: 0 24px 80px #1018284d; overflow: hidden; }
+.pippi-popup-dialog:not([open]) { display: none; }
+.pippi-popup-dialog[open] { display: flex; flex-direction: column; }
+.pippi-popup-dialog::backdrop { background: #101828b3; }
+.pippi-popup-dialog .pippi-popup-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex: none; background: #fff; }
+.pippi-popup-dialog .pippi-popup-title { margin: 0; font: 600 18px/1.35 system-ui, sans-serif; color: #172033; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-height: 2.7em; overflow: hidden; min-width: 0; }
+.pippi-popup-dialog .pippi-popup-close { flex: none; cursor: pointer; margin: 0; padding: 10px 14px; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #172033; font: 600 14px/1.5 system-ui, sans-serif; }
+.pippi-popup-dialog .pippi-popup-close:hover { background: #f1f5f9; }
+.pippi-popup-dialog .pippi-popup-body { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; background: #fff; }
+.pippi-popup-dialog .pippi-popup-frame { display: block; width: 100%; height: 700px; max-width: none; border: 0; margin: 0; padding: 0; }
+.pippi-popup-dialog .pippi-popup-footer { flex: none; padding: 12px 20px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid #e2e8f0; background: #fff; }
+.pippi-popup-dialog .pippi-popup-help, .pippi-popup-dialog .pippi-popup-status { margin: 0 0 6px; color: #475569; font: 400 12px/1.5 system-ui, sans-serif; }
+.pippi-popup-dialog .pippi-popup-status:empty { display: none; }
+.pippi-popup-dialog .pippi-popup-direct { display: inline-block; color: #273b85; font: 600 14px/1.5 system-ui, sans-serif; text-decoration: underline; text-underline-offset: 3px; padding-block: 4px; }
+.pippi-popup-dialog :focus-visible, a[data-pippi-popup][role="button"]:focus-visible { outline: 3px solid #235ed8; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .pippi-popup-dialog { width: calc(100% - 12px); height: calc(100vh - 12px); height: calc(100dvh - 12px); border-radius: 14px; }
+  .pippi-popup-dialog .pippi-popup-header { padding: 12px; gap: 8px; }
+  .pippi-popup-dialog .pippi-popup-title { font-size: 16px; }
+  .pippi-popup-dialog .pippi-popup-footer { padding-inline: 12px; }
+}
+
+@media (max-height: 360px) {
+  .pippi-popup-dialog .pippi-popup-header { padding-block: 8px; }
+  .pippi-popup-dialog .pippi-popup-footer { padding-block: 8px; }
+  .pippi-popup-dialog .pippi-popup-help { display: none; }
+}

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { withLocalRecordRead } from "./local-record-reads";
 export const cloudEnabled = () =>
   Boolean(
     process.env.SUPABASE_URL &&
@@ -8,7 +9,9 @@ export const cloudEnabled = () =>
         process.env.SUPABASE_SERVICE_ROLE_KEY),
   );
 export const dataDirectory = () =>
-  path.resolve(process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data");
+  // Mutable runtime data must not become a bundled/watched source dependency.
+  // The configured directory is read at runtime; cloud deployments use the DB.
+  path.resolve(/* turbopackIgnore: true */ process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data");
 const safe = (v: string) => {
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(v)) throw new Error("Invalid identifier.");
   return v;
@@ -59,9 +62,11 @@ export async function readRecord<T>(
     return rows[0] || null;
   }
   try {
-    return JSON.parse(
-      await fs.readFile(path.join(dataDirectory(), kind, `${id}.json`), "utf8"),
-    ) as StoredRecord<T>;
+    // Capture the runtime directory before queuing; permits contain no record cache.
+    const filename = path.join(dataDirectory(), kind, `${id}.json`);
+    return await withLocalRecordRead(async () => JSON.parse(
+      await fs.readFile(filename, "utf8"),
+    ) as StoredRecord<T>);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw new Error(
@@ -95,19 +100,34 @@ export async function listRecords<T>(
   }
   let names: string[];
   try {
-    names = await fs.readdir(path.join(dataDirectory(), kind));
+    names = await fs.readdir(/* turbopackIgnore: true */ path.join(/* turbopackIgnore: true */ dataDirectory(), kind));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw e;
   }
-  const rows = await Promise.all(
-    names
-      .filter((n) => n.endsWith(".json"))
-      .map((n) => readRecord<T>(kind, n.slice(0, -5))),
-  );
-  return rows.filter(
-    (r): r is StoredRecord<T> => r !== null && (!owner || r.owner_id === owner),
-  );
+  const files = names.filter((name) => name.endsWith(".json"));
+  const rows: (StoredRecord<T> | undefined)[] = new Array(files.length);
+  let next = 0, failed = false, failure: unknown;
+  // A large local account used to open every file at once. Bound each scan's
+  // reads without caching records or retaining other owners' parsed payloads.
+  // Index slots preserve the previous enumeration order despite parallel I/O.
+  await Promise.all(Array.from({ length: Math.min(32, files.length) }, async () => {
+    while (!failed) {
+      const index = next++;
+      if (index >= files.length) return;
+      try {
+        const row = await readRecord<T>(kind, files[index].slice(0, -5));
+        if (row && (!owner || row.owner_id === owner)) rows[index] = row;
+      } catch (error) {
+        if (!failed) failure = error;
+        failed = true;
+      }
+    }
+  }));
+  // Drain in-flight reads before rejecting. Corruption remains an error rather
+  // than a silently incomplete report; a concurrent deletion still yields null.
+  if (failed) throw failure;
+  return rows.filter((row): row is StoredRecord<T> => row !== undefined);
 }
 export class ConflictError extends Error {
   constructor() {
@@ -151,7 +171,7 @@ export async function writeRecord<T>(
     return result[0];
   }
   const dir = path.join(dataDirectory(), kind);
-  await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+  await fs.mkdir(/* turbopackIgnore: true */ dir, { recursive: true, mode: 0o700 });
   const lock = path.join(dir, `${id}.lock`);
   let acquired = false;
   for (let n = 0; n < 50; n++) {

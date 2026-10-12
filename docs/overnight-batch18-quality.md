@@ -1,0 +1,36 @@
+# Batch 18 quality evidence: guided publication and sharing
+
+12 October 2026. **Verified locally, staged, not deployed.** Synthetic local fixtures only. No hosted/cloud writes, real emails, providers, credential changes or spending. CRM and Stripe remain last; accounts stay free.
+
+## Delivered scope
+
+Guided Embed & Share opens the existing Share surface and focuses its heading. Back to guided Publish returns to step 5 without replacing the in-memory draft, autosave hook or saved guided-mode preference. Desktop/mobile headers, guided Publish and Share use one publication status: draft/not public, published/up to date, or published/unpublished changes. Saving a changed draft keeps the prior public snapshot until explicit publication.
+
+Publication now returns an authenticated, private/no-store receipt for the exact server form passed to the successful write. The editor compares against that receipt instead of a stale local closure. A received successful response with an absent, malformed, foreign or unreadable receipt shows Publication status needs checking, retains edits and last-known identity, and blocks further publish/pause actions until refresh. It never forces reload or discards the draft.
+
+The named native success dialog supplies keyboard containment, visible initial focus, Close/Done/Escape and guarded responsive opener restoration. Embed & Share closes it before focusing the actual destination. Copy shows success only after clipboard resolution; rejection/unavailability supports manual URL selection while preserving any newer focus choice. Only the public URL is displayed or copied.
+
+## Findings fixed and acceptance
+
+- The before diagnostic on accepted batch 17 reproduced guided Share opening no sharing tools and leaving focus on BODY, missing unpublished-change guidance, and an unnamed nonmodal success overlay. Evidence is preserved under batch 17 guided-share-before.
+- Five new receipt regression groups execute the actual source handler/route with controlled in-memory schedules. They reproduce stale captured A/newer saved B and other-tab B writes, preserve later local edits, validate legacy and large forms, and reject invalid confirmations and owner/origin/write errors. The earlier six-group log summary was a counting typo; the corrected final rerun reports five with the same assertions. These schedules are controlled source tests, not React autosave browser reproductions.
+- Four actual localhost HTTP groups preserve publication ownership/origin boundaries, private draft versus public SSR snapshot, explicit same-URL republish and reversible pause. Results match accepted 17, initial 18 and final 18 exactly. Three final receipts match actual retained public snapshots. No private receipt bodies are logged. Zero public starts.
+- Source regression25, publication-pause9, publish-readiness19, guided-checklist10, guided-editing9 and the existing draft-history suite passed. Full final candidate lint:414files, zero errors,74warnings. Scoped lint, TypeScript and both builds passed.
+- Existing Chrome draft-safety/all-five-preview, publication-pause, guided-editor and eight-group popup suites passed on initial18. Guided-editor was repeated on final18. Only guided return-focus timing changed after initial18; the other earlier passes are explicitly tied to that build.
+- Final **Chrome, Firefox and WebKit** each pass five grouped creator flows,28focus assertions and five modal accessibility scans at320/390/1440, including both responsive resize directions. Fifteen scoped scans have zero violations and incomplete findings. Each engine uses one genuine blank entry and one enriched-template entry, claim/save/owner preview/publication, all three embed modes, guided return, saved/live/reload/pause/republish, cancellation,503, malformed200 and clipboard failures. Zero public/preview starts, experiment/provider/external requests and page errors in this new suite. The three engines repeat the same behaviors, not15unique journeys.
+- Initial QA preserved a real return-to-guided focus failure: a frame ran before step5 committed. The repair waits for the committed requested step and cancels on newer navigation/focus. Strict final checks include a held-frame/manual-navigation cancellation. A locator-only alert/Pause correction and the original failed screenshots/logs remain. A separately marked diagnostic bypassing the one known focus assertion is not acceptance.
+- Final screenshots of narrow modal/Share/guided views were inspected by QA; root inspected final WebKit320 modal and Chrome Share plus earlier desktop/mobile dialog and draft-difference states. Native macOS WebKit Alt+Tab preference is documented from the earlier plain-HTML diagnostic; explicit dialog wrapping is verified in both directions.
+
+## Build and artifact boundaries
+
+Initial: build-batch-18.log/server-batch-18.log, port3164/session47673, candidate-runtime-source-batch-18.json. Final: build-batch-18-final.log/server-batch-18-final.log, port3164/session9851, candidate-runtime-source-batch-18-final.json. Both runtime manifests contain289files; only GuidedQuizEditor changed between them. Tests and documentation changed separately. Root alone stages/builds the isolated candidate, which has no remotes, commit, push or deployment.
+
+Evidence: outputs/pippi-overnight-2026-10-12/compiled-verification-batch-18, with boundaries-before/after/final, receipt-before/final, source-suite logs, legacy regressions and guided-publication/{chromium,firefox,webkit}-final. Source audit, allowlisted archive verification and source/candidate/index hashes are recorded in final-status.json after this documentation is staged. All six final browser fixture forms/publications were removed; cleanup was scoped to exact owned records and retirement receipts. Original Git/history/private recovery archives remain untouched.
+
+## Limits and next acceptance
+
+The receipt fingerprint is canonical full-form JSON, **not a cryptographic digest**. It remains owner-only and volatile; no public props, URLs, logging or localStorage. Existing form writes/reads are not size-capped, so large-form canonicalization/response cost remains inherited. The receipt identifies this request's committed snapshot, not another tab's subsequent publish/pause. A network failure before a response arrives still uses the existing ordinary failure handling and may require refresh. No distributed transaction, cross-tab synchronization or universal uncertainty recovery is claimed.
+
+These tests do not verify actual hosted auth/inbox, cloud permissions, deployment, rollback, remote Git freshness/history privacy, assistive technology, actual devices or unaided creator usability. Real result-email transport remains unavailable. No competitor parity or conversion-lift claim is made.
+
+Next: stop new feature scope and connect two exact UI-created quizzes through preview, anonymous mobile completion, owner response/contact/analytics reconciliation, CSV and one private native PDF on this same final build. See overnight-after-publication-priority.md. That rehearsal is planned, not part of batch18 acceptance. Stop the overnight series at07:00UTC/08:00London with a precise handoff and remove its heartbeat.

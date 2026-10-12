@@ -22,6 +22,9 @@ export default function BlankQuizBuilder() {
       localStorage.setItem(`pippi-editor-mode:${draft.id}`, "advanced");
       sessionStorage.setItem("pippi-blank-draft", draft.id);
       localStorage.setItem("pippi-guest-draft", draft.id);
+      // Keep SSR and the first client render on the same placeholder; storage and
+      // draft ID creation must happen after mount, including the recoverable reload.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate the browser-only draft after storage succeeds.
       setForm(draft);
     } catch { setError("Your browser could not open a recoverable draft. Enable site storage, then reload this page."); }
   }, []);

@@ -1,4 +1,5 @@
 import { applyTemplateDesign } from "./template-design";
+import { applyTemplateCampaign } from "./template-campaigns";
 import { FormSchema, type Question } from "./schema";
 import { MarketingSchema } from "./marketing";
 import { catalogTemplate, catalogTemplates } from "./template-catalog";
@@ -15,7 +16,7 @@ const question = (id: string, title: string, labels: string[]): Question => ({ i
 
 /** Independent drafts: template IDs stay stable for scoring; each caller supplies a new form ID. */
 export function launchTemplate(kind: LaunchTemplateId, id: string) {
-  if (!["product_finder", "scorecard", "consultation"].includes(kind)) return applyTemplateDesign(catalogTemplate(kind, id), kind, launchTemplates.find(t=>t.id===kind)!.industry);
+  if (!["product_finder", "scorecard", "consultation"].includes(kind)) return applyTemplateCampaign(applyTemplateDesign(catalogTemplate(kind, id), kind, launchTemplates.find(t=>t.id===kind)!.industry), kind);
   const legacyKind = kind as "product_finder" | "scorecard" | "consultation";
   const f = marketingTemplate(legacyKind === "consultation" ? "segmentation" : legacyKind, id);
   const m = f.marketing!;
@@ -86,5 +87,5 @@ export function launchTemplate(kind: LaunchTemplateId, id: string) {
   }
   f.coverPage = { enabled: true, title: f.title, subtitle: f.description, buttonText: "Find my next step", estimatedMinutes: 2, showQuestionCount: true };
   f.marketing = MarketingSchema.parse(m);
-  return applyTemplateDesign(FormSchema.parse(f), kind, launchTemplates.find(t=>t.id===kind)!.industry);
+  return applyTemplateCampaign(applyTemplateDesign(FormSchema.parse(f), kind, launchTemplates.find(t=>t.id===kind)!.industry), kind);
 }

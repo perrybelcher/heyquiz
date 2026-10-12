@@ -7,3 +7,5 @@ API routes require authentication, check ownership for individual records, use n
 Passed: production build, TypeScript, and tests/brand-profiles.cjs (Playwright Chrome). Tests cover unauthenticated access, cross-account list/read/update isolation, malformed input, cross-origin writes, save/reload, reuse/cancel, independent draft edits, stale revision conflict, starter generation, and 390px layout. Screenshot: /tmp/pippi-brand-profiles.png.
 
 Scope: manually supplied, complete brief profiles. Website research, visual brand kits, team sharing, archive/delete controls and AI rewriting of existing quizzes are not part of this release.
+
+Live verification: Vercel deployed commit 3959b007c972098074d75a6461e364bee9f34022 successfully. Dedicated synthetic QA accounts verified persistent save/update, stale-write rejection, cross-account read/update/list isolation and applying the saved profile in the production browser UI. A single reusable synthetic QA profile was retained in the test account. Screenshot: /tmp/pippi-brand-profiles-live.png.

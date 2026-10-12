@@ -168,7 +168,7 @@ img[src="/pippi-logo.svg"] { mix-blend-mode: multiply; object-fit: contain; }
 .pippi-app .hq-secondary, .hq-editor .hq-secondary { border-color: var(--studio-line); box-shadow: 0 1px 2px #20252805; }
 .pippi-app .hq-input, .hq-editor .hq-input { border-color: var(--studio-line); background: #fdfdfc; }
 .pippi-app .hq-input:focus, .hq-editor .hq-input:focus { border-color: #b85261; box-shadow: 0 0 0 3px #a923350d; }
-.pippi-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .17em; color: #87786f; }
+.pippi-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .17em; color: #74655b; }
 .workspace-header { background: #ffffffb8; border-color: var(--studio-line); }
 .workspace-intro { display: grid; grid-template-columns: 1.1fr 1fr; gap: 52px; align-items: center; padding: 20px 0 42px; }
 .workspace-intro h1 { font-size: clamp(36px,4vw,54px); line-height: 1.09; letter-spacing: -.045em; font-weight: 600; margin-top: 18px; }
@@ -228,7 +228,7 @@ img[src="/pippi-logo.svg"] { mix-blend-mode: multiply; object-fit: contain; }
 .report-summary h3 { font-size: 18px; font-weight: 600; letter-spacing: -.025em; margin: 7px 0; }
 .report-summary p:not(.pippi-eyebrow) { font-size: 12px; color: #748078; }
 .report-coverage { margin-left: auto; padding-left: 20px; border-left: 1px solid #e9eae5; min-width: 150px; }
-.report-coverage span,.report-coverage small { display: block; font-size: 10px; color: #737e78; }
+.report-coverage span,.report-coverage small { display: block; font-size: 10px; color: #626e66; }
 .report-coverage strong { display: block; font-size: 21px; font-weight: 500; margin: 5px 0; }
 .report-funnel,.report-chart { border-color: #e4e7e0; box-shadow: 0 2px 4px #202e2402; }
 .report-funnel .bg-indigo-500 { background: linear-gradient(90deg,#a33d49,#c27072); }
@@ -291,4 +291,66 @@ img[src="/pippi-logo.svg"] { mix-blend-mode: multiply; object-fit: contain; }
   .studio-toolbar>div:first-child input { max-width: 150px; }
   .studio-tabs { width: 100%; }
   .studio-actions { padding-bottom: 4px; }
+}
+
+/* Brand typography stays scoped to the participant experience, including embeds. */
+.hq-player :is(h1,h2,h3,h4) { font-family: var(--hq-heading-font); }
+.hq-player { font-size: var(--hq-body-size, 16px); }
+.hq-player .text-sm { font-size: calc(var(--hq-body-size, 16px) * .875); }
+.hq-player .text-base { font-size: var(--hq-body-size, 16px); }
+.hq-player .text-lg { font-size: calc(var(--hq-body-size, 16px) * 1.125); }
+.hq-player .text-xl { font-size: calc(1.25rem * var(--hq-heading-scale, 1)); }
+.hq-player .text-2xl { font-size: calc(1.5rem * var(--hq-heading-scale, 1)); }
+.hq-player .text-3xl { font-size: calc(1.875rem * var(--hq-heading-scale, 1)); }
+@media (min-width:640px) {
+  .hq-player .sm\:text-2xl { font-size: calc(1.5rem * var(--hq-heading-scale, 1)); }
+  .hq-player .sm\:text-3xl { font-size: calc(1.875rem * var(--hq-heading-scale, 1)); }
+  .hq-player .sm\:text-4xl { font-size: calc(2.25rem * var(--hq-heading-scale, 1)); }
+}
+
+@media print {
+  /* Print on paper independently of the saved screen palette. In particular,
+     white brand text and dark cards must not depend on “Print backgrounds”. */
+  .result-report {
+    --hq-primary: #111 !important;
+    --hq-text: #111 !important;
+    --hq-card: #fff !important;
+    --hq-button-text: #111 !important;
+    background: white !important;
+    color: #111 !important;
+    padding: 0 !important;
+  }
+  .result-report-actions { display: none !important; }
+  .result-report article { border: 0; box-shadow: none; padding: 0; }
+  .result-report article,
+  .result-report article :is(section, figure, details, [data-category-overview], .hq-primary) {
+    background: white !important;
+  }
+  .result-report article,
+  .result-report article * {
+    color: #111 !important;
+    border-color: #777 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    /* A screen-to-print color transition otherwise briefly overrides even
+       important print colors, leaving white CTA text in an immediate PDF. */
+    transition: none !important;
+    animation: none !important;
+  }
+  .result-report article section,.result-report article figure { break-inside: avoid; }
+  .result-report iframe,.result-report video { display: none; }
+  .result-report a { text-decoration: underline; }
+  .result-report .hq-primary { border: 1px solid #777; }
+  /* Borders survive disabled background printing. Retain the real bar width
+     and the adjacent numeric score, including empty bars for a true zero. */
+  .result-report [data-category-id] > [aria-hidden="true"] {
+    background: white !important;
+    border: 1px solid #777;
+    overflow: hidden;
+  }
+  .result-report [data-category-id] > [aria-hidden="true"] > div {
+    background: transparent !important;
+    border-top: .5rem solid #111 !important;
+    height: 0 !important;
+  }
 }

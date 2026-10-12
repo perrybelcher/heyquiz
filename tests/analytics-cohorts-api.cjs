@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),ts=require('typescript'),Module=require('node:module');
+require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
+const root=path.resolve(__dirname,'..'),originalLoad=Module._load,originalFetch=global.fetch;
+let owner='alice',reads=[];const stamp='2026-10-01T00:00:00.000Z',form={id:'quiz',questions:[]};
+const records=[{owner:'alice',id:'a',payload:{form:{...form,publishedAt:stamp},startedAt:Date.now()-1000,preview:false,reached:[],attribution:{version:1,source:'all',campaign:'unknown'}}},{owner:'bob',id:'b',payload:{form,startedAt:Date.now()-1000,preview:false,reached:[],attribution:{version:1,source:'PRIVATE-FOREIGN'}}}];
+class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
+const auth={HttpError,requireUser:async()=>{if(!owner)throw new HttpError(401,'Sign in');return{id:owner};},apiError:error=>Response.json({error:error.message},{status:error.status||500})};
+Module._load=function(request,parent,isMain){if(request==='@/lib/auth')return auth;if(request==='@/lib/storage')return{ownedForm:async(id,user)=>user==='alice'&&id===form.id?form:null,getSubmissionsByFormId:async(id,user)=>{reads.push(['submissions',id,user]);return[];}};if(request==='@/lib/records')return{listRecords:async(kind,user)=>{reads.push([kind,user]);return kind==='attempts'?records.filter(row=>row.owner===user):[];}};return originalLoad.call(this,request.startsWith('@/')?path.join(root,request.slice(2)):request,parent,isMain);};
+global.fetch=()=>{throw Error('No network access permitted');};
+const {GET}=require('../app/api/forms/[id]/analytics/route.ts');const get=query=>GET(new Request('http://localhost/api/forms/quiz/analytics'+(query?'?'+query:'')),{params:Promise.resolve({id:'quiz'})});
+(async()=>{let checks=0;const check=name=>{checks++;console.log('PASS '+name);};try{
+ let r=await get('source=utm%3Aall&campaign=value%3Aunknown&version='+encodeURIComponent('published:'+stamp));assert.equal(r.status,200);const a=await r.json();assert.equal(a.starts,1);assert.equal(a.cohort.filters.source,'utm:all');assert.equal(r.headers.get('cache-control'),'private, no-store');assert.ok(!JSON.stringify(a).includes('PRIVATE-FOREIGN'));assert.deepEqual(reads,[['attempts','alice'],['submissions','quiz','alice'],['landing_visits','alice']]);check('owner-scoped reads, exact cohort query and private no-store response');
+ for(const query of ['range=7&range=30','source=all','source=unknown&source=utm%3Aall','campaign=value%3Aprivate%40example.com','version=revision%3A7','unexpected=anything']){reads=[];r=await get(query);assert.equal(r.status,400,query);assert.equal(reads.length,0);}check('invalid, duplicate and silently misspelled queries rejected before record reads');
+ owner='bob';reads=[];r=await get();assert.equal(r.status,404);assert.equal(reads.length,0);check('foreign owner cannot view metrics or discover cohort choices');
+ owner=null;r=await get();assert.equal(r.status,401);check('unauthenticated request rejected');
+ console.log(`${checks} analytics cohort API checks passed; local mocks only.`);
+ }finally{Module._load=originalLoad;global.fetch=originalFetch;}})().catch(error=>{console.error(error);process.exitCode=1;});

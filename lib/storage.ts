@@ -1,4 +1,8 @@
 import { validateMarketing } from "./marketing";
+import { validateLanding } from "./landing";
+import { resolveResultEmailCopy } from "./result-email-copy";
+import { HttpError } from "./auth";
+import { revokeFormResultReports } from "./result-reports";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -119,6 +123,16 @@ export async function saveForm(
 }
 export async function publishForm(form: FormSchemaType, owner: string) {
   validateMarketing(form, true);
+  validateLanding(form.coverPage, true);
+  // A later title/brand edit can make previously valid token-expanded copy too
+  // long. Keep the draft editable, but preserve the last valid public snapshot.
+  if (form.resultEmailCopy !== undefined) {
+    try {
+      resolveResultEmailCopy(form.resultEmailCopy, { quizTitle: form.title, brandName: form.theme.brandName });
+    } catch {
+      throw new HttpError(422, "Review result-email copy before publishing. Its subject, introduction or sign-off is invalid or too long after inserting the quiz title and brand name.");
+    }
+  }
   if (!form.questions.length)
     throw new Error("Add at least one question before publishing.");
   validateFormReferences(form);
@@ -127,7 +141,23 @@ export async function publishForm(form: FormSchemaType, owner: string) {
     publishedAt: new Date().toISOString(),
   });
 }
+/** Pause new public starts only. Keep drafts, attempts, responses and private reports intact. */
+export async function pauseFormPublication(id: string, owner: string) {
+  if (!(await ownedForm(id, owner))) return false;
+  const published = await readRecord<FormSchemaType>("published", id);
+  if (published && published.owner_id !== owner) return false;
+  if (!published) return true;
+  try { await removeRecord("published", id, owner); }
+  catch (error) {
+    // Two pause requests may both observe a local file before one removes it.
+    if (await readRecord("published", id)) throw error;
+  }
+  return true;
+}
 export async function deleteForm(id: string, owner: string) {
+  if (!(await ownedForm(id, owner))) return false;
+  // Recreating a quiz with the same ID must not restore deleted private reports.
+  await revokeFormResultReports(id, owner);
   await removeRecord("published", id, owner);
   return removeRecord("forms", id, owner);
 }

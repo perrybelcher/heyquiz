@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import {
   FormSchemaType,
   Question,
@@ -27,6 +27,7 @@ import {
   Smartphone,
   Monitor,
   Play,
+  Pause,
   Share2,
   Sparkles,
   Code2,
@@ -94,6 +95,7 @@ import {
   BookmarkCheck,
   ListCheck,
   Edit3,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 import { nanoid } from "nanoid";
@@ -116,9 +118,14 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableQuestionCard } from "./SortableQuestionCard";
 import MediaPickerModal from "./MediaPickerModal";
+import LandingPageEditor from "./LandingPageEditor";
+import ResultEmailCopyEditor, { useResultEmailCopyDraft } from "./ResultEmailCopyEditor";
 import TextareaAutosize from "react-textarea-autosize";
 import PublishReadiness from "./PublishReadiness";
+import PublicationConfirmation from "./PublicationConfirmation";
 import GuidedQuizEditor from "./GuidedQuizEditor";
+import EditorMobileHeader from "./EditorMobileHeader";
+import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
 import { FormSchema } from "@/lib/schema";
@@ -130,13 +137,14 @@ import {
 } from "@/lib/engine";
 import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
-import { publicationFingerprint } from "@/lib/publication";
+import { publicationFingerprint, parsePublicationReceipt, PUBLICATION_CONFIRMATION_ERROR } from "@/lib/publication";
 import AnswerScoring, { ScoringMode } from "./AnswerScoring";
 import ThemeEditor from "./ThemeEditor";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
 import MarketingResultCard from "./MarketingResultCard";
 import IntegrationStudio from "./IntegrationStudio";
+import { appendProposedQuestions, createDraftCheckpoint, readDraftHistory, restoreDraftCheckpoint, type DraftCheckpoint } from "@/lib/draft-history";
 
 interface EditorStudioProps {
   initialForm: FormSchemaType;
@@ -145,16 +153,93 @@ interface EditorStudioProps {
   publishedFingerprint?: string;
 }
 
+function containDialogFocus(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== "Tab") return;
+  const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter(element => element.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+}
+
+function PausePublicationDialog({ busy, onClose, onConfirm }: { busy: boolean; onClose: () => void; onConfirm: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
+  return <dialog ref={dialog} aria-labelledby="pause-publication-title" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} className="m-auto w-[calc(100%-2rem)] max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl backdrop:bg-black/50 text-slate-900">
+    <h2 id="pause-publication-title" className="text-xl font-semibold">Pause this quiz?</h2>
+    <p className="mt-3 text-sm leading-relaxed text-slate-600">Your public link and embeds will stop accepting new starts. People already taking the quiz can finish their current session.</p>
+    <p className="mt-3 text-sm leading-relaxed text-slate-600">Your draft, saved responses, and private result links stay available. Publish again to reopen the same public URL.</p>
+    <p className="mt-3 rounded-xl bg-stone-50 p-3 text-sm leading-relaxed text-slate-600">Experiments using this quiz also stop accepting new starts. They resume their saved variants once both quizzes are published again.</p>
+    <div className="mt-6 flex flex-wrap justify-end gap-3"><button autoFocus type="button" className="hq-secondary" disabled={busy} onClick={onClose}>Keep published</button><button type="button" className="hq-primary disabled:opacity-50" disabled={busy} onClick={onConfirm}>{busy ? 'Pausing…' : 'Pause publication'}</button></div>
+  </dialog>;
+}
+
 export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "" }: EditorStudioProps) {
-  const [guided, setGuided] = useState(guest || (!initiallyPublished && Boolean(initialForm.marketing)));
-  useEffect(() => { try { const mode = localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); if (mode) setGuided(mode === "guided"); } catch {} }, [initialForm.id]);
-  function changeEditorMode(value: boolean) { setGuided(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
+  const storedEditorMode = useSyncExternalStore(
+    () => () => {},
+    () => { try { return localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); } catch { return null; } },
+    () => null,
+  );
+  const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(null);
+  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode === "guided" : guest || (!initiallyPublished && Boolean(initialForm.marketing)));
+  function changeEditorMode(value: boolean) { setEditorModeOverride(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
   const [showConversationMap, setShowConversationMap] = useState(false);
-  const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number}) | undefined>();
+  const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>();
   const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
+  const [publicationUncertain, setPublicationUncertain] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [showPausePublication, setShowPausePublication] = useState(false);
+  const [publicationNotice, setPublicationNotice] = useState("");
+  const publicationPending = useRef(false);
+  const pauseTrigger = useRef<HTMLElement | null>(null);
+  const publishTrigger = useRef<HTMLElement | null>(null), publicationFocusFrame = useRef<number | null>(null);
+  const shareHeading = useRef<HTMLHeadingElement>(null), publicationStatusNotice = useRef<HTMLParagraphElement>(null);
+  const [guidedShareReturn, setGuidedShareReturn] = useState(false);
+  useEffect(() => () => { if (publicationFocusFrame.current !== null) cancelAnimationFrame(publicationFocusFrame.current); }, []);
+  function focusPublicationDestination(destination: () => HTMLElement | null | undefined) {
+    if (publicationFocusFrame.current !== null) cancelAnimationFrame(publicationFocusFrame.current);
+    const origin = document.activeElement;
+    publicationFocusFrame.current = requestAnimationFrame(() => {
+      publicationFocusFrame.current = null;
+      const active = document.activeElement;
+      // Do not override a newer deliberate selection, another modal, or a
+      // destination that disappeared during navigation.
+      if (document.querySelector("dialog[open]") || (active?.isConnected && active !== origin && active !== document.body && active !== document.documentElement)) return;
+      const target = destination();
+      if (target?.isConnected && target.getClientRects().length && !target.matches(":disabled")) target.focus();
+    });
+  }
+  function restorePublishOpener() {
+    focusPublicationDestination(() => {
+      if (publishTrigger.current?.isConnected && publishTrigger.current.getClientRects().length && !publishTrigger.current.matches(":disabled")) return publishTrigger.current;
+      return Array.from(document.querySelectorAll<HTMLButtonElement>('[data-publication-action="publish"]')).find(button => button.getClientRects().length && !button.disabled)
+        || publicationStatusNotice.current
+        || Array.from(document.querySelectorAll<HTMLElement>('.guided-sheet, input[aria-label="Quiz name"]')).find(element => element.getClientRects().length);
+    });
+  }
+  function closePublicationConfirmation() { setShowPublishModal(false); restorePublishOpener(); }
+  function openShare() {
+    setShowPublishModal(false);
+    if (guided) { setGuidedShareReturn(true); setEditorModeOverride(false); }
+    setMobilePanel(null); setActiveNavTab("share");
+    focusPublicationDestination(() => shareHeading.current);
+  }
+  function returnToGuidedPublish() {
+    setGuidedShareReturn(false); changeEditorMode(true);
+    setGuidedJump(previous => ({ target: "publish", requestId: (previous?.requestId || 0) + 1, focus: true }));
+  }
   const [form, setForm] = useState<FormSchemaType>(initialForm);
+  const { draft: emailCopyDraft, update: setEmailCopyDraft, restored: emailCopyRestored, storageWarning: emailCopyStorageWarning } = useResultEmailCopyDraft(initialForm.id);
+  useEffect(() => {
+    if (!emailCopyDraft) return;
+    // Pending copy is deliberately outside autosave. Keep it across editor tabs,
+    // and warn before a document navigation can discard it.
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [emailCopyDraft]);
+  const resultEmailEditor = <ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={setEmailCopyDraft} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} />;
   const [activeNavTab, setActiveNavTab] = useState<
     "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
   >("edit");
@@ -176,17 +261,67 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     status: saveStatus,
     error: saveError,
     authRequired,
+    claimed,
     storageWarning,
     backedUp,
     saveNow,
     recovery,
     dismissRecovery,
   } = useAutosave(form, guest);
+  const guestDraft = guest && !claimed;
+  async function openClaimedQuiz() {
+    if (claimed && await saveNow(form)) window.location.assign(`/editor/${form.id}`);
+  }
   const [mobilePanel, setMobilePanel] = useState<"fields" | "settings" | null>(
     null,
   );
   const [actionError, setActionError] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const previewPending = useRef(false);
+  const [draftHistory, setDraftHistory] = useState<DraftCheckpoint[]>([]);
+  const [showDraftHistory, setShowDraftHistory] = useState(false);
+  const [restoreCandidate, setRestoreCandidate] = useState<DraftCheckpoint | null>(null);
+  const [historyError, setHistoryError] = useState("");
+  const safetyDialogTrigger = useRef<HTMLElement | null>(null);
+
+  function openDraftHistory() {
+    safetyDialogTrigger.current = document.activeElement as HTMLElement;
+    setHistoryError("");
+    setRestoreCandidate(null);
+    try { setDraftHistory(readDraftHistory(localStorage, form.id)); }
+    catch { setHistoryError("Browser storage is unavailable. Checkpoints cannot be read on this device."); }
+    setShowDraftHistory(true);
+  }
+
+  function closeDraftHistory() { setShowDraftHistory(false); safetyDialogTrigger.current?.focus(); }
+
+  function checkpoint(reason: string, onError: (message: string) => void = setActionError) {
+    try {
+      setDraftHistory(createDraftCheckpoint(localStorage, form, reason, nanoid(10)));
+      return true;
+    } catch {
+      onError("Your draft was not changed because a safety checkpoint could not be saved. Allow browser storage or free some space, then try again.");
+      return false;
+    }
+  }
+
+  async function handlePreview() {
+    if (previewPending.current) return;
+    setActionError("");
+    if (guestDraft) { await saveNow(form); return; }
+    previewPending.current = true;
+    setPreviewing(true);
+    // Open synchronously during the click, then navigate only after the latest
+    // draft (including edits made during a pending save) has reached the server.
+    const tab = window.open("about:blank", "_blank");
+    if (tab) { tab.opener = null; tab.document.title = "Preparing preview"; tab.document.body.textContent = "Saving your latest changes before opening the preview…"; }
+    try {
+      if (!(await saveNow(form))) { tab?.close(); return; }
+      if (tab && !tab.closed) tab.location.href = `/play/${form.id}?preview=1`;
+      else setActionError("Your changes are saved. Allow popups, then select Preview again to open your latest draft.");
+    } finally { previewPending.current = false; setPreviewing(false); }
+  }
 
   function editFromConversation(where: ConversationEdit) {
     setShowConversationMap(false);
@@ -195,14 +330,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("ending"); setMobilePanel(null); return;
     }
     if (guided && (where.target !== "questions" || form.questions.length > 0)) {
-      setGuidedJump({ ...where, requestId: Date.now() });
+      setGuidedJump(previous => ({ ...where, requestId: (previous?.requestId || 0) + 1 }));
       return;
     }
     // Advanced editor navigation must select both the question and its page.
     changeEditorMode(false);
     if (where.target === "results") { setActiveNavTab("marketing"); return; }
     if (where.target === "capture" || where.target === "publish") {
-      changeEditorMode(true); setGuidedJump({ ...where, requestId: Date.now() }); return;
+      changeEditorMode(true); setGuidedJump(previous => ({ ...where, requestId: (previous?.requestId || 0) + 1 })); return;
     }
     setActiveNavTab("edit");
     if (where.target === "promise") { setCanvasView("cover"); return; }
@@ -328,6 +463,18 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     "beginner" | "intermediate" | "advanced"
   >("intermediate");
   const [isAgentGenerating, setIsAgentGenerating] = useState(false);
+  const [agentProposal, setAgentProposal] = useState<FormSchemaType | null>(null);
+  const [selectedProposalIds, setSelectedProposalIds] = useState<string[]>([]);
+  const [agentError, setAgentError] = useState("");
+  const agentRequest = useRef<AbortController | null>(null);
+
+  function closeAgentModal() {
+    agentRequest.current?.abort();
+    setAgentProposal(null);
+    setAgentError("");
+    setShowAgentModal(false);
+    safetyDialogTrigger.current?.focus();
+  }
 
   // Results & Submissions state
   const [submissions, setSubmissions] = useState<QuizSubmissionResult[]>([]);
@@ -925,10 +1072,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   // Agent Generate Handler
   const handleAgentGenerate = async () => {
     if (!agentPrompt.trim()) return;
+    setAgentError("");
     setIsAgentGenerating(true);
+    const controller = new AbortController();
+    agentRequest.current = controller;
     try {
       const res = await fetch("/api/agent/generate", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topic: agentPrompt,
@@ -940,32 +1091,44 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed.");
-      if (data.form) {
-        const generated = FormSchema.parse(data.form);
-        setForm({
-          ...generated,
-          id: form.id,
-          revision: form.revision,
-          createdAt: form.createdAt,
-        });
-        setActivePageId(generated.pages?.[0]?.id || "page-1");
-        setCanvasView("page");
-        setSelectedQuestionId(data.form.questions[0]?.id || null);
-        setShowAgentModal(false);
-      }
+      if (!data.form) throw new Error("No questions were returned. Your draft has not changed.");
+      const generated = FormSchema.parse(data.form);
+      if (!generated.questions.length) throw new Error("No questions were returned. Your draft has not changed.");
+      validateFormReferences(generated);
+      setAgentProposal(generated);
+      setSelectedProposalIds(generated.questions.map(q => q.id));
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Generation failed.");
+      if (!controller.signal.aborted) setAgentError(err instanceof Error ? err.message : "Generation failed. Your draft has not changed.");
     } finally {
       setIsAgentGenerating(false);
+      if (agentRequest.current === controller) agentRequest.current = null;
     }
   };
+
+  function acceptAgentProposal() {
+    if (!agentProposal) return;
+    try {
+      const selected = agentProposal.questions.filter(q => selectedProposalIds.includes(q.id));
+      const next = appendProposedQuestions(form, selected, () => `ai-${nanoid(10)}`);
+      validateFormReferences(next);
+      if (!checkpoint("Before adding AI questions", setAgentError)) return;
+      setForm(next);
+      const firstNew = next.questions[form.questions.length];
+      setActivePageId(firstNew.pageId || "page-1");
+      setSelectedQuestionId(firstNew.id);
+      setCanvasView("page");
+      closeAgentModal();
+    } catch (err) { setAgentError(err instanceof Error ? err.message : "Could not add the proposed questions."); }
+  }
 
   // Apply JSON Changes
   const applyJsonChanges = () => {
     try {
       const parsed = FormSchema.parse(JSON.parse(jsonText));
       validateFormReferences(parsed);
-      setForm(parsed);
+      if (parsed.id !== form.id) throw new Error("Keep this quiz's ID unchanged when importing JSON.");
+      if (!checkpoint("Before importing JSON", setJsonError)) return;
+      setForm({ ...parsed, revision: form.revision });
       setJsonError(null);
       setShowJsonModal(false);
     } catch (err: unknown) {
@@ -973,34 +1136,102 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     }
   };
 
-  const copyShareLink = () => {
+  const copyShareLink = async () => {
     const url = `${window.location.origin}/play/${form.id}`;
-    navigator.clipboard.writeText(url);
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2000);
+    setShareCopied(false);
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setActionError("Your browser could not copy the link. Select the public URL and copy it manually.");
+      const input = Array.from(document.querySelectorAll<HTMLInputElement>('[data-share-url]')).findLast(element => element.getClientRects().length);
+      input?.focus();
+      input?.select();
+    }
   };
 
+  function requestPublish(event?: React.MouseEvent<HTMLButtonElement>) {
+    if (publicationPending.current || publicationUncertain) return;
+    const trigger = event?.currentTarget;
+    trigger?.focus();
+    publishTrigger.current = trigger || document.activeElement as HTMLElement;
+    void handlePublish();
+  }
+  function closePublishReadiness() { setShowReadiness(false); restorePublishOpener(); }
   const handlePublish = async (confirmed = false) => {
-    if (publishing) return;
+    if (publicationPending.current || publicationUncertain) return;
     if (!confirmed) { setShowReadiness(true); return; }
     setActionError("");
     setPublishing(true);
+    publicationPending.current = true;
+    setPublicationNotice("");
+    let receivedSuccessfulResponse = false;
     try {
-      if (!(await saveNow())) { setShowReadiness(false); return; }
+      if (!(await saveNow(form))) { closePublishReadiness(); return; }
       const res = await fetch(`/api/forms/${form.id}/publish`, {
         method: "POST",
       });
+      receivedSuccessfulResponse = res.ok;
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Publishing failed.");
-      setLiveFingerprint(publicationFingerprint(form));
+      if (data.success !== true || data.url !== `/play/${form.id}`) throw new Error(PUBLICATION_CONFIRMATION_ERROR);
+      const receipt = parsePublicationReceipt(data.publication, form.id);
+      setLiveFingerprint(receipt.fingerprint);
       setIsPublished(true);
       setShowReadiness(false);
       setShowPublishModal(true);
     } catch (err) {
-      setShowReadiness(false);
-      setActionError(err instanceof Error ? err.message : "Publishing failed.");
-    } finally { setPublishing(false); }
+      if (receivedSuccessfulResponse) setPublicationUncertain(true);
+      closePublishReadiness();
+      setActionError(receivedSuccessfulResponse ? PUBLICATION_CONFIRMATION_ERROR : err instanceof Error ? err.message : "Publishing failed.");
+    } finally { publicationPending.current = false; setPublishing(false); }
   };
+
+  function openPausePublication(event?: React.MouseEvent<HTMLButtonElement>) {
+    if (publicationPending.current || publicationUncertain || !isPublished) return;
+    // WebKit pointer clicks do not always focus buttons. Capture the actual
+    // invoking control rather than an unrelated previously focused element.
+    const trigger = event?.currentTarget;
+    trigger?.focus();
+    pauseTrigger.current = trigger || document.activeElement as HTMLElement;
+    setShowPausePublication(true);
+  }
+  function closePausePublication() {
+    if (publicationPending.current) return;
+    setShowPausePublication(false);
+    restorePublicationFocus();
+  }
+  function restorePublicationFocus() {
+    // Background controls remain inert until the native modal unmounts.
+    requestAnimationFrame(() => {
+      if (pauseTrigger.current?.isConnected && pauseTrigger.current.getClientRects().length) pauseTrigger.current.focus();
+      else Array.from(document.querySelectorAll<HTMLButtonElement>('[data-publication-action="publish"]')).find(button => button.getClientRects().length)?.focus();
+    });
+  }
+  async function handlePausePublication() {
+    if (publicationPending.current) return;
+    publicationPending.current = true;
+    setPausing(true);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/forms/${form.id}/publish`, { method: "DELETE" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Could not pause this quiz.");
+      setIsPublished(false);
+      setLiveFingerprint("");
+      setShowPublishModal(false);
+      setShowReadiness(false);
+      setShareCopied(false);
+      setPublicationNotice("Quiz paused. New starts are closed; existing sessions can finish. Your draft, responses, and private result links are retained.");
+    } catch (error) { setActionError(error instanceof Error ? error.message : "Could not pause this quiz."); }
+    finally {
+      publicationPending.current = false;
+      setPausing(false);
+      setShowPausePublication(false);
+      restorePublicationFocus();
+    }
+  }
 
   // Field Palette Categories (Comprehensive 51-Field Catalog - Beats Fillout's 48)
   const PALETTE_SECTIONS = [
@@ -1347,14 +1578,23 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     },
   ];
 
+  const mobileSaveStatus = saveStatus === "error" ? (authRequired ? (backedUp ? "Saved on device · Sign in to sync" : "Sign in to save") : "Save failed · Retry") : backedUp && (guestDraft || authRequired) ? "Saved on this device" : guestDraft ? "Browser draft" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes";
+  const hasUnpublishedChanges = !publicationUncertain && isPublished && liveFingerprint !== publicationFingerprint(form);
+  const publicationLabel = publicationUncertain ? "Publication status needs checking" : !isPublished ? "Draft · Not public" : hasUnpublishedChanges ? "Published · Unpublished changes" : "Published · Up to date";
   return (
     <div className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
-      {guest && (
+      {guestDraft && (
         <div className="bg-red-50 text-red-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
           <span>Build your quiz for free. Your draft stays in this browser. Create a free account to save and publish. No charges.</span>
           <button className="font-semibold underline" onClick={() => void saveNow()}>Save my quiz</button>
         </div>
       )}
+      {guest && claimed && <div role="status" className="bg-green-50 text-green-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
+        <span>Your quiz is now in your account. Keep editing here, or save your latest changes and open its workspace.</span>
+        <button type="button" className="font-semibold underline disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void openClaimedQuiz()}>{saveStatus === "saving" ? "Saving changes…" : "Save & open quiz"}</button>
+      </div>}
+      {publicationUncertain && <p ref={publicationStatusNotice} tabIndex={-1} role="status" className="bg-amber-50 px-5 py-3 text-sm text-amber-950">Publication may have completed. Keep editing and saving your draft; refresh this editor to check its live version before publishing again.</p>}
+      {publicationNotice && <div role="status" className="bg-stone-100 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><span>{publicationNotice}</span><button className="underline font-semibold" onClick={() => setPublicationNotice("")}>Dismiss notice</button></div>}
       {storageWarning && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved.</p>}
       {(saveError || actionError) && (
         <div
@@ -1365,7 +1605,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <div>
               <p className="font-semibold">Sign in to save your quiz</p>
               <p className="mt-1 text-sm">
-                {guest
+                {guestDraft
                   ? "Create a free account or sign in in a new tab. After confirming your email and signing in, return here and retry saving. Your draft stays in this browser. All accounts are free—no charges or credit card."
                   : "Keep this editor tab open so you don’t lose your edits. Sign in with the account that owns this quiz, then return here and retry saving. New to pippi? You can create an account in a new tab."}
               </p>
@@ -1381,10 +1621,10 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             className="ml-4 underline"
             onClick={() => {
               setActionError("");
-              void saveNow();
+              if (saveError) void saveNow(form);
             }}
           >
-            Retry save
+            {saveError ? "Retry save" : "Dismiss"}
           </button>
         </div>
       )}
@@ -1406,10 +1646,31 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={() => void handlePublish()} onSave={() => void saveNow()} onPreview={async () => { if (guest) { void saveNow(); return; } const tab = window.open("about:blank", "_blank"); if (tab) tab.opener = null; if (await saveNow()) { if (tab) tab.location.href = `/play/${form.id}?preview=1`; else setActionError("Preview was blocked by your browser. Allow popups and try again."); } else tab?.close(); }} status={backedUp && (guest || authRequired) ? "Saved on this device · Sign in to sync" : guest ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} />}
+      {guided && <GuidedQuizEditor resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error"} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
-      {/* 1. FILLOUT TOP NAVIGATION BAR */}
-      <header className="studio-toolbar min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
+      <EditorMobileHeader
+        title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
+        status={mobileSaveStatus} onSave={() => void saveNow()} saveFailed={saveStatus === "error"}
+        published={isPublished} publicationLabel={publicationLabel}
+        onTheme={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} previewing={previewing} previewLabel={guestDraft ? "Save to preview" : "Preview"}
+        onPublish={requestPublish} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain}
+        activeSection={activeNavTab}
+        sections={(["edit", "contacts", "marketing", "integrate", "share", "results"] as const).map(tab => ({ id: tab, label: { edit: "Edit", contacts: "Contacts", marketing: "Marketing", integrate: "Integrate", share: "Share", results: "Results" }[tab], onClick: () => { if (guestDraft && !["edit", "marketing"].includes(tab)) { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } }))}
+        actions={[
+          { label: "Fields", onClick: () => { setActiveNavTab("edit"); setMobilePanel("fields"); } },
+          { label: "Question settings", onClick: () => { setActiveNavTab("edit"); if (!selectedQuestionId) setSelectedQuestionId(form.questions[0]?.id || null); setMobilePanel("settings"); } },
+          { label: "Form settings", onClick: () => { setSelectedQuestionId(null); setActiveNavTab("edit"); setMobilePanel("settings"); } },
+          { label: "Conversation map", onClick: () => { setMobilePanel(null); setShowConversationMap(true); } },
+          { label: "Guided setup", onClick: () => { setMobilePanel(null); changeEditorMode(true); } },
+          { label: "Draft history", onClick: openDraftHistory },
+          { label: "Save draft", onClick: () => void saveNow() },
+          { label: "Declarative Schema JSON", onClick: () => { setJsonText(JSON.stringify(form, null, 2)); setShowJsonModal(true); } },
+          { label: "Back to dashboard", onClick: () => { void saveNow().then(saved => { if (saved) window.location.assign("/"); }); } },
+        ]}
+        extra={<><ScoringMode form={form} onChange={setForm}/><fieldset><legend className="mb-2 text-xs font-semibold">Canvas preview size</legend><div className="flex gap-2"><button type="button" aria-pressed={devicePreview === "desktop"} onClick={() => setDevicePreview("desktop")} className="hq-secondary !px-3 !py-2 !text-xs">Desktop View</button><button type="button" aria-pressed={devicePreview === "mobile"} onClick={() => setDevicePreview("mobile")} className="hq-secondary !px-3 !py-2 !text-xs">Mobile Mockup</button></div></fieldset></>}
+      />
+      {/* Full-width studio controls stay available on larger screens. */}
+      <header className="studio-toolbar hidden lg:flex min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 items-center justify-between shrink-0 z-30 shadow-xs">
         <div className="flex items-center gap-2.5">
           <Link
             href="/"
@@ -1429,25 +1690,26 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
           <div className="flex items-center gap-1 group cursor-pointer">
             <input
+              aria-label="Quiz name"
               type="text"
               value={form.title ?? ""}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               className="bg-transparent hover:bg-gray-100/70 focus:bg-white font-semibold text-sm text-gray-900 px-2 py-1 rounded-md border border-transparent hover:border-gray-200 focus:border-indigo-500 outline-none transition max-w-[200px] sm:max-w-xs truncate"
             />
-            <ChevronDownIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
+            <ChevronDownIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-600" />
           </div>
 
-          <span className="text-xs text-gray-400 flex items-center gap-1 ml-2 font-mono">
+          <span className="text-xs text-gray-600 flex items-center gap-1 ml-2 font-mono">
             {saveStatus === "saving" && (
-              <span className="text-amber-500 animate-pulse">Saving...</span>
+              <span className="text-amber-800 animate-pulse">Saving...</span>
             )}
-            {saveStatus === "saved" && !guest && (
-              <span className="text-emerald-600 flex items-center gap-1 font-medium">
+            {saveStatus === "saved" && !guestDraft && (
+              <span className="text-emerald-700 flex items-center gap-1 font-medium">
                 <Check className="w-3 h-3 stroke-[3]" /> Saved
               </span>
             )}
             {saveStatus === "unsaved" && (
-              <span className="text-gray-400">Unsaved edits</span>
+              <span className="text-gray-600">Unsaved edits</span>
             )}
             {saveStatus === "error" && (
               <button
@@ -1460,22 +1722,6 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </span>
         </div>
 
-        <button
-          className="hq-secondary !px-3 !py-2 lg:hidden"
-          onClick={() =>
-            setMobilePanel(mobilePanel === "fields" ? null : "fields")
-          }
-        >
-          Fields
-        </button>
-        <button
-          className="hq-secondary !px-3 !py-2 lg:hidden"
-          onClick={() =>
-            setMobilePanel(mobilePanel === "settings" ? null : "settings")
-          }
-        >
-          Question settings
-        </button>
         <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Guided setup</button>
         {/* Center Fillout Tabs Capsule */}
         <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
@@ -1484,47 +1730,47 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "edit"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-500 hover:text-gray-900"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <Pencil size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Edit
           </button>
 
-          <button onClick={() => guest ? void saveNow() : setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
+          <button onClick={() => guestDraft ? void saveNow() : setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
           <button
             onClick={() => setActiveNavTab("marketing")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}
+            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}
           >
             <Sparkles size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Marketing
           </button>
           <button
-            onClick={() => guest ? void saveNow() : setActiveNavTab("integrate")}
+            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("integrate")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "integrate"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-500 hover:text-gray-900"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <Plug size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Integrate
           </button>
 
           <button
-            onClick={() => guest ? void saveNow() : setActiveNavTab("share")}
+            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("share")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "share"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-500 hover:text-gray-900"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <Share2 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Share
           </button>
 
           <button
-            onClick={() => guest ? void saveNow() : setActiveNavTab("results")}
+            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("results")}
             className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
               activeNavTab === "results"
                 ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-500 hover:text-gray-900"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <BarChart3 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Results
@@ -1552,7 +1798,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <span>Theme</span>
           </button>
           <ScoringMode form={form} onChange={setForm} />
-          <span className="text-xs font-semibold text-gray-600">{!isPublished ? "Draft · Not public" : liveFingerprint !== publicationFingerprint(form) ? "Published · Unpublished changes" : "Published · Up to date"}</span>
+          <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
+          {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
           {/* Device Mockup Toggle */}
           <div className="hidden sm:flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
             <button
@@ -1560,7 +1807,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
               className={`p-1.5 rounded-md text-xs transition ${
                 devicePreview === "desktop"
                   ? "bg-white text-gray-900 shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
               title="Desktop View"
             >
@@ -1571,7 +1818,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
               className={`p-1.5 rounded-md text-xs transition ${
                 devicePreview === "mobile"
                   ? "bg-white text-gray-900 shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
               title="Mobile Mockup"
             >
@@ -1579,32 +1826,38 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             </button>
           </div>
 
+          <button onClick={openDraftHistory} className="hq-secondary !px-3 !py-1.5 !text-xs" title="Restore a safety checkpoint saved on this device">
+            <History className="w-3.5 h-3.5" aria-hidden="true" /> Draft history
+          </button>
+
           {/* JSON Schema Button */}
           <button
             onClick={() => {
               setJsonText(JSON.stringify(form, null, 2));
               setShowJsonModal(true);
             }}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition border border-gray-200"
+            className="p-1.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition border border-gray-200"
             title="Declarative Schema JSON"
           >
             <Code2 className="w-4 h-4" />
           </button>
 
           {/* Preview Button */}
-          <Link
-            onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
-            href={guest ? "/create" : `/play/${form.id}?preview=1`}
-            target="_blank"
+          <button
+            type="button"
+            onClick={() => void handlePreview()}
+            disabled={previewing}
             className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
           >
             <Play className="w-3 h-3 fill-gray-600 text-gray-600" />
-            <span>{guest ? "Save to preview" : "Preview"}</span>
-          </Link>
+            <span>{previewing ? "Saving preview…" : guestDraft ? "Save to preview" : "Preview"}</span>
+          </button>
 
           {/* Publish Button */}
           <button
-            onClick={() => void handlePublish()}
+            data-publication-action="publish"
+            onClick={requestPublish}
+            disabled={publishing || pausing || publicationUncertain}
             className="px-4 py-1.5 rounded-lg bg-[#18181b] hover:bg-black text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
@@ -1825,7 +2078,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
 
                   <button
-                    onClick={() => setShowAgentModal(true)}
+                    onClick={() => { safetyDialogTrigger.current = document.activeElement as HTMLElement; setShowAgentModal(true); }}
                     className="px-3.5 py-1.5 rounded-full bg-white hover:bg-indigo-50/60 border border-indigo-200 text-indigo-600 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition"
                   >
                     <Bot className="w-3.5 h-3.5 text-indigo-500" />
@@ -1833,221 +2086,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   </button>
                 </div>
 
-                {/* VIEW 1: COVER PAGE WYSIWYG */}
-                {canvasView === "cover" && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                          <LayoutTemplate className="w-5 h-5 text-indigo-600" />
-                          <span>Cover / Welcome Screen</span>
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          First screen shown to respondents before starting
-                          questions.
-                        </p>
-                      </div>
-                      <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
-                        <span className="text-xs font-semibold text-gray-700">
-                          Enable Cover Screen
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(form.coverPage?.enabled)}
-                          onChange={(e) => {
-                            const enabled = e.target.checked;
-                            setForm((prev) => ({
-                              ...prev,
-                              coverPage: {
-                                enabled,
-                                title:
-                                  prev.coverPage?.title ||
-                                  prev.title ||
-                                  "Welcome to the Assessment",
-                                subtitle:
-                                  prev.coverPage?.subtitle ||
-                                  prev.description ||
-                                  "Please read instructions carefully before beginning.",
-                                buttonText:
-                                  prev.coverPage?.buttonText || "Get Started",
-                                imageUrl:
-                                  prev.coverPage?.imageUrl ||
-                                  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
-                                estimatedMinutes:
-                                  prev.coverPage?.estimatedMinutes || 3,
-                                showQuestionCount:
-                                  prev.coverPage?.showQuestionCount ?? true,
-                              },
-                            }));
-                          }}
-                          className="rounded border-gray-300 text-indigo-600 focus:ring-0"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Cover Title
-                        </label>
-                        <input
-                          type="text"
-                          value={form.coverPage?.title ?? form.title ?? ""}
-                          onChange={(e) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              coverPage: {
-                                ...(prev.coverPage || {
-                                  enabled: true,
-                                  buttonText: "Get Started",
-                                }),
-                                title: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder="Welcome to the Assessment"
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-base font-bold text-gray-900 outline-none focus:border-indigo-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Cover Subtitle &amp; Instructions
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={
-                            form.coverPage?.subtitle ?? form.description ?? ""
-                          }
-                          onChange={(e) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              coverPage: {
-                                ...(prev.coverPage || {
-                                  enabled: true,
-                                  title: prev.title || "Assessment",
-                                  buttonText: "Get Started",
-                                }),
-                                subtitle: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder="Give respondents clear instructions, context, or estimated time..."
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-700 outline-none focus:border-indigo-500 resize-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Start Button Text
-                          </label>
-                          <input
-                            type="text"
-                            value={form.coverPage?.buttonText ?? "Get Started"}
-                            onChange={(e) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                coverPage: {
-                                  ...(prev.coverPage || {
-                                    enabled: true,
-                                    title: prev.title || "Assessment",
-                                    buttonText: "Get Started",
-                                  }),
-                                  buttonText: e.target.value,
-                                },
-                              }))
-                            }
-                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-900 outline-none focus:border-indigo-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Estimated Time (Minutes)
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            value={form.coverPage?.estimatedMinutes ?? 3}
-                            onChange={(e) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                coverPage: {
-                                  ...(prev.coverPage || {
-                                    enabled: true,
-                                    buttonText: "Get Started",
-                                    title: prev.title || "Assessment",
-                                  }),
-                                  estimatedMinutes: Number(e.target.value),
-                                },
-                              }))
-                            }
-                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-900 outline-none focus:border-indigo-500 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Hero Cover Image URL
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setIsCoverMediaPickerOpen(true)}
-                          className="w-full bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 hover:border-indigo-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 outline-none transition flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <ImageIcon className="w-4 h-4" />
-                          {form.coverPage?.imageUrl
-                            ? "Change Hero Image"
-                            : "Select Hero Image"}
-                        </button>
-                      </div>
-
-                      {/* Live Preview Card */}
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
-                          Live Cover Preview
-                        </span>
-                        <div className="border border-gray-200 rounded-2xl overflow-hidden bg-gray-50/50 shadow-xs">
-                          {form.coverPage?.imageUrl && (
-                            <div className="h-44 w-full bg-gray-100 overflow-hidden relative">
-                              <img
-                                src={form.coverPage.imageUrl}
-                                alt="Cover Hero"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="p-6 text-center space-y-3">
-                            <h2 className="text-xl font-bold text-gray-900">
-                              {form.coverPage?.title ||
-                                form.title ||
-                                "Untitled Assessment"}
-                            </h2>
-                            <p className="text-xs text-gray-500 max-w-md mx-auto">
-                              {form.coverPage?.subtitle ||
-                                form.description ||
-                                "Click below to begin."}
-                            </p>
-                            <div className="flex items-center justify-center gap-4 text-[11px] text-gray-400 font-mono py-1">
-                              <span>
-                                ⏱ ~{form.coverPage?.estimatedMinutes || 3} min
-                              </span>
-                              <span>•</span>
-                              <span>📝 {form.questions.length} questions</span>
-                            </div>
-                            <div>
-                              <span className="inline-block px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs shadow-sm">
-                                {form.coverPage?.buttonText || "Get Started"} →
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* The cover uses the same structured composer as guided setup. */}
+                {canvasView === "cover" && <LandingPageEditor form={form} onChange={setForm} onChooseImage={() => setIsCoverMediaPickerOpen(true)} />}
 
                 {/* VIEW 2: FORM QUESTIONS PAGE */}
                 {canvasView === "page" && (
@@ -2292,6 +2332,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                         </div>
                       ))}
                     </div>
+                    {resultEmailEditor}
                   </div>
                 )}
               </div>
@@ -3704,15 +3745,15 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   <span>Export CSV</span>
                 </button>
 
-                <Link
-                  onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
-            href={guest ? "/create" : `/play/${form.id}?preview=1`}
-                  target="_blank"
+                <button
+                  type="button"
+                  onClick={() => void handlePreview()}
+                  disabled={previewing}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Test Quiz</span>
-                </Link>
+                  <span>{previewing ? "Saving preview…" : "Test Quiz"}</span>
+                </button>
               </div>
             </div>
 
@@ -3913,15 +3954,15 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                       here.
                     </p>
                   </div>
-                  <Link
-                    onClick={guest ? (e) => { e.preventDefault(); void saveNow(); } : undefined}
-            href={guest ? "/create" : `/play/${form.id}?preview=1`}
-                    target="_blank"
+                  <button
+                    type="button"
+                    onClick={() => void handlePreview()}
+                    disabled={previewing}
                     className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition shadow-xs"
                   >
                     <Play className="w-3.5 h-3.5 fill-white" />
-                    <span>Submit a test response</span>
-                  </Link>
+                    <span>{previewing ? "Saving preview…" : "Try a private preview"}</span>
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -4079,13 +4120,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       {activeNavTab === "share" && (
         <div className="flex-1 overflow-y-auto bg-[#f4f5f7] p-6 sm:p-10 font-sans">
           <div className="max-w-3xl w-full mx-auto space-y-6">
+            {guidedShareReturn && <button type="button" onClick={returnToGuidedPublish} className="hq-secondary"><ArrowLeft size={16} aria-hidden="true"/>Back to guided Publish</button>}
             <div className="bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
                   <Share2 className="w-4 h-4 text-indigo-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                  <h2 ref={shareHeading} tabIndex={-1} className="text-lg font-bold text-gray-900 tracking-tight focus-visible:outline-2 focus-visible:outline-offset-4">
                     Share Your Quiz
                   </h2>
                   <p className="text-xs text-gray-500">
@@ -4095,18 +4137,19 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                 </div>
               </div>
 
+              {publicationUncertain && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">The last publication response could not be verified. Refresh this editor to check whether this link is accepting new responses and which version is live.</p>}
               {!isPublished ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3">
-                  <h3 className="font-semibold text-gray-900">Publish your quiz to get a working share link</h3>
-                  <p className="text-sm text-gray-700">Saved means your draft is stored in your account. It is not public yet. Publishing makes it available to visitors and enables embedding.</p>
+                  <h3 className="font-semibold text-gray-900">{publicationUncertain ? "Check publication before sharing" : "This quiz is not accepting new responses"}</h3>
+                  <p className="text-sm text-gray-700">{publicationUncertain ? "Your draft is retained. Refresh this editor to retrieve the confirmed publication state." : "Publish to open your public link and embeds. If you paused this quiz, publishing restores the same URL. Existing sessions, saved responses, and private result links are retained."}</p>
                   <div className="flex flex-wrap gap-3">
-                    <button disabled={publishing} onClick={() => void handlePublish()} className="hq-primary disabled:opacity-50">{publishing ? "Publishing…" : "Publish and enable sharing"}</button>
-                    <a href={`/play/${form.id}?preview=1`} target="_blank" rel="noopener noreferrer" className="hq-secondary">Preview privately</a>
+                    <button data-publication-action="publish" disabled={publishing || pausing || publicationUncertain} onClick={requestPublish} className="hq-primary disabled:opacity-50">{publishing ? "Publishing…" : "Publish and enable sharing"}</button>
+                    <button onClick={() => void handlePreview()} disabled={previewing} className="hq-secondary">{previewing ? "Saving preview…" : "Preview privately"}</button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-emerald-700">{liveFingerprint !== publicationFingerprint(form) ? "Your link shows the previous published version. Publish again to make these edits live." : "Published · Your public link is ready."}</p>
+                  {!publicationUncertain && <p className="text-sm text-emerald-700">{hasUnpublishedChanges ? "Your link shows the previous published version. Publish again to make these edits live." : "Published · Your public link is ready."}</p>}
               {/* Direct Link Box */}
               <div className="space-y-1.5 pt-2">
                 <label className="text-xs font-semibold text-gray-700">
@@ -4116,12 +4159,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   <input
                     type="text"
                     readOnly
+                    aria-label="Quiz public URL"
+                    data-share-url
                     value={
                       typeof window !== "undefined"
                         ? `${window.location.origin}/play/${form.id}`
                         : `/play/${form.id}`
                     }
-                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-mono text-gray-800 outline-none"
+                    className="min-w-0 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-mono text-gray-800 outline-none"
                   />
                   <button
                     onClick={copyShareLink}
@@ -4141,33 +4186,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                 </div>
               </div>
 
-              {/* Embed Code Snippet */}
-              <div className="space-y-1.5 pt-3 border-t border-gray-100">
-                <label className="text-xs font-semibold text-gray-700">
-                  Responsive IFrame Embed
-                </label>
-                <div className="relative">
-                  <textarea
-                    readOnly
-                    rows={2}
-                    value={`<iframe src="${typeof window !== "undefined" ? window.location.origin : ""}/play/${form.id}" width="100%" height="700px" frameborder="0"></iframe>`}
-                    className="w-full bg-gray-900 text-emerald-400 font-mono text-xs p-3 rounded-xl resize-none outline-none"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `<iframe src="${window.location.origin}/play/${form.id}" width="100%" height="700px" frameborder="0"></iframe>`,
-                      );
-                      setShareCopied(true);
-                      setTimeout(() => setShareCopied(false), 2000);
-                    }}
-                    className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-medium flex items-center gap-1 transition"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>Copy Code</span>
-                  </button>
-                </div>
-              </div>
+              <QuizEmbedCode formId={form.id} title={form.title}/>
+              <div className="pt-3 border-t border-gray-100"><button type="button" className="hq-secondary" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication}><Pause size={16} aria-hidden="true"/>Pause publication</button><p className="mt-2 text-xs text-gray-500">Temporarily close new starts while keeping your draft and responses.</p></div>
                 </>
               )}
             </div>
@@ -4327,112 +4347,92 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
 
-      {/* AGENT STUDIO MODAL */}
+      {/* AI output stays outside form state until the creator accepts the proposal. */}
       {showAgentModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-gray-900">
-                    AI Agent Quiz Creator
-                  </h3>
-                  <p className="text-[11px] text-gray-500">
-                    The agent generates questions, answer keys, points, and
-                    explanations into your canvas.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAgentModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="ai-questions-title" onKeyDown={e => { if (e.key === "Escape") closeAgentModal(); else containDialogFocus(e); }} className="bg-white border border-gray-200 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-5">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  What topic should this quiz cover?
-                </label>
-                <textarea
-                  rows={3}
-                  value={agentPrompt}
-                  onChange={(e) => setAgentPrompt(e.target.value)}
-                  placeholder="e.g. Modern React 19 hooks, Docker container security, or Customer NPS Survey..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 outline-none resize-none focus:bg-white focus:border-indigo-500"
-                />
+                <h3 id="ai-questions-title" className="font-bold text-lg text-gray-900">{agentProposal ? "Review your question suggestions" : "Suggest questions with AI"}</h3>
+                <p className="text-sm text-gray-500 mt-1">{agentProposal ? "Nothing has changed yet. Choose the questions you want to add." : "Review every suggestion before adding it to your quiz."}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Question Count
-                  </label>
-                  <select
-                    value={agentNumQuestions}
-                    onChange={(e) =>
-                      setAgentNumQuestions(Number(e.target.value))
-                    }
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs text-gray-900 outline-none"
-                  >
-                    <option value={3}>3 Questions</option>
-                    <option value={5}>5 Questions</option>
-                    <option value={8}>8 Questions</option>
-                    <option value={10}>10 Questions</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Difficulty
-                  </label>
-                  <select
-                    value={agentDifficulty}
-                    onChange={(e) =>
-                      setAgentDifficulty(
-                        e.target.value as
-                          | "beginner"
-                          | "intermediate"
-                          | "advanced",
-                      )
-                    }
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs text-gray-900 outline-none"
-                  >
-                    <option value="beginner">Beginner</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="advanced">Advanced</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                onClick={handleAgentGenerate}
-                disabled={isAgentGenerating || !agentPrompt.trim()}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-              >
-                {isAgentGenerating ? (
-                  <>
-                    <Sparkles className="w-4 h-4 animate-spin text-amber-300" />
-                    <span>Agent is generating quiz...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 text-amber-300" />
-                    <span>Generate Quiz & Load into Canvas</span>
-                  </>
-                )}
-              </button>
+              <button autoFocus onClick={closeAgentModal} aria-label="Close AI suggestions" className="p-2 rounded-lg hover:bg-gray-100"><X size={18} /></button>
             </div>
+            {agentError && <p role="alert" className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">{agentError}</p>}
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 text-sm text-emerald-950">
+              <p className="font-semibold">Your existing quiz stays intact</p>
+              <p className="mt-1">We add questions only. Your title, existing questions, scoring rules, branching, branding, lead capture, landing page and results stay as they are. A local checkpoint lets you undo the addition.</p>
+            </div>
+            {agentProposal ? <>
+              <p className="text-sm text-gray-600">{form.marketing ? "New answers start without marketing scores or result mappings. Connect them to your outcomes in Answer scoring before publishing. Existing branches may skip the new questions; check the Conversation Map." : form.mode === "quiz" ? "New graded questions may change the total possible score. Review answer keys, points and your result thresholds before publishing." : "Review the wording, answer choices and required fields before publishing."}</p>
+              <div className="space-y-3">
+                {agentProposal.questions.map((q, index) => <label key={`${q.id}-${index}`} className="block rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-gray-400">
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" className="mt-1" checked={selectedProposalIds.includes(q.id)} onChange={e => setSelectedProposalIds(ids => e.target.checked ? [...ids, q.id] : ids.filter(id => id !== q.id))} />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-sm">{index + 1}. {q.title}</span>
+                      <p className="text-xs text-gray-500 mt-1">{q.type.replaceAll("_", " ")} · {q.required ? "Required" : "Optional"}{form.mode === "quiz" ? ` · ${q.points ?? 0} points` : ""}</p>
+                      {q.description && <p className="text-sm text-gray-600 mt-2">{q.description}</p>}
+                      {q.options && <ul className="mt-2 space-y-1 text-sm text-gray-700">{q.options.map(option => <li key={option.id}>{option.label}{form.mode === "quiz" && option.isCorrect && <span className="ml-2 text-emerald-700 text-xs font-medium">Correct answer</span>}</li>)}</ul>}
+                      {form.mode === "quiz" && q.correctAnswerText && <p className="mt-2 text-sm">Answer: {q.correctAnswerText}</p>}
+                      {q.explanation && <p className="mt-2 text-xs text-gray-500">Explanation: {q.explanation}</p>}
+                    </div>
+                  </div>
+                </label>)}
+              </div>
+              <div className="flex flex-wrap justify-between gap-3 border-t border-gray-100 pt-4">
+                <button onClick={closeAgentModal} className="hq-secondary">Discard suggestions</button>
+                <button onClick={acceptAgentProposal} disabled={!selectedProposalIds.length} className="hq-primary disabled:opacity-50">Add {selectedProposalIds.length} question{selectedProposalIds.length === 1 ? "" : "s"}</button>
+              </div>
+            </> : <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-700">What should the new questions cover?
+                <textarea rows={3} value={agentPrompt} onChange={e => setAgentPrompt(e.target.value)} placeholder="Describe the topic and what you want to learn from the answers…" className="mt-2 w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 outline-none resize-none focus:bg-white focus:border-indigo-500" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm font-medium text-gray-700">Question count
+                  <select value={agentNumQuestions} onChange={e => setAgentNumQuestions(Number(e.target.value))} className="mt-2 w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-sm">
+                    {[3, 5, 8, 10].map(count => <option value={count} key={count}>{count} questions</option>)}
+                  </select>
+                </label>
+                <label className="block text-sm font-medium text-gray-700">Difficulty
+                  <select value={agentDifficulty} onChange={e => setAgentDifficulty(e.target.value as "beginner" | "intermediate" | "advanced")} className="mt-2 w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-sm">
+                    <option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option>
+                  </select>
+                </label>
+              </div>
+              <button onClick={handleAgentGenerate} disabled={isAgentGenerating || !agentPrompt.trim()} className="hq-primary w-full justify-center disabled:opacity-50">
+                <Sparkles className={`w-4 h-4 ${isAgentGenerating ? "animate-pulse" : ""}`} aria-hidden="true" />{isAgentGenerating ? "Preparing suggestions…" : "Generate suggestions to review"}
+              </button>
+            </div>}
           </div>
         </div>
       )}
 
       </>}
+      {showDraftHistory && <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="draft-history-title" onKeyDown={e => { if (e.key === "Escape") closeDraftHistory(); else containDialogFocus(e); }} className="bg-white rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div><h3 id="draft-history-title" className="font-bold text-lg">Draft history</h3><p className="text-sm text-gray-500 mt-1">The latest five safety checkpoints on this device. These are separate from your live published quiz.</p></div>
+            <button autoFocus aria-label="Close draft history" className="p-2 rounded-lg hover:bg-gray-100" onClick={closeDraftHistory}><X size={18} /></button>
+          </div>
+          {historyError && <p role="alert" className="text-sm text-red-700">{historyError}</p>}
+          {!draftHistory.length && <p className="text-sm text-gray-600 rounded-xl bg-gray-50 p-4">No checkpoints yet. A checkpoint is created before you add AI questions, import JSON or restore an earlier draft. Clearing browser storage removes these checkpoints.</p>}
+          {restoreCandidate ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <h4 className="font-semibold">Restore “{restoreCandidate.form.title}”?</h4>
+            <p className="text-sm">This replaces your current draft with {restoreCandidate.form.questions.length} questions and the settings saved {new Date(restoreCandidate.createdAt).toLocaleString()}. We will checkpoint your current draft first, so you can return to it. Your published quiz stays unchanged until you publish again.</p>
+            <div className="flex flex-wrap gap-3"><button className="hq-secondary" onClick={() => setRestoreCandidate(null)}>Cancel restore</button><button className="hq-primary" onClick={() => {
+              if (!checkpoint("Before restoring a checkpoint", setHistoryError)) return;
+              try {
+                const restored = restoreDraftCheckpoint(form, restoreCandidate);
+                setForm(restored); setActivePageId(restored.pages?.[0]?.id || "page-1"); setSelectedQuestionId(restored.questions[0]?.id || null); setCanvasView("page"); setRestoreCandidate(null); closeDraftHistory();
+              } catch (error) { setHistoryError(error instanceof Error ? error.message : "The checkpoint could not be restored."); }
+            }}>Restore this draft</button></div>
+          </div> : draftHistory.map(entry => <div key={entry.id} className="rounded-xl border border-gray-200 p-4 flex items-start justify-between gap-3">
+            <div><h4 className="font-semibold text-sm">{entry.reason}</h4><p className="text-sm text-gray-500 mt-1">{new Date(entry.createdAt).toLocaleString()} · {entry.form.questions.length} question{entry.form.questions.length === 1 ? "" : "s"}</p><p className="text-sm mt-1">{entry.form.title}</p></div>
+            <button className="hq-secondary !text-xs" onClick={() => setRestoreCandidate(entry)}>Review restore</button>
+          </div>)}
+        </div>
+      </div>}
       {showThemeModal && (
         <ThemeEditor theme={form.theme} onClose={() => setShowThemeModal(false)}
           onApply={(theme) => { setForm(current => ({ ...current, theme })); setShowThemeModal(false); }} />
@@ -4760,104 +4760,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
 
-      {showReadiness && <PublishReadiness form={form} busy={publishing} onClose={()=>setShowReadiness(false)} onConfirm={()=>void handlePublish(true)}/> }
-      {/* Publication confirmation */}
-      {showPublishModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-                  <Check className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-gray-900">
-                    Your Quiz is Published!
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Published on this workspace. Share the link when your server
-                    is accessible.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPublishModal(false)}
-                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Live Link */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700">
-                Live URL
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={
-                    typeof window !== "undefined"
-                      ? `${window.location.origin}/play/${form.id}`
-                      : `/play/${form.id}`
-                  }
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-gray-800 outline-none"
-                />
-                <button
-                  onClick={copyShareLink}
-                  className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{shareCopied ? "Copied!" : "Copy Link"}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <Link
-                href={`/play/${form.id}`}
-                target="_blank"
-                className="p-3 rounded-xl border border-gray-200 hover:border-indigo-400 bg-gray-50/60 hover:bg-indigo-50/30 transition text-center group cursor-pointer"
-              >
-                <ExternalLink className="w-4 h-4 text-indigo-600 mx-auto mb-1 group-hover:scale-110 transition" />
-                <span className="text-xs font-semibold text-gray-800 block">
-                  Open Live Form
-                </span>
-                <span className="text-[10px] text-gray-400">
-                  Test player experience
-                </span>
-              </Link>
-
-              <button
-                onClick={() => {
-                  setShowPublishModal(false);
-                  setActiveNavTab("share");
-                }}
-                className="p-3 rounded-xl border border-gray-200 hover:border-indigo-400 bg-gray-50/60 hover:bg-indigo-50/30 transition text-center group cursor-pointer"
-              >
-                <Share2 className="w-4 h-4 text-indigo-600 mx-auto mb-1 group-hover:scale-110 transition" />
-                <span className="text-xs font-semibold text-gray-800 block">
-                  Embed &amp; Share
-                </span>
-                <span className="text-[10px] text-gray-400">
-                  Iframe &amp; popup codes
-                </span>
-              </button>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setShowPublishModal(false)}
-                className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-semibold transition cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showPausePublication && <PausePublicationDialog busy={pausing} onClose={closePausePublication} onConfirm={() => void handlePausePublication()}/>}
+      {showReadiness && <PublishReadiness form={form} busy={publishing} onClose={closePublishReadiness} onConfirm={()=>void handlePublish(true)}/> }
+      {showPublishModal && <PublicationConfirmation url={typeof window !== "undefined" ? `${window.location.origin}/play/${form.id}` : `/play/${form.id}`} hasUnpublishedChanges={hasUnpublishedChanges} onDismiss={closePublicationConfirmation} onShare={openShare}/>}
 
       {/* Media Picker Modal for Cover Image */}
       <MediaPickerModal

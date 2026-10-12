@@ -1,16 +1,14 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { apiError, checkOrigin, HttpError, signToken, verifyToken } from "@/lib/auth";
-import { readRecord } from "@/lib/records";
+import { apiError, checkOrigin, signToken, verifyToken } from "@/lib/auth";
 import { publicForm } from "@/lib/engine";
-import type { Experiment } from "@/lib/experiments";
+import { availableExperiment } from "@/lib/experiments";
 import { rateLimit } from "@/lib/rate-limit";
 export async function POST(req: Request, { params }: { params: Promise<{ id:string }> }) {
   try {
     checkOrigin(req); rateLimit(req, "experiment-assign", 60);
-    const { id } = await params, row = await readRecord<Experiment>("experiments", id);
-    if (!row?.payload.active) throw new HttpError(410, "This experiment is paused or unavailable.");
+    const { id } = await params, row = await availableExperiment(id);
     const cookieName = `hq_experiment_${id}`, existing = (await cookies()).get(cookieName)?.value;
     const old = existing ? verifyToken(existing) : null;
     const valid = old?.purpose === "experiment" && old.experimentId === id && typeof old.visitor === "string" && (old.variant === 0 || old.variant === 1);

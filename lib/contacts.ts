@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { QuizSubmissionResult } from "./schema";
+import { contactScore } from "./contact-filters";
 export const CaptureSchema = z.object({
     enabled: z.boolean(), placement: z.enum(["before_results", "after_results"]), required: z.boolean(),
     name: z.enum(["off", "optional", "required"]), phone: z.enum(["off", "optional", "required"]),
@@ -38,6 +40,23 @@ export function parseContact(config: CaptureConfig | undefined, input: unknown, 
             delete value[field];
     }
     return { ...value, email: value.email.toLowerCase(), marketingConsent: config.marketingEnabled && value.marketingConsent, recordedAt: new Date().toISOString(), consentText: config.marketingEnabled ? config.marketingLabel : "", placement: config.placement, privacyUrl: config.privacyUrl, formRevision: revision, purposeText: config.description };
+}
+/** Export every matching response, preserving consent evidence and historical result snapshots. */
+export function contactExportRows(rows: QuizSubmissionResult[]) {
+    return rows.map(row => {
+        const score = contactScore(row);
+        return {
+            responseId: row.id, submittedAt: row.submittedAt, email: row.contact?.email, name: row.contact?.name, phone: row.contact?.phone,
+            marketingConsent: row.contact?.marketingConsent, consentText: row.contact?.consentText, recordedAt: row.contact?.recordedAt,
+            privacyUrl: row.contact?.privacyUrl, formRevision: row.contact?.formRevision, purposeText: row.contact?.purposeText, placement: row.contact?.placement,
+            result: row.marketing || row.matchedTier || {}, score: score.value ?? "", answers: row.answers || {},
+            scoreType: score.kind, scoreStatus: score.value === null ? "not_scored" : "scored",
+            // Older exports called this raw grading value "score", even for ungraded surveys (100).
+            // Retain it explicitly for migration; it is never used for marketing filtering or display.
+            legacyKnowledgeScorePercent: row.percentageScore,
+            scorecardCategoryScores: row.marketing?.kind === "scorecard" ? row.marketing.categories.map(category => ({ id: category.id, title: category.title, score: category.score })) : [],
+        };
+    });
 }
 export function contactsCsv(rows: Record<string, unknown>[]) {
     if (!rows.length)

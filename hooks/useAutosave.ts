@@ -11,11 +11,13 @@ import { FormSchema, type FormSchemaType } from "@/lib/schema";
 const fingerprint = (form: FormSchemaType) =>
   // Schema parsing can reorder object keys without changing a draft. Compare
   // canonical objects while preserving question/answer order and content.
-  JSON.stringify({ ...form, revision: undefined, updatedAt: undefined }, (_key, value) =>
+  // Server-managed timestamps/revisions do not represent unsaved user edits.
+  JSON.stringify({ ...form, revision: undefined, updatedAt: undefined, createdAt: undefined }, (_key, value) =>
     value && typeof value === "object" && !Array.isArray(value)
       ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]))
       : value,
   );
+const claimConfirmationError = "We could not verify the save confirmation. Keep this tab open and check your account’s quizzes before trying again; your browser draft has been kept.";
 export function useAutosave(form: FormSchemaType, guest = false) {
   const [status, setStatus] = useState<
       "saved" | "unsaved" | "saving" | "error"
@@ -24,6 +26,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     [backupFingerprint, setBackupFingerprint] = useState(""),
     [error, setError] = useState(""),
     [authRequired, setAuthRequired] = useState(false),
+    [claimed, setClaimed] = useState(false),
     [recoveryDismissed, setRecoveryDismissed] = useState(false),
     [savedFingerprint, setSavedFingerprint] = useState(fingerprint(form));
   const latest = useRef(form),
@@ -31,6 +34,11 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     saved = useRef(fingerprint(form)),
     pending = useRef<Promise<boolean> | null>(null);
   const retryable = useRef(true);
+  // A successful POST is never retried as another creation, even if its browser
+  // navigation is cancelled. Only a verified revision permits subsequent PUTs.
+  const claimAcknowledged = useRef(false);
+  const claimedId = useRef<string | null>(null);
+  const claimedCreatedAt = useRef<string | undefined>(undefined);
   const key = `heyquiz-draft:${form.id}`;
   const draftSnapshot = useRef<string | null | undefined>(undefined);
   const initialDraftSnapshot = useCallback(() => {
@@ -61,44 +69,89 @@ export function useAutosave(form: FormSchemaType, guest = false) {
         // A tab-local copy prevents another editor tab from overwriting recovery.
         sessionStorage.setItem(key, JSON.stringify(form));
         localStorage.setItem(key, JSON.stringify(form));
+        // This status reflects a successful external storage write; render alone
+        // cannot determine whether quota or browser policy allowed the backup.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBackupFingerprint(fingerprint(form));
         setStorageWarning(false);
-      // Surface failure to synchronize the browser backup.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       } catch { setStorageWarning(true); }
     }
   }, [form, key, guest]);
-  const saveNow = useCallback(async (): Promise<boolean> => {
-    if (pending.current) {
-      await pending.current;
-      if (fingerprint(latest.current) === saved.current) return true;
+  const saveNow = useCallback(async (snapshot?: FormSchemaType): Promise<boolean> => {
+    // Explicit actions (preview/publish) provide the rendered draft so they never
+    // depend on the backup effect having run before the click handler.
+    if (snapshot) latest.current = snapshot;
+    // Several actions may wait for one save (for example preview and navigation).
+    // Share its failure instead of racing to retry the same server revision, and
+    // recheck the lock after every await in case another waiter began a save.
+    while (pending.current) {
+      if (!(await pending.current)) return false;
     }
     const task = (async () => {
       setError("");
       // Guest drafts stay on this device until an authenticated account claims them.
-      if (guest) {
+      if (guest && !claimedId.current) {
+        if (claimAcknowledged.current) {
+          setError(claimConfirmationError);
+          setStatus("error");
+          return false;
+        }
         setStatus("saving");
         try {
+          // Only this snapshot is confirmed by the POST. Edits can arrive while
+          // it is in flight and must remain backed up for recovery after claim.
+          const snapshot = latest.current;
+          const claimedFingerprint = fingerprint(snapshot);
           const res = await fetch("/api/forms", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...latest.current, revision: 0 }),
+            body: JSON.stringify({ ...snapshot, revision: 0 }),
           });
+          // Even an unreadable successful response must not lead to another POST.
+          if (res.ok) claimAcknowledged.current = true;
           const data = await res.json();
           if (!res.ok) {
             setAuthRequired(res.status === 401);
             throw new Error(data.error || "Could not save your quiz.");
           }
-          saved.current = fingerprint(latest.current);
+          if (data.id !== snapshot.id || !Number.isSafeInteger(data.revision) || data.revision < 1)
+            throw new Error(claimConfirmationError);
+          claimedId.current = snapshot.id;
+          claimedCreatedAt.current = typeof data.createdAt === "string" ? data.createdAt : undefined;
+          revision.current = data.revision;
+          saved.current = claimedFingerprint;
+          setSavedFingerprint(claimedFingerprint);
+          setAuthRequired(false);
+          // The mounted guest editor already contains the live draft. Its initial
+          // recovery snapshot must not reappear merely because the save changed.
+          setRecoveryDismissed(true);
+          setClaimed(true);
+          setStatus("saved");
+          // Each storage area can fail independently. Remove only copies that
+          // match the confirmed snapshot, never newer edits from this/another tab.
           try {
-            localStorage.removeItem("pippi-guest-draft");
-            localStorage.removeItem(key);
+            const backup = sessionStorage.getItem(key);
+            if (backup && fingerprint(FormSchema.parse(JSON.parse(backup))) === claimedFingerprint)
+              sessionStorage.removeItem(key);
           } catch {}
-          window.location.assign(`/editor/${data.id}`);
-          // Navigation owns the next step; do not publish or navigate again.
+          try {
+            const backup = localStorage.getItem(key);
+            if (backup && fingerprint(FormSchema.parse(JSON.parse(backup))) === claimedFingerprint)
+              localStorage.removeItem(key);
+            // A retained same-ID draft still needs its resume pointer; a new
+            // guest draft in another tab also keeps its own different pointer.
+            if (!localStorage.getItem(key) && localStorage.getItem("pippi-guest-draft") === snapshot.id)
+              localStorage.removeItem("pippi-guest-draft");
+          } catch {}
+          // The account copy exists now. A reload after choosing Stay must open
+          // that copy and recover newer edits, never re-enter guest creation.
+          window.history.replaceState(null, "", `/editor/${snapshot.id}`);
+          window.location.assign(`/editor/${snapshot.id}`);
+          // Keep the beforeunload guard: newer edits may not be safely backed up.
+          // Choosing Stay leaves a confirmed account draft with normal PUT saves.
           return false;
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Could not save your quiz.");
+          setError(claimAcknowledged.current && !claimedId.current ? claimConfirmationError : e instanceof Error ? e.message : "Could not save your quiz.");
           setStatus("error");
           return false;
         }
@@ -111,7 +164,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           const res = await fetch(`/api/forms/${snapshot.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...snapshot, revision: revision.current }),
+            body: JSON.stringify({ ...snapshot, ...(claimedId.current && !snapshot.createdAt ? { createdAt: claimedCreatedAt.current } : {}), revision: revision.current }),
           });
           const data = await res.json();
           retryable.current = res.ok || res.status === 401 || res.status >= 500;
@@ -151,15 +204,15 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     }
   }, [key, guest]);
   useEffect(() => {
-    if (guest) return;
+    if (guest && !claimed) return;
     if (fingerprint(form) === saved.current) return;
     const timer = setTimeout(() => void saveNow(), 600);
     return () => clearTimeout(timer);
-  }, [form, saveNow, guest]);
+  }, [form, saveNow, guest, claimed]);
   useEffect(() => {
     // Resume interrupted saves on return/reconnection, but never replay conflicts or
     // validation failures automatically. Revision checks still guard every write.
-    if (guest) return;
+    if (guest && !claimed) return;
     const resume = () => {
       if (document.visibilityState === "visible" && navigator.onLine && retryable.current && !pending.current && fingerprint(latest.current) !== saved.current) void saveNow();
     };
@@ -167,7 +220,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     window.addEventListener("focus", resume);
     document.addEventListener("visibilitychange", resume);
     return () => { window.removeEventListener("online", resume); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", resume); };
-  }, [guest, saveNow]);
+  }, [guest, saveNow, claimed]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (fingerprint(latest.current) !== saved.current) {
@@ -185,6 +238,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
         : status,
     error,
     authRequired,
+    claimed,
     storageWarning,
     backedUp: backupFingerprint === fingerprint(form),
     saveNow,

@@ -1,0 +1,37 @@
+# Batch 11: guest-save continuation, campaign depth and recovery rehearsal
+
+12 October 2026. All evidence here is local and synthetic. No production deployment, real email, provider authorization, credential change or paid activity occurred. CRM and Stripe remain last.
+
+## Delivered
+
+- A guest who edits during the first successful account save and chooses **Stay** in the browser warning now keeps working with the confirmed quiz ID and revision. Subsequent saves use the existing revision-checked update flow, rather than attempting to create the quiz again. The page has a reload-safe editor URL, accurate saved/error status and **Save & open quiz**, which waits for current edits. Newer and other-tab backups remain protected. Unreadable or mismatched successful creation responses never trigger a duplicate creation request. [Implementation and evidence](overnight-guest-claim-continuation.md).
+- Six existing templates gained original complete campaign copy: stationery, craft, branding, virtual-assistant, rental-readiness and hiring-readiness. The catalog now has 30 expanded campaigns within the same 43 template IDs. The prior 24 campaign entries and all original questions/scoring were preserved. [Campaign handoff](overnight-template-campaigns-batch11.md).
+- A new synthetic-only offline recovery rehearsal verifies actual application readers after a record/media roundtrip. This is a test and documented procedure, not a shipped backup tool, admin feature or cloud restore. It preserves the current snapshot's revocations, frozen reports, versions, contacts, signed media, active attempt and pending encrypted job. It deliberately demonstrates that an older snapshot cannot remember later revocations. [Recovery evidence and limitations](overnight-local-recovery.md).
+- A bounded creator-editable result-email-copy design was written. It is **plan only**: no subject/body editor, transport or scheduler was implemented. [Plan](overnight-result-email-copy-plan.md).
+
+## Candidate and checks
+
+The existing isolated candidate at `work/pippi-release-2026-10-12` was updated through the explicit file allowlist, without copying private archives, runtime records or real environment files. It has no remotes and remains based on the cached Git reference; no new remote freshness is claimed. The original Git checkout and history remain untouched. Root recorded runtime source hashes before final documentation staging.
+
+The compiled build `build-batch-11.log` passed, including TypeScript. Local server port 3164, session 12896, uses only the isolated synthetic `release-test-data` directory and synthetic signing settings; all five cloud aliases were empty. The older port 3163 server remains batch 9 and is not this evidence target.
+
+- Guest continuation: the same 12 scenarios passed separately in Chrome, Firefox and WebKit, for 36 scenario runs. These include actual beforeunload dismissal, continued saves, revision conflicts, reload/back-forward recovery, failed saves, unavailable browser backups and malformed success confirmation. Seven earlier claim-safety cases and the normal guest-builder flow also passed.
+- Six targeted automated WCAG A/AA banner scans at 320px and 390px across the three engines found zero violations and no banner overflow. Chrome mobile screenshots and independent Firefox 320px/WebKit 390px screenshots were visually inspected. These are scoped banner checks, not whole-app accessibility or assistive-technology certification.
+- Existing compiled draft-safety checks passed, covering all five preview paths, delayed and failed saves, concurrent navigation, checkpoints and preserved settings. Existing mobile guided editing and guided creation suites passed, including per-answer scoring, save/reload, editor-mode switching and publication review.
+- All six new campaign journeys passed in Chrome: gallery, landing, results, saved private copy and native PDF. Six PDFs contain nine pages; every page was rendered and visually inspected. Selected desktop and mobile gallery/landing/report screenshots were inspected. No page errors, clipping, overlap, incorrect score/null or horizontal overflow were found. One minor rental-report heading/body split is listed below.
+- The isolated native-PDF function trace passed nine real route cases, including missing-font failure/retry. It used 134 traced files plus the entry file, totaling 4,393,466 bytes, and made zero external file/module reads or network calls. This does not prove the real hosting environment.
+- The recovery harness passed 25 groups over 26 synthetic files both in active source and in the staged candidate, with zero outbound calls and no raw snapshot/key retention. These are repeated runs of the same checks, not 50 unique cases.
+- Source checks passed: 25 general regressions; draft history; nine guided-editing cases; nine publication-pause cases. Campaign checks passed 44 new literal cases, 160 shared representative expectations, 44 cases in each historical batch 8–10 suite, 64,000 catalog scoring paths and 768 legacy product paths. Overlapping counts are not additive unique journeys.
+- Full candidate lint initially passed with zero errors and 74 warnings; the final run after test-only polling/accessibility additions passed with zero errors and 75 warnings. The additional warning is an unused test variable, not a runtime failure. The source audit and staged file/hash checks are recorded in the external final status. The only staged whitespace exception remains the original licensed line 21 of `assets/pdf-fonts/OFL.txt`; upstream bytes were preserved.
+
+## Findings and honest limits
+
+The original guest Stay behavior was reproduced against batch 10 before repair. Independent source review of the final fix found no blocking issue within this scope. Initial runs of the new test in each engine asserted the server title before autosave completed. The test now uses bounded API polling and explicit completion waits, retaining the same expected title and real browser-dialog behavior. Initial failure logs/screenshots are preserved; the product was not changed to hide those timing failures.
+
+The first recovery fixture tried to recreate a deleted form with a stale revision. Correcting the synthetic fixture to revision zero matched existing application behavior; it was not an application defect.
+
+The rental PDF ends page 2 with the short band heading “Make it consistent”; its sentence continues on page 3 under “Information (continued)”. Content and context remain intact, but keeping short headings with their following text is a next-pass polish item. Other existing PDF script/font/image/accessibility limits remain.
+
+This batch does not verify real signup/confirmation/recovery inbox delivery, cloud authorization/storage/load, deployment/rollback, historical-backup privacy or a fresh-account hosted journey. There is no real result-email sender or scheduler. The recovery test explicitly does not make stale snapshots safe against later revocations or deletions. Thirteen templates remain simpler starters. Actual human usability, device and screen-reader studies remain open, as do the broader partial acceptance items in [competitive progress](overnight-competitive-progress.md).
+
+Evidence lives outside source in `../pippi-overnight-2026-10-12/compiled-verification-batch-11/`. Final status records the staged tree, allowlisted source archive and SHA-256 checks. Earlier private recovery archives are never release inputs. Nothing was committed, pushed or deployed by this batch.

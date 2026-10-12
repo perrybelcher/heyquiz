@@ -1,0 +1,31 @@
+# Independent creator reconciliation review — batch19
+
+12 October 2026. This lane reviewed the plan, runtime contracts and the new reconciliation harness read-only. It did not edit application or test source, run a duplicate browser rehearsal, send email, call providers or deploy. Root approved staging this frozen review after the corrected strict run passed.
+
+## Scope checked
+
+- `browser-creator-reconciliation.cjs` creates the same two quiz IDs through real blank/template UI, claims them and publishes through the real editor. Separate anonymous and authenticated contexts make public and preview behavior distinct. Starts, answers, capture and submissions are actual player actions; API and record reads are assertions, not substitutes for completing the player.
+- Expectations are independent literals: blank first answer correct and100%; meal-planning all five `a0` choices → matched/path0, “Build a rotating menu”, null marketing score, no categories and section IDs `campaign-path0`, `campaign-reflection`, `campaign-result-faq`. These agree with the pre-existing batch13 literal fixture and do not call `evaluateMarketing` or grading to manufacture an oracle.
+- `submit/route.ts` stores no preview submission/contact; `analytics.ts` excludes preview attempts before choosing the start cohort. The harness checks zero analytics starts/completions after the completed preview, then exactly one public attempt/submission/completion per quiz,100%completion, blank0leads and campaign1lead/0consented leads. It cross-checks retained rows, visible owner panels and CSV rows. Question counts use reached/measured public sessions, not landing visits or unique people.
+- The campaign report is obtained through its actual respondent control and native PDF download. Literal result identity/section order is asserted before comparing frozen report/PDF content. The later draft title must not replace the published attempt/report title. PDF parity with retained copy is correctly described as parity; it is not an independent editorial-quality oracle.
+- Explicit loopback and matching absolute data-directory guards, all five cloud aliases blank, local record mode and blocked Node fetch bound the fixture scope. Browser guards prohibit external requests, provider/experiment actions and email mutations. The existing local email availability/status read is distinguished from queueing or sending. No real delivery is claimed.
+
+## Findings and disposition
+
+1. **Cleanup schema mismatch found and fixed by the test owner.** `result_report_revocations` stores only `{retiredAt}`; the initial harness incorrectly expected `payload.formId` and failed after deleting its own forms. Final source validates the exact derived SHA256 key, record ID/kind, owner and retiredAt-only shape before removal. Contact-segment receipts retain their separate form-ID check. The owner preserved the first failure and repaired only the two identified residual receipts after confirming their forms/publications absent. No blanket owner/prefix deletion was introduced.
+2. **Armed asynchronous waits guarded.** The final harness attaches an immediate rejection handler to response/popup/download promises while retaining the same promise for its later strict await. A preceding locator failure therefore cannot leave an unhandled rejected wait during page cleanup. The original awaited error still fails the test. This is harness failure containment, not an application defect.
+3. **Visible metric assertions tightened.** The API/record/CSV counts are exact. The final harness now also compares each card's direct numeric-value paragraph exactly, so “Captured leads” cannot pass solely because its explanatory hint contains “0 opted in”.
+
+## Cleanup and evidence privacy
+
+Child records are selected by the captured own form IDs and local owner, then rechecked before exact removal. The ledger covers attempts, submissions, landing visits, reports and any matching link/job records. Quiz deletion uses the owner API; synthetic retirement and saved-filter receipts use exact deterministic IDs. Unrelated local fixtures are outside this selection. Cleanup errors set failure status and retain a ledger.
+
+The evidence JSON contains synthetic form/response identifiers and aggregate outcomes, not bearer tokens or raw start/link receipts. Private-result URLs are redacted from errors, and the visible private-link input is masked on failure screenshots. Normal result screenshots precede link generation; report-page screenshots do not include browser chrome. The PDF check rejects its token, internal quiz ID, synthetic contact email and later draft wording from extracted text. Retained synthetic contact CSV intentionally contains the test address and must be described as local test evidence, not public customer material.
+
+## Acceptance status and limits
+
+The corrected strict run at `compiled-verification-batch-19/creator-reconciliation/final-3` passed. Independent inspection of its JSON confirms exactly2public starts,2preview starts,4submits,1private result link,1PDF and1permitted status-only email read; blocked requests and page errors are empty. All15ledger cleanup entries are marked removed. The final source contains the guarded waits, exact metric assertions and snapshot question/marketing/publication-timestamp parity checks. A pattern scan of its JSON/CSV/log text artifacts found no signed bearer-token pattern; this is an additional check, not a universal secret scanner.
+
+The first runs exercised the real player/PDF chain but encountered harness selectors/cleanup; they remain preserved and are not full passes. Actual rendered PDF visual inspection remains owned by the test author/root and is separate from this read-only source/evidence review. Root's source/candidate parity and final log identify the accepted runtime separately.
+
+No application defect has been established by this independent review. Passing this bounded two-path Chrome rehearsal still would not prove all templates, routing/scoring boundaries, hosted authentication/mailbox receipt, cloud permissions/persistence, real delivery, browser/device accessibility or unaided human usability. Existing three-engine publication checks are separate evidence and must not be relabelled as three-engine coverage of these complete respondent journeys.

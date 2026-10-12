@@ -1,6 +1,8 @@
 import { TrackingSchema, type TrackingConfig } from "./tracking";
 import { CaptureSchema, type CaptureConfig, type ContactRecord } from "./contacts";
 import { z } from "zod";
+import { ResultEmailCopySchema, type ResultEmailCopy } from "./result-email-copy";
+import { LandingSectionSchema, landingSectionLimit, safeLandingImageUrl, type LandingSection } from "./landing";
 import {
   MarketingSchema,
   type MarketingConfig,
@@ -228,8 +230,23 @@ export const OutcomeTierSchema: z.ZodType<OutcomeTier> = z.object({
   ctaUrl: z.string().optional(),
 });
 
+export const BrandFontSchema = z.enum(["system", "arial", "verdana", "trebuchet", "georgia", "palatino", "mono"]);
+export type BrandFont = z.infer<typeof BrandFontSchema>;
+
+// Logos are rendered by the browser; scripts, data URLs and protocol-relative URLs are never accepted.
+export const BrandLogoUrlSchema = z.string().trim().max(2048).refine(value => !value || (/^https:\/\/[^\s\\]+$/i.test(value) && (() => { try { return !new URL(value).username && !new URL(value).password; } catch { return false; } })()) || /^\/(?!\/)[^\s\\?#]*$/.test(value), "Use an HTTPS image URL or an uploaded image path.");
+
 export interface FormTheme {
   id?: string;
+  brandName?: string;
+  logoUrl?: string;
+  logoAlt?: string;
+  logoHeight?: number;
+  hidePippiBranding?: boolean;
+  bodyFont?: BrandFont;
+  headingFont?: BrandFont;
+  bodySize?: number;
+  headingScale?: number;
   primaryColor?: string;
   accentColor?: string;
   backgroundColor?: string;
@@ -242,6 +259,15 @@ export interface FormTheme {
 
 export const FormThemeSchema: z.ZodType<FormTheme> = z.object({
   id: z.string().optional(),
+  brandName: z.string().max(100).optional(),
+  logoUrl: BrandLogoUrlSchema.optional(),
+  logoAlt: z.string().max(150).optional(),
+  logoHeight: z.number().min(24).max(80).optional(),
+  hidePippiBranding: z.boolean().optional(),
+  bodyFont: BrandFontSchema.optional(),
+  headingFont: BrandFontSchema.optional(),
+  bodySize: z.number().min(14).max(22).optional(),
+  headingScale: z.number().min(0.8).max(1.5).optional(),
   primaryColor: z.string().optional(),
   accentColor: z.string().optional(),
   backgroundColor: z.string().optional(),
@@ -278,6 +304,9 @@ export interface CoverPageConfig {
   imageUrl?: string;
   estimatedMinutes?: number;
   showQuestionCount?: boolean;
+  layout?: "compact" | "split";
+  imageAlt?: string;
+  sections?: LandingSection[];
 }
 
 export const CoverPageConfigSchema: z.ZodType<CoverPageConfig> = z.object({
@@ -285,9 +314,12 @@ export const CoverPageConfigSchema: z.ZodType<CoverPageConfig> = z.object({
   title: z.string(),
   subtitle: z.string().optional(),
   buttonText: z.string(),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().max(2000).refine(value => !value || safeLandingImageUrl(value), "Use an HTTP(S) image URL or a local image path.").optional(),
   estimatedMinutes: z.number().optional(),
   showQuestionCount: z.boolean().optional(),
+  layout: z.enum(["compact", "split"]).optional(),
+  imageAlt: z.string().max(300).optional(),
+  sections: z.array(LandingSectionSchema).max(landingSectionLimit).refine(sections => new Set(sections.map(section => section.id)).size === sections.length, "Landing section IDs must be unique.").optional(),
 });
 
 export interface EndingPageConfig {
@@ -393,6 +425,7 @@ export const LogicRuleSchema: z.ZodType<LogicRule> = z.object({
 });
 
 export interface FormSchemaType {
+  resultEmailCopy?: ResultEmailCopy;
   tracking?: TrackingConfig;
   capture?: CaptureConfig;
   marketing?: MarketingConfig;
@@ -415,6 +448,7 @@ export interface FormSchemaType {
 }
 
 export const FormSchema: z.ZodType<FormSchemaType> = z.object({
+  resultEmailCopy: ResultEmailCopySchema.optional(),
   tracking: TrackingSchema.optional(),
   capture: CaptureSchema.optional(),
   marketing: MarketingSchema.optional(),

@@ -1,0 +1,31 @@
+# Guided setup checklist — batch15
+
+The guided editor now has one compact native Setup checklist, initially collapsed and available above the active content on all five steps. Counts distinguish required fixes from recommended reviews; there is no completion percentage, stored checkbox state, or claim that a quiz is fully tested. Expanding it does not move the creator away from their work.
+
+The checklist derives current setup findings from the shared readiness helper, schema, landing validator and blank-answer editorial check. The existing publish dialog remains the owner of its unchanged confirmation policy. Missing answer wording, ordinary outcome destinations and enabled-capture privacy links are recommendations under the existing rules. Invalid supplied URL settings use the existing schema checks rather than a stricter new URL gate. Unsupported scoring/reference/setting issues offer advanced review, not a fictional exact field.
+
+Expensive scoring diagnostics are explicitly deferred to Review & publish. The persistent checklist calls `getPublishReadiness(form, {includeScoringDiagnostics:false})` once per memoized form update, so typing does not enumerate up to 4,096 answer paths. Its visible explanation states that scoring diagnostics and server publication checks still run separately. No stale diagnostic results are cached or presented as current.
+
+## Exact targets and navigation
+
+`lib/guided-checklist.ts` exports a pure checklist builder, stable tuple-key helper, and target resolver. Supported targets are main quiz title, question wording by question ID, answer wording by question/answer IDs, non-scorecard outcome destination by outcome ID, and privacy URL while capture is enabled. Duplicate or removed identities are unavailable; resolution never substitutes the first neighbouring question/result.
+
+The editor maps these targets to actual input refs. An explicit request resolves against the current draft, changes the step/question, then rechecks quiz identity, request sequence and target after commit. Native result details open before focusing their destination field. Manual navigation, edits, later checklist actions and component unmount cancel pending work. A newer focused control or an open mobile tools dialog also cancels the action, including header interactions outside the editing canvas. Focus uses immediate scrolling and runs only for an explicit request. Ordinary typing cannot recapture focus as checklist items disappear. Main-title edits preserve the established cover-title update.
+
+Section-level landing review opens the existing landing disclosure. Other unsupported controls hand off to the existing full editor without promising a particular advanced tab. Scorecard bands, arbitrary landing sections, formulas and individual rule editors remain outside exact-target scope.
+
+## Validation
+
+- `tests/guided-checklist.cjs`: 10 groups passed, including level/source policy, exact targets, stable reorder identities, deleted/ambiguous controls, changed marketing kind/disabled capture, existing schema URL semantics, honest landing/advanced review, no draft mutation, tuple-key collisions, and a throwing diagnostic stub proving persistent derivation avoids path enumeration.
+- Final scoped ESLint and full TypeScript checks passed. The parent completed the coordinated production build.
+- `tests/browser-guided-checklist.cjs` passed on the final compiled local candidate in Chromium, Firefox and WebKit. Each run created and cleaned up two synthetic drafts, checked 13 focused-field geometries, and exercised independent result disclosure, reordered questions/answers, repeated/rapid actions, manual/deleted-target cancellation, held navigation followed by mobile More or title focus, keyboard disclosure access, saved draft/reload, title/cover behavior, existing publish confirmation and preview.
+
+All three engines passed scoped axe checks at 320, 390 and 1,440 CSS pixels: nine scans with zero violations. No horizontal overflow was observed. Closed checklist heights were 74/74/54px in Chromium and WebKit and 74.5/74.5/54.5px in Firefox. Screenshots cover the original eight findings at both mobile widths, plus collapsed and expanded states at all three widths. Visual inspection found readable wrapping and a compact default state that leaves ordinary editing prominent. The finite expanded list scrolls internally; initial top/bottom captures demonstrate all eight findings rather than only the repaired draft.
+
+Each browser recorded zero public-start, publication, provider and external-network requests, with zero page errors. These are measured request counters, not inferred from the fixture. Synthetic local draft saves and readbacks were permitted. No real email or respondent data was used.
+
+Evidence is under `compiled-verification-batch-15/guided-checklist/` in the overnight evidence folder. Final logs are `chromium-accepted.log`, `firefox-accepted.log` and `webkit-accepted.log`; corresponding `*-accepted/` directories contain `results.json`, field geometries and screenshots. `unit.log`, `lint-final.log` and `typecheck-final.log` preserve source checks. The first Chrome log and retry log are retained: one test locator assumed exact whitespace across screen-reader text, and one assertion checked a details element before its deferred focus frame. The tests were corrected to scope by visible finding and await the intended focused field; neither failure required a runtime change. An initial full Chrome pass is also retained in `chromium-final/`. The accepted rebuild changed only summary singular/plural wording.
+
+The parent independently verified four existing readiness dialog cases before/after with identical results and five preview regressions. Its source-only stress fixture measured bounded checklist derivation at roughly 0.4–2.3ms versus roughly 133–150ms for full diagnostics; this is not a browser performance guarantee.
+
+Test-derived evidence demonstrates control routing and state correctness, not unaided beginner comprehension or competitor superiority. No schema, API, engine, provider, persistence or deployment behavior was changed in this lane. Exact navigation intentionally excludes arbitrary rule editors, scorecard bands and nested landing controls; those remain honest section or advanced-editor handoffs.

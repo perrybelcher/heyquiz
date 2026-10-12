@@ -17,3 +17,6 @@ Videos accept supported HTTPS YouTube and Vimeo links, normalized to exact allow
 This release does not add video uploads, private Vimeo-link support, arbitrary embeds, PDF layout editing, or per-button analytics. Provider playback availability still depends on the video's own embedding/privacy settings. Browser video tests intercept the iframe with a fixture; they test Pippi's click-to-load behavior rather than external playback.
 
 Playwright Chrome passed against a local production build: section editing, reordering, autosave/reload, publication, server-selected result content, FAQ rendering, video absence before click, correct embed URL after click, hiding the video when simulated scores change, CTA tracking, analytics segment and 390px overflow check. Initial run required correcting a test label selector. Screenshot: /tmp/pippi-result-sections.png.
+
+## Deployment verification
+Commit `5f035ab73a214712c9c0fbef5303154e74aff91b` deployed successfully through Vercel. The same Playwright journey passed on https://www.pippiapp.com using a dedicated synthetic example.test QA account, with a temporary quiz removed afterward. Live save/reload, publication, server filtering, video click-to-load (provider fixture), score-change visibility, CTA tracking, analytics and mobile width checks passed. Existing customer quizzes were not edited.

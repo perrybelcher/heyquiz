@@ -30,10 +30,28 @@ export default function Dashboard({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [agent, setAgent] = useState(false),
+    [aiGoal, setAIGoal] = useState<"choose" | "knowledge">("choose"),
     [topic, setTopic] = useState(""),
     [count, setCount] = useState(5),
     [menu, setMenu] = useState<string | null>(null);
   const menuTrigger = useRef<HTMLButtonElement | null>(null);
+  const aiDialog = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!agent) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = aiDialog.current;
+    dialog?.querySelector<HTMLButtonElement>("button")?.focus();
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) { event.preventDefault(); setAgent(false); }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)')];
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", keyboard);
+    return () => { document.removeEventListener("keydown", keyboard); previous?.focus(); };
+  }, [agent, busy]);
   useEffect(() => {
     if (!menu) return;
     const outside = (event: PointerEvent) => { if (event.target instanceof Element && !event.target.closest("[data-quiz-menu]")) setMenu(null); };
@@ -125,7 +143,7 @@ export default function Dashboard({
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10">
-        <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAgent(true);}} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
+        <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
         {error && !agent && (
           <p role="alert" className="hq-error mb-6">
             {error}
@@ -272,26 +290,42 @@ export default function Dashboard({
           aria-labelledby="ai-title"
           className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm grid place-items-center p-5"
         >
-          <section className="w-full max-w-xl bg-white rounded-3xl p-8">
+          <section ref={aiDialog} className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-6 sm:p-8">
             <div className="flex justify-between mb-6">
               <Sparkles className="text-indigo-600" />
               <button
                 aria-label="Close AI builder"
+                disabled={busy}
                 onClick={() => setAgent(false)}
               >
                 <X />
               </button>
             </div>
             <h2 id="ai-title" className="text-2xl font-semibold mb-3">
-              What would you like to create?
+              {aiGoal === "choose" ? "What should your quiz do?" : "Create a knowledge quiz"}
             </h2>
+            {aiGoal === "choose" ? <div className="space-y-4">
+              <p className="text-sm text-slate-600">Start with your goal. We will ask for the right details before writing your draft.</p>
+              <a href="/create/marketing" className="block rounded-2xl border border-red-200 bg-red-50 p-5 hover:border-red-400 focus-visible:outline-2 focus-visible:outline-red-800">
+                <span className="block font-semibold">Recommend, segment, or assess</span>
+                <span className="mt-2 block text-sm text-slate-600">Product finders, audience quizzes, and scorecards built around your audience, offer, and voice.</span>
+                <span className="mt-4 block text-sm font-semibold text-red-800">Start with my business →</span>
+              </a>
+              <button type="button" className="w-full rounded-2xl border border-slate-200 p-5 text-left hover:border-slate-400" onClick={() => { setAIGoal("knowledge"); setError(""); }}>
+                <span className="block font-semibold">Test knowledge</span>
+                <span className="mt-2 block text-sm text-slate-600">Create questions with correct answers for learning, training, or trivia.</span>
+                <span className="mt-4 block text-sm font-semibold">Choose a topic →</span>
+              </button>
+              <p className="text-sm text-slate-500">Prefer to write it yourself? <a href="/templates" className="underline">Browse templates</a> or <button type="button" className="underline" disabled={busy} onClick={() => { setAgent(false); void create(); }}>start blank</button>.</p>
+            </div> : <>
+            <button type="button" disabled={busy} className="mb-5 text-sm text-red-800 underline" onClick={() => { setAIGoal("choose"); setError(""); }}>← Choose a different goal</button>
             <p className="text-sm text-slate-500 mb-6">
-              Describe your audience, topic, and what a good result looks like.
+              Describe the topic and learner level. This creates correct-answer scoring. For personalized recommendations, choose the business option instead.
             </p>
             <textarea
               className="hq-input min-h-32"
               aria-label="Quiz brief"
-              placeholder="A short quiz that helps first-time gardeners understand which growing style fits their space and schedule…"
+              placeholder="A beginner gardening knowledge quiz about soil, watering, and plant care. Explain why each correct answer is right…"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
             />
@@ -318,8 +352,9 @@ export default function Dashboard({
               onClick={() => void generate()}
             >
               <Sparkles size={17} />
-              {busy ? "Building your quiz…" : "Generate quiz"}
+              {busy ? "Building your quiz…" : "Generate knowledge quiz"}
             </button>
+            </>}
           </section>
         </div>
       )}

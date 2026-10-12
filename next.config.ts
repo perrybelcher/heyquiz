@@ -4,7 +4,10 @@ const nextConfig: NextConfig = {
   // Runtime records and QA artifacts belong to local storage, never a deployed
   // function bundle. Cloud deployments read records from the configured DB.
   outputFileTracingExcludes: {
-    "/*": ["./.heyquiz-data/**/*", "./.env*", "./tests/**/*", "./coverage/**/*"],
+    "/*": ["./.heyquiz-data/**/*", "./.env*", "./data/**/*", "./docs/**/*", "./tests/**/*", "./coverage/**/*"],
+  },
+  outputFileTracingIncludes: {
+    "/api/result/*/pdf": ["./assets/pdf-fonts/*"],
   },
   async headers() {
     return [{source:"/api/:path*",headers:[{key:"X-Robots-Tag",value:"noindex, nofollow"}]}];

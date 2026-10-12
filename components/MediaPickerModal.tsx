@@ -46,7 +46,11 @@ export default function MediaPickerModal({
       aria-labelledby="media-title"
       className="fixed inset-0 z-[9999] bg-slate-950/40 backdrop-blur-sm grid place-items-center p-4"
       onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
       }}
     >
       <section className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden">

@@ -18,6 +18,8 @@ export default function AppError({ retry }: { error: Error & { digest?: string }
     <h1 style={{ fontSize: 28, fontWeight: 650, lineHeight: 1.2, marginBottom: 16 }}>Something interrupted this page.</h1>
     <p style={{ lineHeight: 1.6, color: "#625b58" }}>Try opening it again. If you were editing, check for a saved browser draft when the editor returns.</p>
     <button onClick={() => retry()} style={{ padding: '12px 20px', margin: '24px 0 16px', borderRadius: 10, background: '#a91d25', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Try again</button>
+    {/* A full document navigation can recover when the client router itself failed. */}
+    {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Intentionally bypass the possibly broken client router. */}
     <p><a href="/" style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>Go to your workspace</a></p>
     {reference && <p style={{ fontSize: 12, overflowWrap: 'anywhere', marginTop: 24, color: '#766f6b' }}>Support reference: {reference}</p>}
   </main>;

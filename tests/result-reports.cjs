@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {makeResultReport,RESULT_REPORT_LIFETIME}=require('../lib/result-reports.ts'),{FormSchema}=require('../lib/schema.ts');
+const form=FormSchema.parse({id:'qa',title:'Personal result',mode:'quiz',questions:[],theme:{brandName:'Original brand'},endingPage:{title:'Original ending',message:'Original advice'}});
+const result={id:'response',formId:'qa',submittedAt:'2026-10-12T00:00:00.000Z',totalPointsEarned:2,totalPointsPossible:4,percentageScore:50,contact:{email:'private@example.test'},respondentName:'Private name',answers:{note:'Secret note'},grading:[{userAnswer:'Secret note'}]};
+const report=makeResultReport(form,result,'response');
+assert.equal(report.expiresAt-Date.parse(result.submittedAt),RESULT_REPORT_LIFETIME);
+for(const secret of ['private@example.test','Private name','Secret note','grading','contact','answers'])assert.ok(!JSON.stringify(report).includes(secret));
+assert.equal(report.result.percentageScore,50);assert.equal(report.heading,'Original ending');form.theme.brandName='Changed';form.endingPage.message='Changed';assert.equal(report.theme.brandName,'Original brand');assert.equal(report.message,'Original advice');
+assert.throws(()=>makeResultReport(form,{...result,submittedAt:'bad'},'response'));
+assert.equal(makeResultReport({...form,endingPage:{title:'End',message:'',redirectUrl:'javascript:alert(1)'}},result,'response').cta,undefined);
+console.log('PASS frozen report allowlist, score preservation, expiry, clone independence, invalid date and unsafe destination');

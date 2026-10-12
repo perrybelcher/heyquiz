@@ -41,7 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 .heyquiz-data/
-!.env.example
-
-# Imported private responses and local runtime files
+# Legacy local forms and respondent records are runtime data, not source.
 /data/
+!.env.example

@@ -15,7 +15,15 @@ export default function GuestBuilder() {
   const [ready,setReady]=useState(false);
   const [title,setTitle]=useState("");
   useEffect(()=>{
-    try {const id=localStorage.getItem("pippi-guest-draft");if(id)setForm(FormSchema.parse(JSON.parse(localStorage.getItem(`heyquiz-draft:${id}`)||"null")));}catch{}
+    try {
+      const id=localStorage.getItem("pippi-guest-draft");
+      if(id) {
+        // The saved draft exists only in this browser. Restore it after the shared
+        // server/client placeholder has hydrated, before showing creation choices.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time synchronization with browser storage.
+        setForm(FormSchema.parse(JSON.parse(localStorage.getItem(`heyquiz-draft:${id}`)||"null")));
+      }
+    }catch{}
     setReady(true);
   },[]);
   function start(kind:typeof choices[number][0]) {

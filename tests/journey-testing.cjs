@@ -73,7 +73,7 @@ for (const c of result.cases) {
 }
 const scores = base({ questions: [choice('practice', ['always', 'sometimes', 'never', 'unknown'])], marketing: { kind: 'scorecard', scorecard: { title: 'Your score', bands: [{ id: 'low', min: 0, max: 49, title: 'Build foundations' }, { id: 'high', min: 50, max: 100, title: 'Keep going' }] }, categories: [{ id: 'readiness', title: 'Readiness', minAnswers: 1 }], rules: ['always', 'sometimes', 'never'].map((answerId, i) => ({ id: 'r' + i, questionId: 'practice', answerId, targetId: 'readiness', points: [2, 1, 0][i], effect: 'add' })) } });
 result = simulateJourneys(scores);
-assert.deepEqual(result.cases.map(c => [c.status, c.score]), [['scored', 100], ['scored', 50], ['scored', 0], ['no_match', undefined]]);
+assert.deepEqual(Object.fromEntries(result.cases.map(c => [c.answers.practice, [c.status, c.score]])), { always: ['scored',100], sometimes: ['scored',50], never: ['scored',0], unknown: ['no_match',undefined] });
 assert.deepEqual(new Set(result.reachedResultIds), new Set(['high', 'low']));
 
 // Bounds are honest, including large multi-select and URL-provided inputs.
@@ -108,7 +108,7 @@ assert.ok(inspectConversation(loop).issues.some(i => i.id === 'question-referenc
 assert.equal(simulateJourneys(base({ questions: [choice('empty', [])] })).cases[0].status, 'invalid');
 const incomplete = base({ title: '', coverPage: { enabled: true, title: '', buttonText: '' }, questions: [choice('q', ['a', 'b'], { title: '', options: [{ id: 'a', label: 'Same' }, { id: 'b', label: ' same ' }] })], marketing: { kind: 'segmentation', outcomes: [{ id: 'outcome', title: 'An outcome', ctaLabel: 'Learn more' }], rules: [{ id: 'r', questionId: 'q', answerId: 'a', targetId: 'outcome', effect: 'add', points: 1 }] } });
 const ids = new Set(inspectConversation(incomplete).issues.map(i => i.id));
-for (const id of ['quiz-title', 'cover-title', 'cover-button', 'title-q', 'duplicate-labels-q', 'neutral-q', 'destination-outcome', 'result-explanation-outcome']) assert.ok(ids.has(id), id);
+for (const id of ['quiz-title', 'cover-title', 'cover-button', 'title-q', 'duplicate-labels-q', 'unscored-answers', 'destination-outcome', 'result-explanation-outcome']) assert.ok(ids.has(id), id);
 const unreachable = structuredClone(product);
 unreachable.marketing.outcomes.push({ ...unreachable.marketing.outcomes[0], id: 'never', title: 'Never observed' });
 result = simulateJourneys(unreachable);
@@ -133,6 +133,80 @@ missingEnding.logicRules[0].targetOutcomeTierId = 'deleted';
 assert.equal(simulateJourneys(missingEnding).cases[0].status, 'invalid');
 const severity = inspectConversation(incomplete).issues.map(i => ({ error: 0, warning: 1, note: 2 })[i.severity]);
 assert.deepEqual(severity, [...severity].sort((a, b) => a - b));
+// Representative paths must survive the enumeration cap, regardless of option order.
+const boundaryScorecard = base({ questions: Array.from({ length: 9 }, (_, i) => choice('practice' + i, ['high', 'mid', 'zero', 'neutral'])), marketing: { kind: 'scorecard', categories: [{ id: 'readiness', title: 'Readiness', minAnswers: 1 }], scorecard: { title: 'Your readiness', bands: [{ id: 'low', title: 'Foundations', min: 0, max: 49 }, { id: 'high', title: 'Ready', min: 50, max: 100 }] }, rules: Array.from({ length: 9 }, (_, i) => ['high', 'mid', 'zero'].map((answerId, n) => ({ id: `rule-${i}-${n}`, questionId: 'practice' + i, answerId, targetId: 'readiness', points: [2,1,0][n], effect: 'add' }))).flat() } });
+result = simulateJourneys(boundaryScorecard);
+assert.equal(result.exhaustive, false);
+assert.equal(result.cases.length, 256);
+const allPick = answer => result.cases.find(c => Object.values(c.answers).length === 9 && Object.values(c.answers).every(v => v === answer));
+assert.equal(allPick('neutral').status, 'no_match', 'all-unmapped path is checked before the DFS cap');
+assert.equal(allPick('neutral').score, undefined, 'unmapped is not a score of zero');
+assert.equal(allPick('zero').score, 0, 'explicit zeros produce a real score of zero');
+assert.equal(allPick('high').score, 100, 'all-high path is checked explicitly');
+const mixed = result.cases.find(c => c.targetedChecks?.includes('Alternating low / high points'));
+assert.ok(Object.values(mixed.answers).includes('zero') && Object.values(mixed.answers).includes('high'));
+assert.equal(mixed.score, evaluateMarketing(boundaryScorecard, mixed.answers).overallScore);
+assert.ok(result.targetedCases > 0 && result.enumeratedCases > 0);
+assert.ok(result.cases.some(c => c.targetedChecks?.length && c.enumerated), 'overlap is marked, not counted twice');
+assert.equal(new Set(result.cases.map(c => JSON.stringify(c.answers))).size, result.cases.length);
+assert.equal(inspectConversation(boundaryScorecard).issues.filter(i => i.id === 'unscored-answers').length, 1, 'neutral observations are grouped, not repeated once per question');
+assert.match(inspectConversation(boundaryScorecard).issues.find(i => i.id === 'unscored-answers').message, /9 answers across 9 questions/);
+// Reverse every answer order: the same boundary families must still be represented.
+const reversedBoundaries = structuredClone(boundaryScorecard);
+for (const question of reversedBoundaries.questions) question.options.reverse();
+const reversed = simulateJourneys(reversedBoundaries);
+for (const answer of ['neutral','zero','high']) assert.ok(reversed.cases.some(c => Object.values(c.answers).every(v => v === answer)), answer);
+// Targeted routes use the real branch resolver and do not answer hidden questions.
+const boundaryBranch = structuredClone(boundaryScorecard);
+boundaryBranch.logicRules = [{ id: 'skip', sourceQuestionId: 'practice0', operator: 'equals', value: 'neutral', action: 'jump_to_question', targetQuestionId: 'practice8' }];
+const sampledBranch = simulateJourneys(boundaryBranch);
+const neutralBranch = sampledBranch.cases.find(c => c.targetedChecks?.includes('No-rule answers where available'));
+assert.deepEqual(neutralBranch.questionIds, ['practice0','practice8']);
+assert.deepEqual(Object.keys(neutralBranch.answers), ['practice0','practice8']);
+assert.equal(neutralBranch.status, 'no_match');
+assert.equal(simulateJourneys(exact).enumeratedCases, 256, 'representative cases do not prevent proving exact finite coverage');
+assert.ok(result.notes.some(n => /not proof of every score boundary/.test(n)));
+
+// Named regression cases capture explicit expectations, survive local serialization,
+// and detect stale drafts, changed points, branching, and deleted options.
+const { createJourneyFixture, parseJourneyFixtures, serializeJourneyFixtures, runJourneyFixture, journeyDraftFingerprint, journeyFixtureStorageKey, MAX_JOURNEY_FIXTURES } = require('../lib/journey-fixtures.ts');
+const baselineCase = allPick('zero');
+const fixture = createJourneyFixture(boundaryScorecard, baselineCase, 'All zero answers', 'zero-regression');
+assert.equal(fixture.expected.score, 0);
+assert.equal(fixture.expected.resultId, 'low');
+assert.deepEqual(fixture.expected.questionIds, boundaryScorecard.questions.map(q => q.id));
+const serialized = serializeJourneyFixtures(boundaryScorecard.id, [fixture]);
+assert.deepEqual(parseJourneyFixtures(serialized, boundaryScorecard.id), [fixture]);
+assert.throws(() => parseJourneyFixtures(serialized, 'other-quiz'), /unsupported/);
+assert.notEqual(journeyFixtureStorageKey('one'), journeyFixtureStorageKey('two'));
+assert.equal(runJourneyFixture(boundaryScorecard, fixture).passed, true);
+assert.equal(runJourneyFixture(boundaryScorecard, fixture).draftChanged, false);
+const renamedDraft = { ...boundaryScorecard, title: 'New title', revision: 2 };
+assert.notEqual(journeyDraftFingerprint(renamedDraft), journeyDraftFingerprint(boundaryScorecard));
+assert.equal(runJourneyFixture(renamedDraft, fixture).passed, true, 'an editorial edit may preserve the expected behavior');
+assert.equal(runJourneyFixture(renamedDraft, fixture).draftChanged, true, 'but must still require a fresh run');
+const changedPoints = structuredClone(boundaryScorecard);
+changedPoints.marketing.rules.find(r => r.answerId === 'zero').points = 2;
+const pointFailure = runJourneyFixture(changedPoints, fixture);
+assert.equal(pointFailure.passed, false);
+assert.ok(pointFailure.differences.some(d => d.startsWith('Score:')));
+const changedRoute = structuredClone(boundaryScorecard);
+changedRoute.logicRules = [{ id: 'shorten', sourceQuestionId: 'practice0', operator: 'equals', value: 'zero', action: 'jump_to_question', targetQuestionId: 'practice8' }];
+assert.ok(runJourneyFixture(changedRoute, fixture).differences.some(d => /visible questions/.test(d)));
+const deletedAnswer = structuredClone(boundaryScorecard);
+deletedAnswer.questions[0].options = deletedAnswer.questions[0].options.filter(o => o.id !== 'zero');
+deletedAnswer.marketing.rules = deletedAnswer.marketing.rules.filter(r => !(r.questionId === 'practice0' && r.answerId === 'zero'));
+assert.equal(runJourneyFixture(deletedAnswer, fixture).passed, false);
+assert.equal(runJourneyFixture(deletedAnswer, fixture).actual.status, 'invalid');
+assert.throws(() => createJourneyFixture(boundaryScorecard, blocked, 'Invalid', 'invalid'), /manual/);
+assert.throws(() => createJourneyFixture(boundaryScorecard, baselineCase, ' ', 'empty'), /name/);
+assert.throws(() => serializeJourneyFixtures(boundaryScorecard.id, Array.from({length: MAX_JOURNEY_FIXTURES + 1}, () => fixture)), /up to/);
+assert.throws(() => parseJourneyFixtures(JSON.stringify({version: 1, quizId: boundaryScorecard.id, cases: [fixture, fixture]}), boundaryScorecard.id), /invalid/);
+assert.throws(() => parseJourneyFixtures(JSON.stringify({version: 1, quizId: boundaryScorecard.id, cases: [{...fixture, answers: {email: 'name@example.com'}}]}), boundaryScorecard.id), /invalid answers/);
+assert.throws(() => parseJourneyFixtures('not json', boundaryScorecard.id));
+assert.throws(() => serializeJourneyFixtures(boundaryScorecard.id, [{...fixture, answers: {large: Array.from({length: 5000}, () => 'x'.repeat(128))}}]), /storage limit/);
+assert.deepEqual(parseJourneyFixtures(null, boundaryScorecard.id), []);
+assert.equal(JSON.stringify(boundaryScorecard).includes('regression'), false, 'regression cases never modify quiz data');
 assert.equal(fetchCalls, 0);
 global.fetch = previousFetch;
-console.log('PASS local journey simulation: branching, jumps, hidden/typed coverage, grading, marketing exclusions, scorecard boundaries, multi-select, caps, and actionable inspection');
+console.log('PASS representative boundaries and local regression cases; local journey simulation: branching, jumps, hidden/typed coverage, grading, marketing exclusions, scorecard boundaries, multi-select, caps, and actionable inspection');

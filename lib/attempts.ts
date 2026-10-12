@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { HttpError, signToken, verifyToken } from "./auth";
 import { readRecord, writeRecord } from "./records";
 import type { FormSchemaType, QuizSubmissionResult } from "./schema";
+import { sanitizeStartAttribution, type StartAttribution } from "./attribution";
 export interface Attempt {
   experiment?: import("./experiments").ExperimentAssignment;
   form: FormSchemaType;
@@ -10,6 +11,8 @@ export interface Attempt {
   preview: boolean;
   reached: string[];
   analyticsVersion?: 1;
+  attribution?: StartAttribution;
+  landingVisitId?: string;
   lastSeenAt?: number;
   lastQuestionId?: string;
   completedAt?: number;
@@ -24,6 +27,8 @@ export async function createAttempt(
   owner: string,
   preview: boolean,
   experiment?: import("./experiments").ExperimentAssignment,
+  attribution?: StartAttribution,
+  landingVisitId?: string,
 ) {
   const id = randomUUID(),
     now = Date.now();
@@ -36,6 +41,8 @@ export async function createAttempt(
     preview,
     reached: [],
     analyticsVersion: 1,
+    ...(!preview && attribution ? { attribution: sanitizeStartAttribution(attribution) } : {}),
+    ...(!preview && landingVisitId ? { landingVisitId } : {}),
     lastSeenAt: now,
   };
   await writeRecord("attempts", id, owner, attempt, 0);

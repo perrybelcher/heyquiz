@@ -47,8 +47,13 @@ export const ResultSectionSchema = z.object({
   label: z.string().max(200).default(""),
 });
 export type ResultSection = z.infer<typeof ResultSectionSchema>;
+export const ResultPresentationSchema = z.object({
+  layout: z.enum(["stacked", "score_overview", "action_plan"]).default("stacked"),
+});
+export type ResultPresentation = z.infer<typeof ResultPresentationSchema>;
 export const MarketingSchema = z.object({
   kind: z.enum(["product_finder", "segmentation", "scorecard"]),
+  presentation: ResultPresentationSchema.optional(),
   scorecard: ScorecardPresentationSchema.optional(),
   resultSections: z.array(ResultSectionSchema).max(12).optional(),
   fallbackTitle: z
@@ -105,6 +110,9 @@ export const MarketingSchema = z.object({
 });
 export type MarketingConfig = z.infer<typeof MarketingSchema>;
 export interface MarketingResult {
+  // Frozen alongside the computed score, rather than looked up from a later draft.
+  // Older saved results omit this and retain the original stacked presentation.
+  presentation?: ResultPresentation;
   resultSections?: ResultSection[];
   kind: MarketingConfig["kind"];
   status: "matched" | "no_match" | "scored";
@@ -247,6 +255,7 @@ function evaluateMarketingCore(
       : answers[qid] === aid);
   const matches = m.rules.filter((r) => selected(r.questionId, r.answerId));
   const base: MarketingResult = {
+    presentation: { layout: m.presentation?.layout ?? "stacked" },
     resultSections: m.resultSections,
     kind: m.kind,
     status: "no_match",

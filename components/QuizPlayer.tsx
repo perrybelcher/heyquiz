@@ -35,6 +35,11 @@ import QuestionField from "./QuestionField";
 import MarketingResultCard from "./MarketingResultCard";
 import LeadCapture from "./LeadCapture";
 import QuizTracking from "./QuizTracking";
+import SaveResultLink from "./SaveResultLink";
+import QuizLanding from "./QuizLanding";
+import EmbedResizeReporter from "./EmbedResizeReporter";
+import { useLandingVisit } from "@/hooks/useLandingVisit";
+import { collectStartAttribution } from "@/lib/attribution";
 import type { ContactInput } from "@/lib/contacts";
 interface Session {
   result?: QuizSubmissionResult;
@@ -47,14 +52,17 @@ interface Session {
 export default function QuizPlayer({
   form,
   preview = false,
+  embed = false,
   experimentToken,
   experimentId,
 }: {
   form: FormSchemaType;
   preview?: boolean;
+  embed?: boolean;
   experimentToken?: string;
   experimentId?: string;
 }) {
+  const embedRoot = useRef<HTMLDivElement>(null);
   const [capturing, setCapturing] = useState(false), [contactDone, setContactDone] = useState(false);
   const [loadedAt] = useState(() => Date.now());
   const [feedback, setFeedback] = useState<QuestionGradingResult | null>(null);
@@ -88,7 +96,7 @@ export default function QuizPlayer({
     storageKey = `heyquiz:${form.id}:${experimentId || (preview ? "preview" : "live")}`;
   const savedSession = useSyncExternalStore(
     () => () => {},
-    () => sessionStorage.getItem(storageKey),
+    () => { try { return sessionStorage.getItem(storageKey); } catch { return null; } },
     () => null,
   );
   const resume = useMemo(() => {
@@ -100,6 +108,7 @@ export default function QuizPlayer({
       return null;
     }
   }, [savedSession, resumeDismissed, loadedAt]);
+  const tokenForStart = useLandingVisit({ target: embedRoot, formId: form.id, preview, embed, experimentId, experimentToken, landingVisible: !session && !result && !resume, resumeStorageKey: resumeDismissed ? undefined : storageKey });
   useEffect(() => {
     if (!session || result) return;
     try {
@@ -183,13 +192,16 @@ export default function QuizPlayer({
     return () => clearInterval(timer);
   }, [session, result, submit]);
   async function start() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError("");
     try {
+      const visitToken = await tokenForStart();
       const res = await fetch(`/api/forms/${form.id}/start`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preview, experimentToken }),
+          body: JSON.stringify({ preview, experimentToken, ...(visitToken ? { visitToken } : {}), ...(!preview ? { attribution: collectStartAttribution(window.location.href, document.referrer) } : {}) }),
         }),
         data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -217,6 +229,7 @@ export default function QuizPlayer({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start.");
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -273,13 +286,18 @@ export default function QuizPlayer({
     setResumeDismissed(true);
     setRemaining(null);
     setError("");
-    sessionStorage.removeItem(storageKey);
+    try { sessionStorage.removeItem(storageKey); } catch {}
   }
   const theme = quizThemeStyle(active.theme);
   return (
-    <div className="hq-player min-h-screen flex flex-col" style={theme}>
-      <header className="h-20 border-b border-slate-200/70 bg-white/85 flex items-center justify-between px-5 sm:px-10">
-        <img src="/pippi-logo.svg" alt="pippi" className="h-7" />
+    <div ref={embedRoot} data-quiz-embed={embed ? "true" : undefined} className={`hq-player flex flex-col ${embed ? "flex-none" : "min-h-screen"}`} style={theme}>
+      <header className="min-h-20 gap-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between px-5 py-4 sm:px-10" style={{backgroundColor: active.theme.cardColor || "#ffffff"}}>
+        <div className="min-w-0 max-w-[65%]">
+          {active.theme.logoUrl ? <img src={active.theme.logoUrl} alt={active.theme.logoAlt?.trim() || active.theme.brandName?.trim() || "Quiz logo"} className="max-w-full object-contain object-left" style={{height: active.theme.logoHeight || 40}} />
+            : active.theme.brandName ? <span className="block break-words text-xl font-semibold" style={{fontFamily:theme["--hq-heading-font"]}}>{active.theme.brandName}</span>
+            : !active.theme.hidePippiBranding ? <img src="/pippi-logo.svg" alt="pippi" className="h-7" /> : <span className="sr-only">{active.title}</span>}
+          {(active.theme.logoUrl || active.theme.brandName) && !active.theme.hidePippiBranding && <span className="mt-1 block text-[10px] opacity-60">Powered by Pippi</span>}
+        </div>
         <div className="flex items-center gap-4 text-xs text-slate-500">
           {preview && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-3 py-1.5">
@@ -295,78 +313,16 @@ export default function QuizPlayer({
           )}
         </div>
       </header>
-      <main className="w-full max-w-3xl mx-auto px-5 py-12 sm:py-20 flex-1">
+      <main className={`w-full ${!session && !result ? "max-w-5xl" : "max-w-3xl"} mx-auto px-5 py-12 sm:py-20 flex-1`}>
         {!session && !result ? (
-          <section className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-            {active.coverPage?.imageUrl && (
-              <img
-                src={active.coverPage.imageUrl}
-                alt="Quiz cover"
-                className="h-56 w-full object-cover"
-              />
-            )}
-            <div className="p-7 sm:p-12">
-              <p className="text-xs uppercase tracking-[.18em] text-indigo-600 font-semibold mb-5">
-                {active.mode === "quiz"
-                  ? "A little curiosity goes a long way"
-                  : "We’d love to hear from you"}
-              </p>
-              <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-                {active.coverPage?.enabled
-                  ? active.coverPage.title
-                  : active.title}
-              </h1>
-              <p className="text-slate-500 mt-5 leading-relaxed">
-                {active.coverPage?.subtitle || active.description}
-              </p>
-              <div className="flex gap-5 text-sm text-slate-500 mt-7">
-                <span>
-                  {
-                    active.questions.filter((q) => !displayTypes.has(q.type))
-                      .length
-                  }{" "}
-                  questions
-                </span>
-                {active.coverPage?.estimatedMinutes && (
-                  <span>About {active.coverPage.estimatedMinutes} minutes</span>
-                )}
-              </div>
-              {error && (
-                <p role="alert" className="hq-error mt-5">
-                  {error}
-                </p>
-              )}
-              {active.capture?.enabled && active.capture.required && <p className="text-sm text-slate-500 mt-5">Contact details are required to view your results. Marketing emails are optional.</p>}
-              <div className="flex gap-3 mt-9">
-                {resume && (
-                  <button
-                    className="hq-primary"
-                    onClick={() => {
-                      setSession(resume);
-                      if (resume.result) setResult(resume.result);
-                      setAnswers(resume.answers);
-                      setCurrentId(resume.currentId);
-                      setResumeDismissed(true);
-                    }}
-                  >
-                    {resume.result ? "View your results" : "Resume your response"} <ArrowRight size={17} />
-                  </button>
-                )}
-                <button
-                  disabled={busy}
-                  className={resume ? "hq-secondary" : "hq-primary"}
-                  onClick={() => void start()}
-                >
-                  {busy
-                    ? "Preparing…"
-                    : resume
-                      ? "Start over"
-                      : active.coverPage?.buttonText || "Let’s begin"}
-                  <ArrowRight size={17} />
-                </button>
-              </div>
-            </div>
-          </section>
+          <QuizLanding form={active} busy={busy} error={error} onStart={() => void start()}
+            resume={resume ? { label: resume.result ? "View your results" : "Resume your response", onResume: () => {
+              setSession(resume);
+              if (resume.result) setResult(resume.result);
+              setAnswers(resume.answers);
+              setCurrentId(resume.currentId);
+              setResumeDismissed(true);
+            } } : undefined} />
         ) : capturing && active.capture ? (
           <LeadCapture config={active.capture} busy={busy} error={error} onSubmit={value => void submit(value)} onSkip={active.capture.required ? undefined : () => void submit(null)} />
         ) : result ? (
@@ -467,6 +423,7 @@ export default function QuizPlayer({
               try { const response = await fetch(`/api/forms/${form.id}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: session.token, contact }) }); const data = await response.json(); if (!response.ok) throw Error(data.error || "Could not save. Please try again."); setContactDone(true); const updated = { ...result, contactCaptured: true }; setResult(updated); try { sessionStorage.setItem(storageKey, JSON.stringify({ ...session, answers: {}, result: updated })); } catch {} } catch (e) { setError(e instanceof Error ? e.message : "Could not save. Please try again."); } finally { setBusy(false); inFlight.current = false; }
             }} /></div>}
             {contactDone && <p className="text-sm text-slate-500 mb-4">Your results are ready below.</p>}
+            {!preview && session && <SaveResultLink formId={form.id} token={session.token}/>}
           </section>
         ) : review ? (
           <section className="bg-white rounded-3xl border border-slate-200 p-8">
@@ -672,9 +629,10 @@ export default function QuizPlayer({
         )}
       </main>
       <QuizTracking form={active} preview={preview} sessionId={session?.token} questionId={!result ? q?.id : undefined} completed={Boolean(result)} leadCaptured={Boolean(result?.contactCaptured)} />
-      <footer className="text-center text-xs text-slate-400 py-7">
+      {!active.theme.hidePippiBranding && <footer className="text-center text-xs py-7">
         Made with pippi · Designed for better conversations
-      </footer>
+      </footer>}
+      {embed && <EmbedResizeReporter target={embedRoot} navigationKey={`${Boolean(session)}:${capturing}:${review}:${Boolean(result)}:${currentId}`} />}
     </div>
   );
 }

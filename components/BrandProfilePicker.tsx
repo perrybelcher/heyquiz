@@ -4,13 +4,20 @@ import { BookmarkPlus, FolderOpen, RefreshCw } from "lucide-react";
 import { MarketingBriefSchema, type MarketingBrief } from "@/lib/marketing-brief";
 import type { BrandProfile } from "@/lib/brand-profiles";
 
+async function loadProfiles(signal?: AbortSignal): Promise<BrandProfile[]> {
+  const response = await fetch("/api/brand-profiles", { cache: "no-store", signal });
+  const data = await response.json();
+  if (!response.ok) throw Error(data.error || "Could not load profiles.");
+  return data.profiles;
+}
+
 export default function BrandProfilePicker({ brief, onApply, disabled }: {
   brief: MarketingBrief; onApply: (brief: MarketingBrief) => void; disabled: boolean;
 }) {
   const [profiles, setProfiles] = useState<BrandProfile[]>([]);
   const [selected, setSelected] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState<"apply" | "update" | null>(null);
@@ -18,14 +25,23 @@ export default function BrandProfilePicker({ brief, onApply, disabled }: {
   async function refresh() {
     setBusy(true); setError(""); setPending(null);
     try {
-      const response = await fetch("/api/brand-profiles", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw Error(data.error || "Could not load profiles.");
-      setProfiles(data.profiles);
+      setProfiles(await loadProfiles());
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load profiles."); }
     finally { setBusy(false); }
   }
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    // Initial loading is already represented in state. Only the completed
+    // request updates it; a cleaned-up mount must not overwrite a newer load.
+    void loadProfiles(controller.signal).then(profiles => {
+      if (!controller.signal.aborted) setProfiles(profiles);
+    }).catch(e => {
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Could not load profiles.");
+    }).finally(() => {
+      if (!controller.signal.aborted) setBusy(false);
+    });
+    return () => controller.abort();
+  }, []);
   async function save(update = false) {
     setError(""); setMessage(""); setPending(null);
     const parsed = MarketingBriefSchema.safeParse(brief);
