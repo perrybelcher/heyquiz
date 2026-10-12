@@ -11,9 +11,14 @@ function component(file, search, reply) {
     history: {replaceState: (_state, _title, url) => events.push(['strip', url])},
   };
   const react = {useRef: value => ({current:value}), useState: value => [value, value => states.push(value)], useEffect: effect => effects.push(effect)};
+  // Exercise the real allowlisted return helper added to AuthCallback, using
+  // the same synthetic browser boundary rather than mocking its destination.
+  const returnModule = {exports:{}};
+  const returnCode = ts.transpileModule(fs.readFileSync(path.join(__dirname, '..', 'lib/creation-auth-return.ts'), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  vm.runInNewContext(returnCode, {module:returnModule, exports:returnModule.exports, window, URLSearchParams, Date, require:id=>id==='react'?react:require(id)});
   const compiledModule = {exports:{}};
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
-  vm.runInNewContext(code, {module:compiledModule, exports:compiledModule.exports, window, URLSearchParams, Error, fetch: async (url,init) => { events.push(['fetch',url]); calls.push({url,init}); return reply; }, require: id => id==='react'?react:id.endsWith('.css')?{}:require(id)}, {filename:file});
+  vm.runInNewContext(code, {module:compiledModule, exports:compiledModule.exports, window, URLSearchParams, Error, fetch: async (url,init) => { events.push(['fetch',url]); calls.push({url,init}); return reply; }, require: id => id==='react'?react:id==='@/lib/creation-auth-return'?returnModule.exports:id.endsWith('.css')?{}:require(id)}, {filename:file});
   return {Component:compiledModule.exports.default,effects,states,events,calls,navigations};
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));

@@ -1,0 +1,68 @@
+.pippi-account-dialog {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  max-width: 540px;
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #e4d8d0;
+  border-radius: 24px;
+  background: #fffdf9;
+  color: #292a2b;
+  box-shadow: 0 24px 90px #2b152b30;
+  font-family: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.pippi-account-dialog::backdrop { background: #21191c70; backdrop-filter: blur(4px); }
+.pippi-account-header { position: relative; padding: 26px 28px 23px; background: linear-gradient(135deg, #f8eee8, #faf7f1 75%); border-bottom: 1px solid #ece2d9; }
+.pippi-account-close { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: #68514f; cursor: pointer; }
+.pippi-account-close:hover { background: #eadbd3; }
+.pippi-account-eyebrow { display: flex; align-items: center; gap: 10px; padding-right: 28px; color: #793141; font-size: 11px; font-weight: 650; line-height: 1.5; }
+.pippi-account-mark { display: grid; place-items: center; flex-shrink: 0; width: 35px; height: 35px; border: 1px solid #e7ccd0; border-radius: 11px; background: #fff7f4; }
+.pippi-account-title { margin: 16px 0 0; color: #3d2730; font-size: 28px; font-weight: 650; line-height: 1.14; letter-spacing: -.035em; text-wrap: balance; }
+.pippi-account-description { margin: 12px 0 0; color: #685c5d; font-size: 14px; line-height: 1.6; }
+.pippi-account-body { padding: 22px 28px 20px; }
+.pippi-account-benefits { display: grid; gap: 12px; margin: 0 0 22px; padding: 0; list-style: none; }
+.pippi-account-benefits li { display: flex; align-items: center; gap: 11px; color: #454348; font-size: 14px; line-height: 1.4; }
+.pippi-account-benefits svg { flex-shrink: 0; color: #8f3447; }
+.pippi-account-account-actions { text-align: center; }
+.pippi-account-primary { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 18px; border: 1px solid #8b2438; border-radius: 12px; background: #922c40; color: #fff; font-size: 15px; font-weight: 650; line-height: 1.4; text-decoration: none; box-shadow: 0 3px 8px #6b193014; }
+.pippi-account-primary:hover { background: #792136; }
+.pippi-account-sign-in { margin: 10px 0 0; color: #655d5e; font-size: 13px; line-height: 1.6; }
+.pippi-account-sign-in a { display: inline-flex; align-items: center; min-height: 32px; color: #86253a; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.pippi-account-free { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 5px 0 0; color: #655d5e; font-size: 11px; line-height: 1.5; }
+.pippi-account-free svg { flex-shrink: 0; color: #57715d; }
+.pippi-account-return-step { margin-top: 20px; padding: 16px; border: 1px solid #e4e0d9; border-radius: 13px; background: #f7f5f0; transition: border-color .15s; }
+.pippi-account-return-step-active { border-color: #cda8b0; background: #faf0ed; }
+.pippi-account-return-heading { display: flex; align-items: center; gap: 8px; color: #5b4147; }
+.pippi-account-return-heading svg { flex-shrink: 0; }
+.pippi-account-return-heading h3 { margin: 0; font-size: 13px; font-weight: 650; line-height: 1.4; }
+.pippi-account-return-step p { margin: 8px 0 0; color: #665d5b; font-size: 12px; line-height: 1.6; }
+.pippi-account-return-step strong { font-weight: 650; color: #4d3c42; }
+.pippi-account-retry { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 44px; margin-top: 13px; padding: 10px 14px; border: 1px solid #cbb5b4; border-radius: 9px; background: #fffdf9; color: #773145; font-family: inherit; font-size: 13px; font-weight: 650; line-height: 1.4; cursor: pointer; }
+.pippi-account-retry:hover:not(:disabled) { background: #fff; border-color: #9c6771; }
+.pippi-account-retry:disabled { color: #655b5b; background: #eee9e3; cursor: wait; }
+.pippi-account-backup { margin: 15px 0 0; color: #686263; font-size: 11px; line-height: 1.6; text-align: center; }
+.pippi-account-backup-warning { color: #795221; }
+.pippi-account-keep-editing { display: block; min-height: 44px; margin: 7px auto 0; padding: 10px 16px; border: 0; border-radius: 9px; background: transparent; color: #62585b; font-family: inherit; font-size: 13px; font-weight: 550; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pippi-account-keep-editing:hover { color: #75293d; background: #f7f0ec; }
+.pippi-account-dialog :is(a, button):focus-visible { outline: 3px solid #922c40; outline-offset: 3px; }
+.pippi-account-spinner { animation: pippi-account-turn .8s linear infinite; }
+.pippi-account-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@keyframes pippi-account-turn { to { transform: rotate(360deg); } }
+@media (max-width: 380px) {
+  .pippi-account-dialog { border-radius: 18px; }
+  .pippi-account-header { padding: 21px 19px 20px; }
+  .pippi-account-body { padding: 19px 19px 16px; }
+  .pippi-account-title { font-size: 25px; }
+  .pippi-account-return-step { padding: 13px; }
+  .pippi-account-free { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pippi-account-return-step { transition: none; }
+  .pippi-account-spinner { animation: none; }
+}

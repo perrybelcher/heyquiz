@@ -23,7 +23,7 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
     let cleanupId;
     try {
       if (authenticated) assert.equal((await context.request.post(base + '/api/auth', { data: { local: true }, headers })).status(), 200);
-      await page.goto(base + '/create');
+      await page.goto(base + '/create/guided');
       await page.getByRole('button', { name: /^Test knowledge/ }).click();
       const title = page.getByRole('textbox', { name: /^Quiz (title|name)$/ });
       await title.fill('Claim snapshot ' + label);
@@ -71,6 +71,14 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
   }
   try {
     await scenario('newer-in-flight-edit', async ({ page, title, draft, key, snapshots, read, holdClaim }) => {
+      // Claim continuation may legitimately flush newer work before navigation.
+      // Hold that separate PUT unavailable so this case specifically proves
+      // recovery of the newer browser draft when only the POST was confirmed.
+      const formUrl = base + '/api/forms/' + draft.id;
+      const holdNewerSave = route => route.request().method() === 'PUT'
+        ? route.fulfill({ status: 503, json: { error: 'Synthetic newer save unavailable' } })
+        : route.continue();
+      await page.route(formUrl, holdNewerSave);
       const release = await holdClaim();
       await title.fill('Newer work while claiming');
       await page.waitForFunction(key => JSON.parse(sessionStorage.getItem(key)).title === 'Newer work while claiming', key);
@@ -81,10 +89,11 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
       assert.equal(JSON.parse(copies.session).title, 'Newer work while claiming');
       assert.equal(JSON.parse(copies.local).title, 'Newer work while claiming');
       assert.equal(copies.pointer, draft.id, 'Newer same-ID guest work keeps its resume pointer');
+      await page.unroute(formUrl, holdNewerSave);
       await page.getByRole('button', { name: 'Restore changes', exact: true }).click();
-      await page.getByText('Saved', { exact: true }).waitFor();
+      await page.locator('[role="status"]:visible').filter({ hasText: /^Saved(?:\s*·|$)/ }).first().waitFor();
       assert.equal((await read()).title, 'Newer work while claiming');
-      await page.reload(); await page.getByRole('textbox', { name: 'Quiz name', exact: true }).waitFor();
+      await page.reload(); await page.getByRole('textbox', { name: /^Quiz (title|name)$/ }).waitFor();
       assert.equal(await page.getByText(recoveryText, { exact: false }).count(), 0);
     });
 
@@ -117,7 +126,7 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
       }, key);
       await page.getByRole('button', { name: 'Save my quiz', exact: true }).click();
       await page.waitForURL(base + '/editor/' + draft.id);
-      await page.getByRole('textbox', { name: 'Quiz name', exact: true }).waitFor();
+      await page.getByRole('textbox', { name: /^Quiz (title|name)$/ }).waitFor();
       const saved = await read(), copies = await snapshots();
       assert.ok(saved.createdAt, 'Server adds creation metadata');
       assert.equal(copies.session, null, 'Local-storage failure did not block session cleanup');
@@ -129,9 +138,9 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
       const before = await snapshots();
       await page.route(base + '/api/forms', route => route.fulfill({ status, json: { error: 'Synthetic claim failure ' + status } }));
       await page.getByRole('button', { name: 'Save my quiz', exact: true }).click();
-      if (status === 401) await page.getByText('Sign in to save your quiz', { exact: true }).waitFor();
+      if (status === 401) await page.getByRole('dialog', { name: 'Keep your quiz moving.', exact: true }).waitFor();
       else await page.getByText('Synthetic claim failure ' + status, { exact: false }).waitFor();
-      assert.equal(page.url(), base + '/create');
+      assert.equal(page.url(), base + '/create/guided');
       assert.deepEqual(await snapshots(), before, 'Failed claim does not clear either draft copy or pointer');
       assert.equal(before.pointer, draft.id);
     }, false);

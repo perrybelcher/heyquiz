@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import {
   FormSchemaType,
   Question,
@@ -124,6 +124,7 @@ import ResultEmailCopyEditor, { useResultEmailCopyDraft } from "./ResultEmailCop
 import TextareaAutosize from "react-textarea-autosize";
 import PublishReadiness from "./PublishReadiness";
 import PublicationConfirmation from "./PublicationConfirmation";
+import QuizAccountPrompt from "./QuizAccountPrompt";
 import GuidedQuizEditor from "./GuidedQuizEditor";
 import EditorMobileHeader from "./EditorMobileHeader";
 import QuizEmbedCode from "./QuizEmbedCode";
@@ -140,6 +141,7 @@ import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
 import { publicationFingerprint, parsePublicationReceipt, PUBLICATION_CONFIRMATION_ERROR } from "@/lib/publication";
 import AnswerScoring, { ScoringMode } from "./AnswerScoring";
+import { clarityEvent, stopClarity } from "@/lib/clarity";
 import ThemeEditor from "./ThemeEditor";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
@@ -243,9 +245,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   }, [emailCopyDraft, reportDesignDraft]);
   const reportDesignEditor = <ReportDesignEditor value={form.reportDesign} quizTitle={form.title} theme={form.theme} draft={reportDesignDraft} restored={reportDesignRestored} storageWarning={reportDesignStorageWarning} onDraftChange={setReportDesignDraft} onChange={reportDesign => setForm(current => ({ ...current, reportDesign }))} />;
   const resultEmailEditor = <ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={setEmailCopyDraft} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} />;
-  const [activeNavTab, setActiveNavTab] = useState<
+  const [activeNavTab, updateActiveNavTab] = useState<
     "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
   >("edit");
+  function setActiveNavTab(tab: typeof activeNavTab) {
+    // Stop synchronously, before contact records or provider settings enter the DOM.
+    if (["contacts", "results", "integrate"].includes(tab)) stopClarity();
+    updateActiveNavTab(tab);
+  }
   const [canvasView, setCanvasView] = useState<"cover" | "page" | "ending">(
     "page",
   );
@@ -267,11 +274,30 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     claimed,
     storageWarning,
     backedUp,
-    saveNow,
+    saveNow: persistNow,
     recovery,
     dismissRecovery,
   } = useAutosave(form, guest);
   const guestDraft = guest && !claimed;
+  const [accountPromptDismissed, setAccountPromptDismissed] = useState(false);
+  const [accountPromptIntent, setAccountPromptIntent] = useState<"save" | "publish" | "preview">("save");
+  const [accountPromptTrigger, setAccountPromptTrigger] = useState<HTMLElement | null>(null);
+  const saveNow = useCallback((snapshot?: FormSchemaType, intent: "save" | "publish" | "preview" = "save") => {
+    // The editor captures the actual clicked control below: WebKit does not
+    // reliably focus pointer-clicked buttons. Retries retain that same opener.
+    setAccountPromptIntent(intent);
+    setAccountPromptDismissed(false);
+    return persistNow(snapshot ?? form);
+  }, [persistNow, form]);
+  function closeAccountPrompt() {
+    setAccountPromptDismissed(true);
+    if (accountPromptIntent === "publish") { restorePublishOpener(); return; }
+    focusPublicationDestination(() => {
+      if (accountPromptTrigger?.isConnected && accountPromptTrigger.getClientRects().length) return accountPromptTrigger;
+      return document.querySelector<HTMLButtonElement>('[data-account-action="save"]')
+        || Array.from(document.querySelectorAll<HTMLElement>('input[aria-label="Quiz name"], input[aria-label="Quiz title"]')).find(element => element.getClientRects().length);
+    });
+  }
   async function openClaimedQuiz() {
     if (claimed && await saveNow(form)) window.location.assign(`/editor/${form.id}`);
   }
@@ -311,8 +337,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
   async function handlePreview() {
     if (previewPending.current) return;
+    clarityEvent("preview_requested");
     setActionError("");
-    if (guestDraft) { await saveNow(form); return; }
+    if (guestDraft) { await saveNow(form, "preview"); return; }
     previewPending.current = true;
     setPreviewing(true);
     // Open synchronously during the click, then navigate only after the latest
@@ -320,7 +347,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     const tab = window.open("about:blank", "_blank");
     if (tab) { tab.opener = null; tab.document.title = "Preparing preview"; tab.document.body.textContent = "Saving your latest changes before opening the preview…"; }
     try {
-      if (!(await saveNow(form))) { tab?.close(); return; }
+      if (!(await saveNow(form, "preview"))) { tab?.close(); return; }
       if (tab && !tab.closed) tab.location.href = `/play/${form.id}?preview=1`;
       else setActionError("Your changes are saved. Allow popups, then select Preview again to open your latest draft.");
     } finally { previewPending.current = false; setPreviewing(false); }
@@ -1156,6 +1183,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
   function requestPublish(event?: React.MouseEvent<HTMLButtonElement>) {
     if (publicationPending.current || publicationUncertain) return;
+    clarityEvent("publish_requested");
     const trigger = event?.currentTarget;
     trigger?.focus();
     publishTrigger.current = trigger || document.activeElement as HTMLElement;
@@ -1164,6 +1192,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   function closePublishReadiness() { setShowReadiness(false); restorePublishOpener(); }
   const handlePublish = async (confirmed = false) => {
     if (publicationPending.current || publicationUncertain) return;
+    // An account is the first step for a browser-only draft. The same save also
+    // claims it for an already signed-in visitor; it never publishes implicitly.
+    if (guestDraft) { await saveNow(form, "publish"); return; }
     if (!confirmed) { setShowReadiness(true); return; }
     setActionError("");
     setPublishing(true);
@@ -1171,7 +1202,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     setPublicationNotice("");
     let receivedSuccessfulResponse = false;
     try {
-      if (!(await saveNow(form))) { closePublishReadiness(); return; }
+      if (!(await saveNow(form, "publish"))) { setAccountPromptTrigger(publishTrigger.current); closePublishReadiness(); return; }
       const res = await fetch(`/api/forms/${form.id}/publish`, {
         method: "POST",
       });
@@ -1585,49 +1616,42 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const hasUnpublishedChanges = !publicationUncertain && isPublished && liveFingerprint !== publicationFingerprint(form);
   const publicationLabel = publicationUncertain ? "Publication status needs checking" : !isPublished ? "Draft · Not public" : hasUnpublishedChanges ? "Published · Unpublished changes" : "Published · Up to date";
   return (
-    <div className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white" onClickCapture={event => {
+      const control = event.target instanceof Element ? event.target.closest<HTMLElement>('button, a[href]') : null;
+      if (control && !control.closest('dialog')) setAccountPromptTrigger(control);
+    }}>
       {guestDraft && (
-        <div className="bg-red-50 text-red-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
-          <span>Build your quiz for free. Your draft stays in this browser. Create a free account to save and publish. No charges.</span>
-          <button className="font-semibold underline" onClick={() => void saveNow()}>Save my quiz</button>
+        <div className="border-b border-stone-200 bg-[#faf8f5] px-4 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:px-5">
+          <span className="flex items-start gap-2.5"><BookmarkCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#882329]" /><span><strong className="font-semibold text-stone-900">Make it yours.</strong> Create a free account to save your quiz, share it and see the answers.</span></span>
+          <button type="button" data-account-action="save" className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 py-2 font-semibold text-[#882329] hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#882329] disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void saveNow()}>{saveStatus === "saving" ? "Saving…" : "Save my quiz"}</button>
         </div>
       )}
       {guest && claimed && <div role="status" className="bg-green-50 text-green-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
         <span>Your quiz is now in your account. Keep editing here, or save your latest changes and open its workspace.</span>
         <button type="button" className="font-semibold underline disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void openClaimedQuiz()}>{saveStatus === "saving" ? "Saving changes…" : "Save & open quiz"}</button>
       </div>}
+      {!guestDraft && authRequired && accountPromptDismissed && <div className="border-b border-stone-200 bg-stone-50 px-5 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-3">
+        <span>Sign back in to sync your changes. {backedUp ? "Your latest edits are saved on this device." : "Keep this tab open to preserve your edits."}</span>
+        <button type="button" data-account-action="save" className="font-semibold underline underline-offset-4" onClick={() => void saveNow()}>Save changes</button>
+      </div>}
       {publicationUncertain && <p ref={publicationStatusNotice} tabIndex={-1} role="status" className="bg-amber-50 px-5 py-3 text-sm text-amber-950">Publication may have completed. Keep editing and saving your draft; refresh this editor to check its live version before publishing again.</p>}
       {publicationNotice && <div role="status" className="bg-stone-100 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><span>{publicationNotice}</span><button className="underline font-semibold" onClick={() => setPublicationNotice("")}>Dismiss notice</button></div>}
       {storageWarning && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved.</p>}
-      {(saveError || actionError) && (
+      {authRequired && !accountPromptDismissed && <QuizAccountPrompt guest={guestDraft} backedUp={backedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} onClose={closeAccountPrompt} onRetry={() => void saveNow(form, accountPromptIntent)} />}
+      {((saveError && !authRequired) || actionError) && (
         <div
           role="alert"
           className="hq-error fixed bottom-5 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-2rem)] max-w-xl shadow-lg"
         >
-          {authRequired ? (
-            <div>
-              <p className="font-semibold">Sign in to save your quiz</p>
-              <p className="mt-1 text-sm">
-                {guestDraft
-                  ? "Create a free account or sign in in a new tab. After confirming your email and signing in, return here and retry saving. Your draft stays in this browser. All accounts are free—no charges or credit card."
-                  : "Keep this editor tab open so you don’t lose your edits. Sign in with the account that owns this quiz, then return here and retry saving. New to pippi? You can create an account in a new tab."}
-              </p>
-              <p className="mt-2 font-medium">{backedUp ? "Your latest changes are saved on this device. Return here after signing in to sync them." : "Your latest changes are not confirmed as backed up. Keep this tab open."}</p>
-              <div className="mt-3 flex flex-wrap gap-4">
-                {/* A separate tab keeps the unsaved editor state intact during authentication. */}
-                <a href="/login" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Sign in ↗</a>
-                <a href="/signup" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Create account ↗</a>
-              </div>
-            </div>
-          ) : (saveError || actionError)}
+          {actionError || saveError}
           <button
             className="ml-4 underline"
             onClick={() => {
               setActionError("");
-              if (saveError) void saveNow(form);
+              if (saveError && !authRequired) void saveNow(form);
             }}
           >
-            {saveError ? "Retry save" : "Dismiss"}
+            {saveError && !authRequired ? "Retry save" : "Dismiss"}
           </button>
         </div>
       )}
@@ -1649,11 +1673,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error"} mobileStatus={mobileSaveStatus} />}
+      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
       <EditorMobileHeader
         title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
-        status={mobileSaveStatus} onSave={() => void saveNow()} saveFailed={saveStatus === "error"}
+        status={mobileSaveStatus} onSave={() => void saveNow()} saveFailed={saveStatus === "error" && !authRequired}
         published={isPublished} publicationLabel={publicationLabel}
         onTheme={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} previewing={previewing} previewLabel={guestDraft ? "Save to preview" : "Preview"}
         onPublish={requestPublish} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain}
@@ -1716,7 +1740,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             )}
             {saveStatus === "error" && (
               <button
-                className="text-rose-600 underline"
+                className={authRequired ? "text-stone-600 underline" : "text-rose-600 underline"}
                 onClick={() => void saveNow()}
               >
                 {authRequired ? (backedUp ? "Saved on device · Sign in to sync" : "Sign in to save") : "Save failed · Retry"}
@@ -1801,6 +1825,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <span>Theme</span>
           </button>
           <ScoringMode form={form} onChange={setForm} />
+          <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Setup checklist</button>
           <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
           {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
           {/* Device Mockup Toggle */}
@@ -1908,7 +1933,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
                 return (
                   <div key={section.category} className="space-y-2">
-                    <span className="text-[11px] font-semibold text-gray-400 block px-1">
+                    <span className="text-[11px] font-semibold text-gray-600 block px-1">
                       {section.category}
                     </span>
 
@@ -1972,7 +1997,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                       className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
                         form.coverPage?.enabled
                           ? "bg-emerald-100 text-emerald-700"
-                          : "bg-gray-100 text-gray-400"
+                          : "bg-gray-100 text-gray-600"
                       }`}
                     >
                       {form.coverPage?.enabled ? "ON" : "OFF"}
@@ -2152,15 +2177,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
                     {/* Questions List */}
                     {displayedQuestions.length === 0 ? (
-                      /* Fillout Empty State */
-                      <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
-                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                          <Sparkles className="w-6 h-6" />
+                      /* Put the first manual action directly on the empty canvas. */
+                      <div className="py-8 flex flex-col items-center justify-center text-center space-y-3">
+                        <div><h2 className="text-lg font-semibold text-gray-900">Write your first question</h2><p className="mt-2 max-w-sm text-sm leading-6 text-gray-600">Choose a type, then make the question and answers your own.</p></div>
+                        <div role="group" aria-label="Add your first question" className="flex flex-wrap justify-center gap-2">
+                          <button type="button" onClick={() => addQuestion("multiple_choice")} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold hover:border-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800"><ListCheck size={17} aria-hidden="true" />Add multiple choice</button>
+                          <button type="button" onClick={() => addQuestion("short_answer")} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold hover:border-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800"><Type size={17} aria-hidden="true" />Add short answer</button>
                         </div>
-                        <p className="text-xs text-gray-500 max-w-xs font-medium">
-                          No questions on this page yet. Drag or click any field
-                          from the palette on the left to add here.
-                        </p>
+                        <p className="text-xs leading-5 text-gray-500"><span className="hidden md:inline">More question types are in the field palette on the left.</span><span className="md:hidden">For more question types, open More, then Fields.</span></p>
                       </div>
                     ) : !mounted ? (
                       <div className="space-y-5">
@@ -2422,7 +2446,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             {selectedQuestion ? (
               <div className="space-y-6">
                 <div>
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider block mb-1">
                     Question Settings
                   </span>
                   <div className="text-xs text-gray-900 font-semibold truncate">
@@ -2432,7 +2456,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
                 {/* Field Type Selector (All 51 Fields in 7 Categories) */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  <label htmlFor={`question-type-${selectedQuestion.id}`} className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Field Type (
                     {PALETTE_SECTIONS.reduce(
                       (acc, sec) => acc + sec.items.length,
@@ -2441,6 +2465,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                     Available)
                   </label>
                   <select
+                    id={`question-type-${selectedQuestion.id}`}
                     value={selectedQuestion.type}
                     onChange={(e) => {
                       const newType = e.target.value as QuestionType;
@@ -2729,9 +2754,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
                 {/* Assigned Page Selector */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center justify-between">
+                  <label htmlFor={`question-page-${selectedQuestion.id}`} className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center justify-between">
                     <span>Assigned Page</span>
-                    <span className="text-[10px] text-gray-400 font-mono">
+                    <span className="text-[10px] text-gray-600 font-mono">
                       Page{" "}
                       {formPages.findIndex(
                         (p) =>
@@ -2740,6 +2765,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                     </span>
                   </label>
                   <select
+                    id={`question-page-${selectedQuestion.id}`}
                     value={
                       selectedQuestion.pageId || formPages[0]?.id || "page-1"
                     }
@@ -3156,10 +3182,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   selectedQuestion.type !== "banner" &&
                   selectedQuestion.type !== "divider" && (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      <label htmlFor={`question-points-${selectedQuestion.id}`} className="block text-xs font-semibold text-gray-600 mb-1.5">
                         Points for a correct answer
                       </label>
                       <input
+                        id={`question-points-${selectedQuestion.id}`}
                         type="number"
                         min={0}
                         value={selectedQuestion.points ?? 10}

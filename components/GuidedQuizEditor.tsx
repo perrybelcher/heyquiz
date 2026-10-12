@@ -4,7 +4,7 @@ import type { FormSchemaType } from "@/lib/schema";
 import { defaultCapture } from "@/lib/contacts";
 import { orderedQuestions, singleTypes } from "@/lib/engine";
 import { addGuidedAnswer, addGuidedQuestion, guidedChoiceTypes, moveGuidedAnswer, moveGuidedQuestion, removeGuidedAnswer, removeGuidedQuestion, renameGuidedAnswer, reviewGuidedRemoval } from "@/lib/guided-editing";
-import AnswerScoring from "./AnswerScoring";
+import AnswerScoring, { ScoringMode } from "./AnswerScoring";
 import { ArrowDown, ArrowUp, Plus, Trash2, Pause } from "lucide-react";
 import type { ConversationEdit } from "./ConversationMap";
 import ScorecardResultsEditor from "./ScorecardResultsEditor";
@@ -29,6 +29,7 @@ export default function GuidedQuizEditor({ reportDesignEditor, resultEmailEditor
   const questions = orderedQuestions(form);
   const checklist = useMemo(() => buildGuidedChecklist(form), [form]);
   const requiredCount = checklist.filter(item => item.level === "blocker").length;
+  const nextItem = checklist.find(item => item.level === "blocker") || checklist[0];
   const [checklistNotice, setChecklistNotice] = useState("");
   const [pendingTarget, setPendingTarget] = useState<{ requestId: number; quizId: string; target?: GuidedChecklistTarget; reviewSection?: GuidedReviewSection } | null>(null);
   const [pendingNavigationFocus, setPendingNavigationFocus] = useState<{ requestId: number; quizId: string; step: number; origin: Element | null } | null>(null);
@@ -161,6 +162,12 @@ export default function GuidedQuizEditor({ reportDesignEditor, resultEmailEditor
   /><main onPointerDownCapture={event => { if ((pendingTarget || pendingNavigationFocus) && !(event.target as Element).closest("[data-checklist-action]")) cancelChecklist(); }} onKeyDownCapture={event => { if ((pendingTarget || pendingNavigationFocus) && event.key === "Tab") cancelChecklist(); }} onInputCapture={() => { if (pendingTarget || pendingNavigationFocus) cancelChecklist(); }} className="guided-studio flex-1 overflow-y-auto bg-[#faf8f4] px-4 py-6 sm:px-8"><div className="mx-auto max-w-3xl">
     <header className="hidden lg:flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-red-800">Guided builder</p><p role="status" className="mt-1 text-xs text-slate-600">{status} · {publicationLabel}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => leave(onConversationMap)} className="hq-secondary">Conversation map</button><button onClick={() => leave(onAdvanced)} className="hq-secondary">Full editor & advanced tools</button></div></header>
     <nav aria-label="Quiz setup steps" className="guided-steps my-7 !hidden lg:!flex flex-wrap gap-2">{steps.map((label, i) => <button key={label} aria-current={step === i ? "step" : undefined} onClick={() => goToStep(i)} className={`rounded-full px-4 py-2 text-sm ${step === i ? "bg-red-800 text-white" : "border bg-white text-slate-600"}`}>{i + 1}. {label}</button>)}</nav>
+    <section aria-label="Your next step" className="my-4 rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Your next step</p>
+      <p className="mt-2 text-sm leading-relaxed text-slate-800">{nextItem ? nextItem.message : "Your setup checks are clear. Try the quiz as a visitor and check the result before publishing."}</p>
+      {nextItem ? <><p className="mt-1 text-xs text-slate-600">{nextItem.level === "blocker" ? "Required before saving or publishing" : "Recommended review · this does not block publishing"}</p><button type="button" data-checklist-action data-clarity-event="setup_next" className="hq-secondary mt-3" onClick={() => nextItem.target || nextItem.reviewSection ? navigateChecklist(nextItem.target, nextItem.reviewSection) : leave(onAdvanced)}>Review next item</button></> : <button type="button" disabled={previewing} className="hq-secondary mt-3 disabled:opacity-50" onClick={() => leave(onPreview)}>Try my quiz</button>}
+      <p className="mt-3 text-xs leading-relaxed text-slate-600">Save keeps your draft. Preview lets you test it. Publish updates the version visitors see.</p>
+    </section>
     <details className="mb-4 rounded-xl border border-stone-200 bg-white p-4" aria-label="Setup checklist">
       <summary className="cursor-pointer rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-800"><span>Setup checklist</span><span className="ml-2 text-xs font-normal text-slate-600">{requiredCount} required {requiredCount === 1 ? 'fix' : 'fixes'} · {checklist.length - requiredCount} recommended {checklist.length - requiredCount === 1 ? 'review' : 'reviews'}</span></summary>
       <p className="mt-3 text-xs leading-relaxed text-slate-600">Required fixes come from existing save or publish checks. Recommendations are optional. Scoring diagnostics run in Review & publish. Preview your intended journeys before sharing; server checks still run when you publish.</p>
@@ -171,6 +178,7 @@ export default function GuidedQuizEditor({ reportDesignEditor, resultEmailEditor
       {step === 0 && <><h1 className="text-3xl font-semibold">Give your quiz a clear promise.</h1><p className="text-slate-600">Tell people what they will discover. Your starting questions and scoring are already connected; edit them one step at a time.</p>{field("Quiz title", form.title, title => onChange({ ...form, title, coverPage: form.coverPage ? { ...form.coverPage, title } : undefined }), false, { kind: "quiz-title" })}{field("What will people discover?", form.description || "", description => onChange({ ...form, description, coverPage: form.coverPage ? { ...form.coverPage, subtitle: description } : undefined }), true)}{form.coverPage?.enabled && field("Start button label", form.coverPage.buttonText, buttonText => onChange({ ...form, coverPage: { ...form.coverPage!, buttonText } }))}<p className="text-sm text-slate-500">Using a template? Replace its example products and advice with your own before publishing.</p><details ref={landingRef} className="rounded-xl border p-4"><summary className="cursor-pointer font-semibold">Design your landing page</summary><div className="mt-5"><LandingPageEditor form={form} onChange={onChange}/></div></details></>}
       {step === 1 && <>
         <h1 className="text-3xl font-semibold">One question at a time.</h1>
+        <ScoringMode form={form} onChange={onChange}/>
         <p className="text-slate-600">Add questions, arrange the answers, and connect each choice to a useful result. Your changes save with the rest of your draft.</p>
         {editingError && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{editingError}</p>}
         <div className="flex flex-col items-stretch gap-3 rounded-xl bg-stone-50 p-4 sm:flex-row sm:items-end">

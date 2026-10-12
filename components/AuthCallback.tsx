@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import "./AccountForm.css";
+import { creationAuthDestination } from "@/lib/creation-auth-return";
 export default function AuthCallback() {
   const started = useRef(false),
     [error, setError] = useState("");
@@ -28,7 +29,7 @@ export default function AuthCallback() {
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data.error);
-        window.location.replace(data.next);
+        window.location.replace(creationAuthDestination(data.next));
       })
       .catch((e) =>
         setError(

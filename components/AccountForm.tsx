@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, MailCheck } from "lucide-react";
 import "./AccountForm.css";
+import { clearCreationReturn, creationAuthDestination, creationAuthHref, rememberCreationReturn, useCreationReturn } from "@/lib/creation-auth-return";
 type Mode = "signup" | "recover" | "reset" | "resend";
 const copy = {
   signup: [
@@ -26,6 +27,7 @@ const copy = {
   ],
 };
 export default function AccountForm({ mode }: { mode: Mode }) {
+  const returnTo = useCreationReturn();
   const [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
@@ -44,6 +46,9 @@ export default function AccountForm({ mode }: { mode: Mode }) {
       return;
     }
     setBusy(true);
+    // Keep the navigation preference only in this tab; recovery must never use it.
+    if (mode === "signup" || mode === "resend") rememberCreationReturn(returnTo);
+    else clearCreationReturn();
     try {
       const res = await fetch("/api/auth/account", {
         method: "POST",
@@ -57,7 +62,7 @@ export default function AccountForm({ mode }: { mode: Mode }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Please try again.");
       if (data.next) {
-        window.location.assign(data.next);
+        window.location.assign((mode === "signup" || mode === "resend") ? creationAuthDestination(data.next, window.location.search) : data.next);
         return;
       }
       setMessage(data.message);
@@ -100,7 +105,7 @@ export default function AccountForm({ mode }: { mode: Mode }) {
           <div className="account-success" role="status">
             <MailCheck size={28} />
             <p>{message}</p>
-            {(mode === "signup" || mode === "resend") && <div className="mt-4 flex flex-wrap gap-4"><a className="account-text" href="/login">Sign in to your account</a><a className="account-text" href="/forgot-password">Reset your password</a></div>}
+            {(mode === "signup" || mode === "resend") && <div className="mt-4 flex flex-wrap gap-4"><a className="account-text" href={creationAuthHref("/login", returnTo)}>Sign in to your account</a><a className="account-text" href="/forgot-password">Reset your password</a></div>}
             <button className="account-text" onClick={() => setMessage("")}>
               Use a different email or try again
             </button>
@@ -180,7 +185,7 @@ export default function AccountForm({ mode }: { mode: Mode }) {
           {mode === "signup"
             ? "Already have an account? "
             : "Ready to return? "}
-          <a href="/login">Sign in</a>
+          <a href={creationAuthHref("/login", returnTo)}>Sign in</a>
         </p>
         <a className="account-back" href="/welcome">
           <ArrowLeft size={15} /> Back to pippi

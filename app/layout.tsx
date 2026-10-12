@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import BehaviorAnalytics from "@/components/BehaviorAnalytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.pippiapp.com"),
@@ -14,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className="h-full antialiased" data-clarity-mask="true">
+      <body className="min-h-full flex flex-col">{children}<BehaviorAnalytics /></body>
     </html>
   );
 }

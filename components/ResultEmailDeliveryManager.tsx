@@ -1,11 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mail, RefreshCw } from "lucide-react";
-type Job = { responseId: string; requestedAt: number; state: string; message: string; attempts: number; nextAttemptAt: number | null };
-type Listing = { mode: "resend"; total: number; jobs: Job[] };
+import { parseResultDeliveryListing, type ResultDeliveryListing } from "@/lib/result-delivery-view";
 /** Owner status contains no email addresses, provider IDs or private result URLs. */
 export default function ResultEmailDeliveryManager({ formId }: { formId: string }) {
-  const [data, setData] = useState<Listing | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(true), [unavailable, setUnavailable] = useState(false);
+  const [data, setData] = useState<ResultDeliveryListing | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(true), [unavailable, setUnavailable] = useState(false);
   const mounted = useRef(true), flight = useRef(false);
   const endpoint = `/api/forms/${encodeURIComponent(formId)}/result-email/drain`;
   const load = useCallback(async (run = false) => {
@@ -20,7 +19,8 @@ export default function ResultEmailDeliveryManager({ formId }: { formId: string 
       const body = await response.json();
       if (response.status === 503 && body.code === "RESULT_EMAIL_UNAVAILABLE") { if (mounted.current) setUnavailable(true); return; }
       if (!response.ok) throw Error(body.error || "Delivery status could not be loaded.");
-      if (mounted.current) { setData(body); setUnavailable(false); }
+      const listing = parseResultDeliveryListing(body);
+      if (mounted.current) { setData(listing); setUnavailable(false); }
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : "Delivery status could not be loaded."); }
     finally { flight.current = false; if (mounted.current) setBusy(false); }
   }, [endpoint]);
@@ -31,7 +31,8 @@ export default function ResultEmailDeliveryManager({ formId }: { formId: string 
       const body = await response.json();
       if (response.status === 503 && body.code === "RESULT_EMAIL_UNAVAILABLE") { if (!controller.signal.aborted) setUnavailable(true); return; }
       if (!response.ok) throw Error(body.error || "Delivery status could not be loaded.");
-      if (!controller.signal.aborted) setData(body);
+      const listing = parseResultDeliveryListing(body);
+      if (!controller.signal.aborted) setData(listing);
     }).catch(error => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Delivery status could not be loaded."); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => { mounted.current = false; controller.abort(); };

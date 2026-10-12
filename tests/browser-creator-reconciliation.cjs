@@ -53,7 +53,9 @@ function childOf(row) { return row.owner_id === ownerId && ids.includes(row.payl
   async function claim() {
     const id = await page.evaluate(() => localStorage.getItem('pippi-guest-draft')); assert.match(id, /^quiz-[A-Za-z0-9_-]+$/);
     assert.equal((await owner.request.get(base + '/api/forms/' + id)).status(), 404); ids.push(id);
+    const beforeDocument=await page.evaluate(()=>performance.timeOrigin);
     await button('Save my quiz').click(); await page.waitForURL(base + '/editor/' + id);
+    await page.waitForFunction(before=>performance.timeOrigin!==before,beforeDocument);
     await page.getByRole('heading', { name: 'Give your quiz a clear promise.', exact: true }).waitFor();
     const stored = await readRecord('forms', id); assert.equal(stored?.owner_id, ownerId, 'Server and local assertions use the same synthetic data'); return id;
   }

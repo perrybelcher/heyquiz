@@ -92,11 +92,13 @@ export function useAutosave(form: FormSchemaType, guest = false) {
       // Guest drafts stay on this device until an authenticated account claims them.
       if (guest && !claimedId.current) {
         if (claimAcknowledged.current) {
+          setAuthRequired(false);
           setError(claimConfirmationError);
           setStatus("error");
           return false;
         }
         setStatus("saving");
+        let requiresAuth = false;
         try {
           // Only this snapshot is confirmed by the POST. Edits can arrive while
           // it is in flight and must remain backed up for recovery after claim.
@@ -107,6 +109,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...snapshot, revision: 0 }),
           });
+          requiresAuth = res.status === 401;
           // Even an unreadable successful response must not lead to another POST.
           if (res.ok) claimAcknowledged.current = true;
           const data = await res.json();
@@ -151,6 +154,10 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           // Choosing Stay leaves a confirmed account draft with normal PUT saves.
           return false;
         } catch (e) {
+          // A previous 401 must not disguise a network failure or an uncertain
+          // save receipt as another account prompt. Keep the prompt mounted
+          // during a retry, then classify only that attempt's actual response.
+          setAuthRequired(requiresAuth);
           setError(claimAcknowledged.current && !claimedId.current ? claimConfirmationError : e instanceof Error ? e.message : "Could not save your quiz.");
           setStatus("error");
           return false;
@@ -160,12 +167,14 @@ export function useAutosave(form: FormSchemaType, guest = false) {
       while (fingerprint(latest.current) !== saved.current) {
         const snapshot = latest.current;
         setStatus("saving");
+        let requiresAuth = false;
         try {
           const res = await fetch(`/api/forms/${snapshot.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...snapshot, ...(claimedId.current && !snapshot.createdAt ? { createdAt: claimedCreatedAt.current } : {}), revision: revision.current }),
           });
+          requiresAuth = res.status === 401;
           const data = await res.json();
           retryable.current = res.ok || res.status === 401 || res.status >= 500;
           if (!res.ok) {
@@ -177,6 +186,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           saved.current = fingerprint(snapshot);
           setSavedFingerprint(saved.current);
         } catch (e) {
+          setAuthRequired(requiresAuth);
           setError(
             e instanceof Error
               ? e.message

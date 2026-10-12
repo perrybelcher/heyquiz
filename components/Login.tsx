@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { creationAuthDestination, creationAuthHref, useCreationReturn } from "@/lib/creation-auth-return";
 export default function Login({
   local,
   reset = false,
@@ -7,6 +8,7 @@ export default function Login({
   local: boolean;
   reset?: boolean;
 }) {
+  const returnTo = useCreationReturn();
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   async function login(data: Record<string, unknown>) {
@@ -20,7 +22,7 @@ export default function Login({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      window.location.assign("/");
+      window.location.assign(creationAuthDestination("/", window.location.search));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign-in failed.");
       setBusy(false);
@@ -103,14 +105,14 @@ export default function Login({
             </p>
             <p className="text-sm mt-4">
               New to pippi?{" "}
-              <a className="text-indigo-700 underline" href="/signup">
+              <a className="text-indigo-700 underline" href={creationAuthHref("/signup", returnTo)}>
                 Create an account
               </a>
             </p>
             <p className="text-sm mt-4">
               <a
                 className="text-indigo-700 underline"
-                href="/resend-confirmation"
+                href={creationAuthHref("/resend-confirmation", returnTo)}
               >
                 Resend confirmation
               </a>

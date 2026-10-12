@@ -3,6 +3,8 @@ import { useState } from "react";
 import { nanoid } from "nanoid";
 import type { Question, FormSchemaType } from "@/lib/schema";
 import { MarketingSchema, evaluateMarketing, type MarketingConfig } from "@/lib/marketing";
+import { multiTypes, resolvePath } from "@/lib/engine";
+import { clarityEvent } from "@/lib/clarity";
 
 export function ScoringMode({form,onChange}:{form:FormSchemaType;onChange:(form:FormSchemaType)=>void}) {
   const value=form.marketing?.kind || (form.mode === "quiz" ? "quiz" : "none");
@@ -12,18 +14,29 @@ export function ScoringMode({form,onChange}:{form:FormSchemaType;onChange:(form:
     const marketing=next==="quiz"||next==="none"?undefined:MarketingSchema.parse({kind:next});
     onChange({...form, mode:next==="quiz"?"quiz":"survey",marketing});
   }
-  return <label className="flex items-center gap-2 text-xs font-semibold">Scoring
+  return <div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-2 text-xs font-semibold">Scoring
     <select aria-label="Scoring mode" value={value} onChange={e=>change(e.target.value)} className="max-w-48 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs">
       <option value="none">No scoring</option><option value="quiz">Correct-answer scoring</option><option value="scorecard">Scorecard</option><option value="product_finder">Product matching</option><option value="segmentation">Segment matching</option>
     </select>
-  </label>;
+  </label><details className="relative text-xs"><summary data-clarity-event="scoring_help" className="cursor-pointer rounded px-2 py-2 font-semibold text-slate-700 underline">How scoring works</summary><div className="mt-2 w-72 max-w-[75vw] space-y-3 rounded-xl border border-stone-300 bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-lg">
+    <p><strong>Different points for each answer?</strong> Choose Scorecard, add a category, then assign points beside each answer.</p>
+    <p><strong>A right or wrong answer?</strong> Choose Correct-answer scoring. Mark the answer key and set the question’s points. Multiple-answer questions allow partial credit, with incorrect selections reducing the score.</p>
+    <p><strong>Recommend a product or result?</strong> Choose Product or Segment matching. Each answer adds points toward a result; exclusions rule a result out.</p>
+    <p><strong>Just collecting answers?</strong> Choose No scoring.</p>
+    <p className="text-xs">Changing an existing marketing scoring mode asks you to confirm because it replaces its result rules.</p>
+  </div></details></div>;
 }
 
 export default function AnswerScoring({q,marketing,onChange,onLabelChange,form}:{q:Question;form:FormSchemaType;marketing:MarketingConfig;onChange:(m:MarketingConfig)=>void; onLabelChange?:(id:string,label:string)=>void}) {
   const [name,setName]=useState("");
-  const [example,setExample]=useState("");
+  const [examples,setExamples]=useState<string[]>([]);
+  const selected = examples.filter(id => q.options?.some(option => option.id === id));
+  const multiple = multiTypes.has(q.type);
+  const answers = {[q.id]: multiple ? selected : selected[0]};
+  const reachable = resolvePath(form, answers).questions.some(question => question.id === q.id);
+  const contributions = marketing.rules.filter(rule => rule.questionId === q.id && selected.includes(rule.answerId));
   let result;
-  try { result=example ? evaluateMarketing(form,{[q.id]:["multiselect","image_multiselect","checkboxes"].includes(q.type)?[example]:example}) : undefined; } catch {}
+  try { result=selected.length && reachable ? evaluateMarketing(form,answers) : undefined; } catch {}
   if(!q.options?.length || !["multiple_choice","multiselect","dropdown","picture_choice","image_multiselect","checkboxes","segmented","switch","thumbs","like_dislike"].includes(q.type))return null;
   const scorecard=marketing.kind==="scorecard";
   const targets=scorecard?marketing.categories:marketing.outcomes;
@@ -48,9 +61,13 @@ export default function AnswerScoring({q,marketing,onChange,onLabelChange,form}:
       </div></div>})}
     </fieldset>)}
     <div className="flex gap-2"><input aria-label={`New ${targetLabel} name`} placeholder={`Add a ${targetLabel}`} maxLength={200} value={name} onChange={e=>setName(e.target.value)} className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs"/><button type="button" disabled={!name.trim()||targets.length>=(scorecard?20:30)} onClick={addTarget} className="rounded border border-gray-300 px-3 py-1.5 text-xs disabled:opacity-40">Add {targetLabel}</button></div>
-    <div className="rounded-lg bg-gray-50 p-3 text-xs space-y-2"><label className="block font-semibold">Try an answer<select aria-label="Try an answer" value={example} onChange={e=>setExample(e.target.value)} className="mt-2 block w-full rounded border bg-white p-2"><option value="">Choose an answer to see its effect</option>{q.options.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
-      {result && <div role="status"><p>{result.title}</p>{result.categories.map(c=><p key={c.id}>{c.title}: {c.score===null?"Not enough answers":`${c.score}%`}</p>)}</div>}
-      <p className="text-gray-500">Single-answer example; other questions are unanswered. Use Marketing to simulate a complete journey.</p>
+    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm space-y-3">
+      {multiple ? <fieldset><legend className="font-semibold">Try a combination of answers</legend>{q.options.map(answer => <label key={answer.id} className="mt-2 flex items-center gap-2"><input type="checkbox" checked={selected.includes(answer.id)} onChange={e => { setExamples(e.target.checked ? [...selected, answer.id] : selected.filter(id => id !== answer.id)); clarityEvent("answer_example"); }}/>{answer.label || "Untitled answer"}</label>)}</fieldset> : <label className="block font-semibold">Try an answer<select aria-label="Try an answer" value={selected[0] || ""} onChange={e=>{setExamples(e.target.value ? [e.target.value] : []); clarityEvent("answer_example");}} className="mt-2 block w-full rounded border bg-white p-2"><option value="">Choose an answer to see its effect</option>{q.options.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>}
+      {selected.length > 0 && <div role="status" className="space-y-2"><p className="font-semibold">What these answers do</p>{!reachable ? <p>This question is not reached with the other questions unanswered. Use a full preview to test the branch that leads here.</p> : <>
+        {contributions.length ? <ul className="list-disc space-y-1 pl-5">{targets.map(target => { const rules = contributions.filter(rule => rule.targetId === target.id); if (!rules.length) return null; return <li key={target.id}>{target.title}: {rules.some(rule => rule.effect === "exclude") ? "excluded, even if other answers add points" : `+${rules.reduce((sum, rule) => sum + rule.points, 0)} points`}</li>; })}</ul> : <p>No points assigned: this selection is neutral. It is not the same as a scored zero.</p>}
+        {result && <div className="border-t border-stone-200 pt-2"><p className="text-xs font-semibold text-slate-600">Example with other questions unanswered</p><p>{result.title}</p>{result.categories.map(c=><p key={c.id}>{c.title}: {c.score===null?"Not enough answers":`${c.score}%`}</p>)}</div>}
+      </>}</div>}
+      <p className="text-xs text-slate-600">This does not change or submit answers. Other questions, branching and eligibility can change the final result. Use Preview to try a complete journey.</p>
     </div>
     <p className="text-xs text-gray-500">Results and explanations can be edited in Marketing. These are the same rules used there.</p>
   </section>;

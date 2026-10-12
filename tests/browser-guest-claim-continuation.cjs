@@ -22,7 +22,7 @@ async function waitTitle(read, title) { const deadline = Date.now() + 20000; let
   const stayed = defer(); let dialogs = 0;
   page.on('dialog', async dialog => { assert.equal(dialog.type(), 'beforeunload'); dialogs++; if (dialogs === 1) { await dialog.dismiss(); stayed.resolve(); } else await dialog.accept(); });
   try {
-   await page.goto(base + '/welcome'); await page.goto(base + '/create'); await page.getByRole('button', { name: /^Test knowledge/ }).click();
+   await page.goto(base + '/welcome'); await page.goto(base + '/create/guided'); await page.getByRole('button', { name: /^Test knowledge/ }).click();
    const title = page.getByRole('textbox', { name: /^Quiz (title|name)$/ }); await title.fill('Original claim ' + name);
    const form = await page.waitForFunction(() => { const id = localStorage.getItem('pippi-guest-draft'), text = id && sessionStorage.getItem('heyquiz-draft:' + id); if (!text) return null; const form = JSON.parse(text); return form.title.startsWith('Original claim ') ? form : null; }).then(handle => handle.jsonValue());
    id = form.id; assert.equal((await context.request.get(base + '/api/forms/' + id)).status(), 404);
@@ -78,7 +78,7 @@ async function waitTitle(read, title) { const deadline = Date.now() + 20000; let
    await page.setViewportSize({ width: 1440, height: 1000 });
    await title.fill('Final changes before opening workspace');
    const opened = page.waitForEvent('domcontentloaded'); await page.getByRole('button', { name: 'Save & open quiz', exact: true }).click();
-   await opened; await page.getByRole('textbox', { name: 'Quiz name', exact: true }).waitFor();
+   await opened; await page.getByRole('textbox', { name: /^Quiz (title|name)$/ }).waitFor();
    assert.equal((await read()).title, 'Final changes before opening workspace');
    assert.equal(await page.getByText('Your quiz is now in your account.', { exact: false }).count(), 0);
    assert.equal(await page.getByText('Unsaved edits from your previous session are available.', { exact: false }).count(), 0);
@@ -93,8 +93,8 @@ async function waitTitle(read, title) { const deadline = Date.now() + 20000; let
    await page.getByRole('button', { name: 'Save & open quiz', exact: true }).click(); assert.equal((await retried).status(), 409);
    assert.ok(requests.filter(request => request.method === 'PUT').every(request => request.body.revision === 1), 'Conflict never adopts an unconfirmed newer revision');
    await page.reload(); await page.getByRole('button', { name: 'Restore changes', exact: true }).waitFor();
-   assert.equal(await page.getByRole('textbox', { name: 'Quiz name', exact: true }).inputValue(), 'Other tab server revision');
-   await page.getByRole('button', { name: 'Restore changes', exact: true }).click(); await page.getByText('Saved', { exact: true }).waitFor();
+   assert.equal(await page.getByRole('textbox', { name: /^Quiz (title|name)$/ }).inputValue(), 'Other tab server revision');
+   await page.getByRole('button', { name: 'Restore changes', exact: true }).click(); await page.locator('[role="status"]:visible').filter({ hasText: /^Saved(?:\s*·|$)/ }).first().waitFor();
    assert.equal((await read()).title, newerTitle); assert.equal((await read()).revision, 3);
    assert.equal(await title.inputValue(), newerTitle);
   });
@@ -115,19 +115,22 @@ async function waitTitle(read, title) { const deadline = Date.now() + 20000; let
    assert.equal(JSON.parse((await backups()).session).title, newerTitle);
    assert.equal(requests.find(request => request.method === 'PUT').body.revision, 51, 'Uses only received revision; server rejects stale confirmation');
    await page.reload(); await page.getByRole('button', { name: 'Restore changes', exact: true }).waitFor();
-   await page.getByRole('button', { name: 'Restore changes', exact: true }).click(); await page.getByText('Saved', { exact: true }).waitFor();
+   await page.getByRole('button', { name: 'Restore changes', exact: true }).click(); await page.locator('[role="status"]:visible').filter({ hasText: /^Saved(?:\s*·|$)/ }).first().waitFor();
    assert.equal((await read()).title, newerTitle); assert.equal((await read()).revision, 2);
   });
 
   for (const status of [401, 403, 503]) await scenario('stay-failed-put-' + status, async ({ page, title, form, read, backups, requests, claimAndStay }) => {
    await page.route(base + '/api/forms/' + form.id, route => route.request().method() === 'PUT' ? route.fulfill({ status, json: { error: 'Synthetic continuation failure ' + status } }) : route.continue());
-   await claimAndStay(); await page.locator('.hq-error').waitFor();
+   await claimAndStay();
+   const failurePanel = status === 401 ? page.getByRole('dialog', { name: 'Pick up where you left off.', exact: true }) : page.locator('.hq-error');
+   await failurePanel.waitFor();
+   const retry = () => status === 401 ? failurePanel.getByRole('button', { name: 'Save changes', exact: true }) : page.getByRole('button', { name: 'Retry save', exact: true });
    const before = await backups(); assert.equal(JSON.parse(before.session).title, newerTitle);
    const retried = page.waitForResponse(response => response.url() === base + '/api/forms/' + form.id && response.request().method() === 'PUT');
-   await page.getByRole('button', { name: 'Retry save', exact: true }).click(); assert.equal((await retried).status(), status);
+   await retry().click(); assert.equal((await retried).status(), status);
    assert.deepEqual(await backups(), before); assert.equal((await read()).title, form.title);
    await page.unroute(base + '/api/forms/' + form.id);
-   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
+   await retry().click();
    await waitTitle(read, newerTitle);
    assert.equal((await read()).title, newerTitle); assert.equal(await title.inputValue(), newerTitle);
    assert.ok(requests.filter(request => request.method === 'PUT').every(request => request.body.revision === 1));
@@ -153,7 +156,7 @@ async function waitTitle(read, title) { const deadline = Date.now() + 20000; let
    await page.route(base + '/api/forms', route => invalid === 'bad-json' ? route.fulfill({ status: 201, contentType: 'application/json', body: '{broken' }) : route.fulfill({ status: 201, json: { ...form, id: invalid === 'wrong-id' ? 'wrong-quiz' : form.id, revision: invalid === 'zero-revision' ? 0 : invalid === 'string-revision' ? '1' : 1 } }));
    await page.getByRole('button', { name: 'Save my quiz', exact: true }).click(); await page.getByText('We could not verify the save confirmation.', { exact: false }).waitFor();
    await page.getByRole('button', { name: 'Retry save', exact: true }).click();
-   assert.deepEqual(await backups(), before); assert.equal(page.url(), base + '/create'); assert.equal(requests.length, 1);
+   assert.deepEqual(await backups(), before); assert.equal(page.url(), base + '/create/guided'); assert.equal(requests.length, 1);
   });
   console.log('PASS ' + engine + ' 12 guest continuation cases, including actual Stay, revision-safe PUT, reload/back-forward recovery, failed saves, blocked backup, invalid confirmations. Zero public starts/email.');
  } finally { await browser.close(); }

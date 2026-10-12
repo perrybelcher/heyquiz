@@ -29,7 +29,7 @@ function Reasons({ result }: { result: MarketingResult }) {
   if (!result.reasons.length) return null;
   return <section data-result-block="reasons" className="rounded-2xl bg-indigo-50 p-5">
     <h2 className="font-semibold mb-3">Why this fits</h2>
-    <ul className="list-disc pl-5 space-y-2 text-sm text-slate-700">{result.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+    <ul className="list-disc pl-5 space-y-2 text-sm text-slate-600">{result.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
   </section>;
 }
 

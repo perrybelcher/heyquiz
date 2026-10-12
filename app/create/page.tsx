@@ -1,2 +1,2 @@
-import GuestBuilder from "@/components/GuestBuilder";
-export default function CreatePage() { return <GuestBuilder />; }
+import CreationStart from "@/components/CreationStart";
+export default function CreatePage() { return <CreationStart />; }

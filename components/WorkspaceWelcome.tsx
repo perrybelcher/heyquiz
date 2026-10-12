@@ -1,18 +1,37 @@
 "use client";
-import { ArrowRight, ArrowUpRight, BarChart3, GitBranch, Plus, ShoppingBag, Sparkles, Users } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, GitBranch, Plus } from "lucide-react";
 import type { MarketingConfig } from "@/lib/marketing";
-export default function WorkspaceWelcome({busy,onCreate,onAI,projectCount,publishedCount}:{busy:boolean;onCreate:(kind?:MarketingConfig['kind'])=>void;onAI:()=>void;projectCount:number;publishedCount:number}) {
+import CreationPaths from "./CreationPaths";
+
+export default function WorkspaceWelcome({ busy, onCreate, onAI, projectCount, publishedCount }: {
+  busy: boolean;
+  onCreate: (kind?: MarketingConfig["kind"]) => void;
+  onAI: () => void;
+  projectCount: number;
+  publishedCount: number;
+}) {
   return <>
-    <section aria-label="Welcome to pippi" className="workspace-intro">
-      <div><p className="pippi-eyebrow">YOUR CONVERSATION STUDIO</p><h1>Good questions.<br/><span>Better connections.</span></h1><p className="workspace-intro-copy">Create a quiz that understands your audience.<br className="hidden sm:block"/> Turn what you learn into a more personal next step.</p><div className="flex flex-wrap gap-3 mt-7"><a href="/templates" className="hq-primary"><Plus size={17}/>Create a quiz<ArrowUpRight size={16}/></a><button disabled={busy} onClick={()=>onCreate()} className="hq-secondary"><Plus size={16}/>Start blank</button><button disabled={busy} onClick={onAI} className="hq-secondary"><Sparkles size={16}/>Start with AI</button></div></div>
-      <div className="workspace-overview" aria-label="Workspace overview"><div className="flex justify-between items-center"><p className="pippi-eyebrow">YOUR WORKSPACE</p><span className="workspace-status"><span/>Free account</span></div><div className="workspace-numbers"><div><strong>{projectCount}</strong><span>Total quizzes</span></div><div><strong>{publishedCount}</strong><span>Published</span></div><div><strong>{Math.max(0,projectCount-publishedCount)}</strong><span>In progress</span></div></div><div className="workspace-note"><GitBranch size={21}/><p><strong>Every answer is a direction.</strong><span>Questions → Understanding → A useful next step</span></p></div></div>
+    <section aria-label="Welcome to pippi" className="pb-7 pt-2">
+      <p className="pippi-eyebrow">YOUR CONVERSATION STUDIO</p>
+      <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Your next quiz <span className="text-[#9c3041]">starts here.</span></h1>
+      <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600">Write it yourself, use a head start, or get help along the way. Choose how you want to create.</p>
     </section>
-    <section id="quiz-starters" className="mb-9 scroll-mt-8" aria-label="Marketing quiz templates"><div className="flex flex-wrap items-center justify-between gap-3 mb-4"><h2 className="text-lg font-semibold tracking-tight">Start with a clear purpose</h2><a href="/templates" className="text-sm font-medium text-red-800 flex items-center gap-2">Browse the full library<ArrowRight size={15}/></a></div><div className="grid md:grid-cols-3 gap-4">{([
-      {kind:'product_finder',title:'Find their perfect fit',label:'Product finder',copy:'Guide shoppers to a product that fits their day.',icon:ShoppingBag},
-      {kind:'scorecard',title:'Make the next step clear',label:'Scorecard',copy:'Turn answers into a useful, personalized action plan.',icon:BarChart3},
-      {kind:'segmentation',title:'Understand what matters',label:'Audience quiz',copy:'Meet people where they are with a relevant result.',icon:Users},
-    ] as const).map(({kind,title,label,copy,icon:Icon})=><a key={kind} href="/templates" className="purpose-card"><span className="purpose-icon"><Icon size={21}/></span><span className="purpose-label">{label}</span><h3>{title}</h3><p>{copy}</p><span className="purpose-action">Browse templates<ArrowUpRight size={16}/></span></a>)}</div></section>
-    <div className="workspace-toolstrip"><a href="/create/marketing"><Sparkles size={18}/><span><strong>AI for your marketing quiz</strong><small>Audience, offer, and your own voice</small></span><ArrowUpRight size={16}/></a><a href="/experiments"><GitBranch size={18}/><span><strong>Learn what works</strong><small>Compare quiz versions with A/B tests</small></span><ArrowUpRight size={16}/></a></div>
-    <div id="your-quizzes" className="scroll-mt-8 flex flex-wrap items-end justify-between gap-4 mb-6"><div><p className="pippi-eyebrow mb-2">YOUR LIBRARY</p><h2 className="text-2xl font-semibold tracking-tight">Conversations in the making</h2></div><button disabled={busy} onClick={()=>onCreate()} className="hq-secondary"><Plus size={16}/>Blank quiz</button></div>
+    <section id="quiz-starters" aria-labelledby="creation-paths-title" className="mb-8 scroll-mt-8">
+      <h2 id="creation-paths-title" className="mb-4 text-lg font-semibold tracking-tight">Four ways to start</h2>
+      <CreationPaths busy={busy} onBlank={() => onCreate()} onAI={onAI} />
+    </section>
+    <div className="mb-9 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-[#f1eee8] px-5 py-4">
+      <dl aria-label="Workspace overview" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
+        <div className="flex items-baseline gap-1.5"><dt className="order-2">Total quizzes</dt><dd className="order-1 font-semibold tabular-nums text-slate-900">{projectCount}</dd></div>
+        <div className="flex items-baseline gap-1.5"><dt className="order-2">Published</dt><dd className="order-1 font-semibold tabular-nums text-slate-900">{publishedCount}</dd></div>
+        <div className="flex items-baseline gap-1.5"><dt className="order-2">In progress</dt><dd className="order-1 font-semibold tabular-nums text-slate-900">{Math.max(0, projectCount - publishedCount)}</dd></div>
+      </dl>
+      <Link href="/experiments" className="inline-flex items-center gap-2 rounded text-sm font-medium text-[#922c3b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#a92335]"><GitBranch size={17} aria-hidden="true" />Compare quiz versions<ArrowRight size={15} aria-hidden="true" /></Link>
+    </div>
+    <div id="your-quizzes" className="mb-6 flex scroll-mt-8 flex-wrap items-end justify-between gap-4">
+      <div><p className="pippi-eyebrow mb-2">YOUR LIBRARY</p><h2 className="text-2xl font-semibold tracking-tight">Conversations in the making</h2></div>
+      <Link href="/create" className="hq-secondary"><Plus size={16} aria-hidden="true" />Create a quiz</Link>
+    </div>
   </>;
 }
