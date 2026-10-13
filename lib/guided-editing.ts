@@ -96,14 +96,14 @@ export function renameGuidedAnswer(form: FormSchemaType, questionId: string, ans
   };
 }
 
-export function addGuidedQuestion(form: FormSchemaType, type: "multiple_choice" | "multiselect", afterId?: string): { form: FormSchemaType; questionId: string } {
+export function addGuidedQuestion(form: FormSchemaType, type: "multiple_choice" | "multiselect" | "short_answer" | "paragraph" | "email", afterId?: string): { form: FormSchemaType; questionId: string } {
   if (form.questions.length >= 200) throw new Error("A quiz can have up to 200 questions.");
   const questions = orderedQuestions(form);
   const after = questions.findIndex(q => q.id === afterId);
   const pageId = after >= 0 ? questions[after].pageId || form.pages?.[0]?.id : form.pages?.[0]?.id;
   const question: Question = {
-    id: `q-${nanoid(10)}`, type, title: "", required: true, points: form.marketing ? 0 : 1,
-    options: [1, 2].map(() => ({ id: `a-${nanoid(10)}`, label: "", isCorrect: false })),
+    id: `q-${nanoid(10)}`, type, title: "", required: true, points: form.marketing || !guidedChoiceTypes.has(type) ? 0 : 1,
+    ...(guidedChoiceTypes.has(type) ? { options: [1, 2].map(() => ({ id: `a-${nanoid(10)}`, label: "", isCorrect: false })) } : {}),
     ...(pageId ? { pageId } : {}),
   };
   const insertAt = after >= 0 ? after + 1 : questions.length;

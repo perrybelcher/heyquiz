@@ -37,6 +37,10 @@ export const helpArticles: HelpArticle[] = [
       {
         "title": "AI",
         "body": "AI creates a draft from your brief. Describe your audience, offer and desired outcome. Review factual claims, answer options, scores and result links before publishing. If AI is unavailable, use Blank or a template; your quiz does not need AI to run."
+      },
+      {
+        "title": "Basic or Advanced editing",
+        "body": "New unpublished quizzes open in Basic mode unless this browser has remembered Advanced for that quiz. Basic has five steps: Your quiz, Questions, Results, Design and Publish. Add single-choice, multi-select, short answer, long answer or email fields; choose Cards or Form; edit result wording and pick an accent color. Scoring is optional and expandable. Switch to Advanced mode for branching, landing-page layouts, PDF/email customization, integrations and detailed design. Switch back with Basic mode. This changes the editing interface, not the saved quiz or its existing rules. Published quizzes without a saved mode preference keep the Advanced editor."
       }
     ]
   },

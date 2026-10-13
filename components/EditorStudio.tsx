@@ -184,7 +184,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     () => null,
   );
   const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(null);
-  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode === "guided" : guest || (!initiallyPublished && Boolean(initialForm.marketing)));
+  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : !initiallyPublished);
   function changeEditorMode(value: boolean) { setEditorModeOverride(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
   const [showConversationMap, setShowConversationMap] = useState(false);
   const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>();
@@ -1698,7 +1698,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           { label: "Question settings", onClick: () => { setActiveNavTab("edit"); if (!selectedQuestionId) setSelectedQuestionId(form.questions[0]?.id || null); setMobilePanel("settings"); } },
           { label: "Form settings", onClick: () => { setSelectedQuestionId(null); setActiveNavTab("edit"); setMobilePanel("settings"); } },
           { label: "Conversation map", onClick: () => { setMobilePanel(null); setShowConversationMap(true); } },
-          { label: "Guided setup", onClick: () => { setMobilePanel(null); changeEditorMode(true); } },
+          { label: "Basic mode", onClick: () => { setMobilePanel(null); changeEditorMode(true); } },
           { label: "Draft history", onClick: openDraftHistory },
           { label: "Save draft", onClick: () => void saveNow() },
           { label: "Declarative Schema JSON", onClick: () => { setJsonText(JSON.stringify(form, null, 2)); setShowJsonModal(true); } },
@@ -1759,7 +1759,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </span>
         </div>
 
-        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Guided setup</button>
+        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Basic mode</button>
         {/* Center Fillout Tabs Capsule */}
         <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
           <button
@@ -1835,7 +1835,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <span>Theme</span>
           </button>
           <span data-tour="scoring"><ScoringMode form={form} onChange={setForm} /></span>
-          <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Setup checklist</button>
+          <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Basic mode</button>
           <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
           {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
           {/* Device Mockup Toggle */}
@@ -4170,7 +4170,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       {activeNavTab === "share" && (
         <div className="flex-1 overflow-y-auto bg-[#f4f5f7] p-6 sm:p-10 font-sans">
           <div className="max-w-3xl w-full mx-auto space-y-6">
-            {guidedShareReturn && <button type="button" onClick={returnToGuidedPublish} className="hq-secondary"><ArrowLeft size={16} aria-hidden="true"/>Back to guided Publish</button>}
+            {guidedShareReturn && <button type="button" onClick={returnToGuidedPublish} className="hq-secondary"><ArrowLeft size={16} aria-hidden="true"/>Back to Basic Publish</button>}
             <div className="bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">

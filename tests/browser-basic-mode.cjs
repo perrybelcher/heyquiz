@@ -1,0 +1,15 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+const base=process.env.TEST_BASE_URL;if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(base||''))throw Error('Local test only');
+(async()=>{const b=await chromium.launch({channel:'chrome'}),ctx=await b.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage(),headers={Origin:base},id='qa-basic-'+Date.now();let errors=[];p.on('pageerror',e=>errors.push(e.message));try{
+await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
+const fixture={id,title:'Basic fixture',mode:'survey',theme:{primaryColor:'#681d27',backgroundColor:'#ffffff'},questions:[{id:'q1',type:'multiple_choice',title:'What fits?',options:[{id:'a',label:'Ready'},{id:'b',label:'Later'}]}],reportDesign:{title:'Preserve report'},logicRules:[]};
+// Valid defaults supplied by the app schema; only valid existing advanced fields are used.
+delete fixture.reportDesign;const r=await ctx.request.post(base+'/api/forms',{data:fixture,headers});assert.equal(r.status(),201,await r.text());
+await p.goto(base+'/editor/'+id);await p.getByText('Basic mode',{exact:true}).waitFor();assert.equal(await p.getByText('Design your landing page',{exact:true}).count(),0);
+await p.getByRole('button',{name:'2. Questions',exact:true}).click();await p.getByLabel('New question type',{exact:true}).selectOption('email');await p.getByRole('button',{name:'Add question',exact:true}).click();await p.getByLabel('Question wording',{exact:true}).fill('Your email');
+await p.getByRole('button',{name:'3. Results',exact:true}).click();await p.getByLabel('Result title',{exact:true}).fill('Thanks for sharing');assert.equal(await p.getByText('Report design',{exact:true}).count(),0);
+await p.getByRole('button',{name:'4. Design',exact:true}).click();await p.getByRole('button',{name:'Ocean accent',exact:true}).click();assert.equal(await p.getByRole('button',{name:'Ocean accent'}).getAttribute('aria-pressed'),'true');
+await p.getByRole('button',{name:'Advanced mode',exact:true}).click();await p.getByRole('button',{name:'Basic mode',exact:true}).first().click();await p.getByRole('button',{name:'2. Questions',exact:true}).click();await p.getByLabel('Question',{exact:true}).selectOption('1');assert.equal(await p.getByLabel('Question wording',{exact:true}).inputValue(),'Your email');
+await p.getByRole('button',{name:'3. Results',exact:true}).click();assert.equal(await p.getByLabel('Result title',{exact:true}).inputValue(),'Thanks for sharing');
+await p.setViewportSize({width:390,height:844});await p.getByRole('button',{name:'4. Design',exact:true}).click();assert.equal(await p.getByRole('button',{name:'Ocean accent'}).getAttribute('aria-pressed'),'true');assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);await p.screenshot({path:'/tmp/pippi-basic-mode-mobile.png'});assert.deepEqual(errors,[]);console.log('PASS Basic default, email creation, simple results/colors, mode round-trip preservation and mobile layout');
+}finally{await ctx.request.delete(base+'/api/forms/'+id,{headers});await b.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
