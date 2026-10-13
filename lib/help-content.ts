@@ -12,7 +12,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Build a small first version",
-        "body": "Start with three useful questions and one clear result. Ask about the visitor\u2019s goal, their current situation and their preferred next step. Give people honest alternatives; avoid forcing every answer toward the same recommendation."
+        "body": "Start with three useful questions and one clear result. Ask about the visitor’s goal, their current situation and their preferred next step. Give people honest alternatives; avoid forcing every answer toward the same recommendation."
       },
       {
         "title": "Style, preview, publish",
@@ -28,7 +28,7 @@ export const helpArticles: HelpArticle[] = [
     "sections": [
       {
         "title": "Blank",
-        "body": "Choose Create \u2192 Blank for direct control. Add fields, write questions and arrange pages in the full editor. You can open the setup checklist when you need a guided next step."
+        "body": "Choose Create → Blank for direct control. Add fields, write questions and arrange pages in the full editor. You can open the setup checklist when you need a guided next step."
       },
       {
         "title": "Templates and wizard",
@@ -47,16 +47,28 @@ export const helpArticles: HelpArticle[] = [
     "summary": "Collect contact details together without extra slides.",
     "sections": [
       {
-        "title": "Enable page presentation",
-        "body": "In the full editor, find How visitors see your questions above the page tabs. Select Form \u00b7 Fields together by page. Cards shows one question at a time. Single-choice answers advance automatically; other fields use Next. Form keeps the fields on each page together."
+        "title": "Choose Form before arranging the page",
+        "body": "Open your quiz in the full editor. Above the page tabs, find How visitors see your questions and choose Form · Fields together by page. Page tabs organize questions in both modes, but only Form renders those fields together. Cards displays one question per screen even when several questions share a page."
       },
       {
-        "title": "Arrange fields",
-        "body": "Select a page tab and add your fields. To move an existing field, select it and change its Page setting. Put First name, Last name and Email on the same page. Add a heading and description to introduce that group. Add another page for the next stage."
+        "title": "Example: first name, last name and email together",
+        "body": "Select the page that should collect contact details. Add a Short answer field and name it First name. Add another Short answer named Last name, then an Email address field. Select each field and check its Page setting points to the same page. If a field already exists elsewhere, change its Page setting instead of creating a duplicate. Add a heading or supporting description on this page if needed."
       },
       {
-        "title": "Check behavior",
-        "body": "Preview the page. Continue validates every visible field on that page; Back returns to the previous page. Conditional fields still follow the quiz\u2019s logic. Grouped pages show grading at the end rather than immediate per-question feedback. Test branches after changing earlier answers."
+        "title": "Decide what is required",
+        "body": "Require only information needed to provide the result or follow-up. For example, require Email address but leave Last name optional. Explain why you need the address in the question description. Collection and consent are different: asking for an address does not itself grant marketing permission."
+      },
+      {
+        "title": "Add another stage",
+        "body": "Add a separate page for the next group of questions. Assign those fields to that page. Keep each page focused: contact details on one page and needs/preferences on another is easier to scan than a long unrelated form. Use Cards instead when you want each answer to receive its own screen."
+      },
+      {
+        "title": "Preview a realistic path",
+        "body": "In Preview, leave a required field empty and try Next: you should remain on that page with validation. Fill valid values, advance, then use Back and check values remain. Test a narrow/mobile viewport. If branches hide fields, test both visible and hidden paths; grouped pages follow the resolved path rather than forcing hidden questions to appear."
+      },
+      {
+        "title": "If fields still appear separately",
+        "body": "Check the presentation is Form, verify the Page setting on every field, and reopen Preview after the draft is saved. If Preview looks right but the public link is old, Publish again and open the link from Share. Grouped pages give grading at the end; they do not show immediate per-question grading."
       }
     ]
   },
@@ -97,6 +109,22 @@ export const helpArticles: HelpArticle[] = [
       {
         "title": "Test boundaries",
         "body": "Preview low, middle and high scoring paths. Check ties and thresholds, skipped questions, multi-select answers and changed answers. Do not publish until each intended result can be reached. A preview is not proof that a live response was saved."
+      },
+      {
+        "title": "Choose what your score means",
+        "body": "A knowledge quiz awards points for correct answers. A marketing assessment may assign different answer contributions to categories or recommendations. Decide which of those you need before changing numbers: “correct” is not the same as “a stronger match for this product.” Use the scoring controls for the quiz’s actual mode."
+      },
+      {
+        "title": "Example: different answers should produce different results",
+        "body": "For a readiness assessment, use answers such as Not started, In progress and Established. Assign increasing contributions to the intended category in Answer scoring. Complete three test runs, changing only that answer. The category result should change in the intended direction. If it does not, check that the rules target the intended category and that other questions are not overriding the result."
+      },
+      {
+        "title": "Check multiple selections and unmapped choices",
+        "body": "Multi-select can add contributions from several selected answers. Test one selection and two selections separately. An unmapped selection is neutral, not necessarily a scored zero. Exclusion rules can rule out an outcome even if other answers add points to it. Inspect the scoring explanation before treating the total as a simple sum."
+      },
+      {
+        "title": "When every answer seems to score the same",
+        "body": "Check whether you changed the question-level Points for a correct answer rather than the answer’s category or outcome contribution. Verify each answer’s mapping, confirm the quiz mode, and test a single changed answer in Preview. If the saved draft works but the public quiz does not, publish the change and use a fresh response. Do not edit historical responses to make a test look correct."
       }
     ]
   },
@@ -112,7 +140,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Review the journey",
-        "body": "Open Conversation Studio to see the question journey together. Use it to identify disconnected results, unnecessary questions and routes that do not serve the visitor\u2019s goal."
+        "body": "Open Conversation Studio to see the question journey together. Use it to identify disconnected results, unnecessary questions and routes that do not serve the visitor’s goal."
       },
       {
         "title": "Test every route",
@@ -167,16 +195,28 @@ export const helpArticles: HelpArticle[] = [
     "summary": "Know where your work is saved.",
     "sections": [
       {
-        "title": "Browser draft versus account",
-        "body": "Guests can begin building. A browser backup is local to this device and is not cloud storage. Create an account or sign in to save and publish. Do not clear browser data while relying on a guest draft."
+        "title": "Know which copy you are editing",
+        "body": "A guest draft is stored in this browser on this device. A signed-in saved draft is associated with your account. A published quiz is the version visitors can access. These are three different states; a local backup is useful recovery protection but is not a substitute for an account save."
       },
       {
-        "title": "Watch save status",
-        "body": "Wait for Saved before closing a signed-in editing session. If an error appears, keep the tab open and retry. A saved draft and a published quiz are separate states."
+        "title": "Save your first quiz",
+        "body": "Start editing, then use the account prompt to sign in or create a free account when you want to save or publish. Keep the editing tab open through the account flow. After returning, inspect the quiz and wait for Saved. If it says Saved on this device or Not synced, do not assume the cloud copy has been saved."
       },
       {
-        "title": "Recovery",
-        "body": "If a recovery notice appears, inspect and restore the available draft. Draft history offers local checkpoints when available. A backup cannot be guaranteed if the browser blocks storage or its data has been cleared."
+        "title": "Apply nested editor changes",
+        "body": "Report design and Result email copy have their own Apply buttons. Changes in those panels can be pending even while the overall quiz says Saved. Click Apply report design or Apply email copy first, then wait for the quiz save status. Publish afterward to use the applied settings for new responses."
+      },
+      {
+        "title": "When saving fails",
+        "body": "Keep the editing tab open. Read the visible message: an expired session requires sign-in, while a connection failure may need a retry. Restore connectivity and use the offered save retry. Avoid opening competing copies of the same quiz or clearing site data. Do not close the only tab holding changes until the status is Saved or you have preserved your wording elsewhere."
+      },
+      {
+        "title": "Recover a browser draft",
+        "body": "If a recovery notice or Continue editing draft appears, inspect it and restore the appropriate draft. Use available draft history checkpoints to compare before restoring. Local recovery is limited to the browser/storage that retained it; clearing storage, private browsing and changing devices can remove access. It is not guaranteed recovery for every failure."
+      },
+      {
+        "title": "Verify before sharing",
+        "body": "Reopen the quiz from your workspace to verify the account copy. Publish and test the public Share link separately. A saved draft can contain changes visitors will not see until publication."
       }
     ]
   },
@@ -197,6 +237,22 @@ export const helpArticles: HelpArticle[] = [
       {
         "title": "Update or pause",
         "body": "New edits can remain unpublished until you publish again. Use the publication status to see whether changes are pending. Pause publication when you want to stop accepting visitors. Verify the public page after a publication change."
+      },
+      {
+        "title": "Use the public link, not the editor link",
+        "body": "After Publish succeeds, open Share and copy the Direct Player URL. An editor URL requires access to the account; a preview can behave differently from the published quiz. Open the public URL in a separate signed-out browser session and verify it starts normally."
+      },
+      {
+        "title": "Example release checklist",
+        "body": "For a three-question quiz, test each answer path, one missing required answer, Back navigation, and the final result. Check the result button destination. Publish, submit one fresh response using your own test details, then verify the response appears in reporting. A page loading successfully is only the first part of this check."
+      },
+      {
+        "title": "If Publish asks for an account",
+        "body": "Guest editing lets you prepare a quiz, but saving to an account and publishing require sign-in. Keep the draft tab open, use the account prompt and return to the editor. Wait for Saved before retrying Publish. Do not clear the browser draft while the account flow is unfinished."
+      },
+      {
+        "title": "If a shared link is unavailable",
+        "body": "Confirm publication succeeded, the quiz is not paused, and the link was copied from Share for this quiz. If it was copied before publication, publish first and retry. If the direct link works but an embed fails, investigate the website’s embed configuration instead of repeatedly republishing."
       }
     ]
   },
@@ -212,11 +268,11 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Match and resize",
-        "body": "Set your quiz\u2019s Theme independently from your website\u2019s CSS. Use the responsive embed options provided by Pippi; test height, scrolling and mobile width on the actual host page."
+        "body": "Set your quiz’s Theme independently from your website’s CSS. Use the responsive embed options provided by Pippi; test height, scrolling and mobile width on the actual host page."
       },
       {
         "title": "Troubleshoot",
-        "body": "If you see an unavailable quiz, verify the direct public link, publication status and correct quiz ID. A working editor preview does not prove a public link is available. Check the website builder\u2019s iframe restrictions."
+        "body": "If you see an unavailable quiz, verify the direct public link, publication status and correct quiz ID. A working editor preview does not prove a public link is available. Check the website builder’s iframe restrictions."
       }
     ]
   },
@@ -232,7 +288,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Find responses",
-        "body": "Open the quiz\u2019s Contacts and Results sections. A captured lead and a quiz visit are different records; not every visitor submits or supplies contact details. Use available filters to investigate segments."
+        "body": "Open the quiz’s Contacts and Results sections. A captured lead and a quiz visit are different records; not every visitor submits or supplies contact details. Use available filters to investigate segments."
       },
       {
         "title": "Export carefully",
@@ -256,7 +312,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Understand limits",
-        "body": "Offer clicks do not establish purchases. Browser blocking, consent and interrupted sessions can limit tracking. Verify a real published submission appears in results before relying on a new quiz\u2019s reports."
+        "body": "Offer clicks do not establish purchases. Browser blocking, consent and interrupted sessions can limit tracking. Verify a real published submission appears in results before relying on a new quiz’s reports."
       }
     ]
   },
@@ -267,16 +323,28 @@ export const helpArticles: HelpArticle[] = [
     "summary": "Test delivery and downloads separately.",
     "sections": [
       {
-        "title": "Set up results",
-        "body": "Configure the result email and report options available in the editor. Review the subject, message and report sections. Confirm which contact email field the delivery workflow uses."
+        "title": "Understand the three separate pieces",
+        "body": "The result screen, saved report/PDF and result email are separate. Report design controls the saved report and PDF; it does not replace the quiz player’s result layout. The email contains a private result link where the recipient can open and download their report. It is not an automatic marketing campaign or a PDF attachment sent to every captured lead."
       },
       {
-        "title": "Verify the complete journey",
-        "body": "Submit a published quiz using your own test address. Check the saved response, delivery status, received email and PDF contents. A provider accepting a message does not guarantee inbox placement."
+        "title": "Customize the email wording",
+        "body": "In the guided editor, open the results step and expand Result email copy. In the full editor, look for Result email copy alongside Report design in Quiz Completion & Outcomes. Fill Email subject, Email introduction and Email sign-off (optional). You can use {quiz_title} and {brand_name}. For example: subject “Your {quiz_title} result”; introduction “Here is your result and a practical next step. Open your private report using the link below.” Click Apply email copy. Wait for Saved, then Publish for new responses. The sample preview never sends an email; existing responses retain their original copy."
       },
       {
-        "title": "Missing email",
-        "body": "Check Junk, recipient spelling and the delivery status. Avoid repeatedly sending to the same person. Authentication, sender reputation and recipient filtering can affect delivery. The help assistant cannot inspect email logs or guarantee that a message was delivered."
+        "title": "Design the PDF",
+        "body": "Expand Report design. Choose Editorial or Executive, decide whether to add a cover, and edit the available title, introduction, sections and call to action. Click Apply report design, wait for Saved and Publish. The live sample is illustrative; use an actual completed test response to verify PDF pagination. Logos, images and videos remain online rather than appearing in the native PDF."
+      },
+      {
+        "title": "Request a result email as a respondent",
+        "body": "Complete the published quiz. In Keep your result, select Create private result link. When delivery is configured, Email your result appears. Enter your own test address, check “Email me my private result link”, and select Email my result. This is a separate request from marketing consent. A quiz email field alone does not trigger this request. If you only see a local test option, that environment does not send real emails."
+      },
+      {
+        "title": "Verify the report and delivery",
+        "body": "Open the saved result and download its PDF. Check the outcome, scores, advice, page breaks and destination link. In the creator’s response reporting, inspect Result email delivery and select Refresh delivery. Queued means waiting; accepted means the provider received it; delivered means the recipient mail server accepted it. None proves inbox placement. Check both Inbox and Junk in your own test mailbox."
+      },
+      {
+        "title": "If the expected option is missing",
+        "body": "First confirm you completed a published quiz rather than editor Preview. Create the private result link before looking for Email your result. If email is still absent, delivery may not be configured for the environment; changing the subject will not connect the provider. Record the visible state and approximate test time for the operator, without sharing the private link or recipient details in AI chat. Private links last 30 days after completion, and anyone holding one can view its report."
       }
     ]
   },
@@ -367,20 +435,28 @@ export const helpArticles: HelpArticle[] = [
     "summary": "Two presentation styles for different jobs.",
     "sections": [
       {
-        "title": "Choose the format",
-        "body": "In the full editor, find How visitors see your questions above the page tabs. Choose Cards \u00b7 One question at a time for a conversational experience, or Form \u00b7 Fields together by page for related information collected together."
+        "title": "Choose the presentation that fits the job",
+        "body": "Use Cards for a conversational quiz: one question at a time, with the visitor focused on one answer. Use Form when related fields should appear together, such as first name, last name and email. Form can still have several pages; it does not require a single long page."
       },
       {
-        "title": "Understand automatic advance",
-        "body": "In Cards, choosing a valid single-choice answer advances after a brief pause. Written and multi-answer fields use Next. Back lets visitors revise an answer. Immediate grading pauses to display feedback. On a final card without review, the choice submits the response; the card tells visitors this."
+        "title": "Find the control",
+        "body": "In the full editor, look above the page tabs for How visitors see your questions. Choose Cards · One question at a time or Form · Fields together by page. In Form, select a field and set its Page to group it with other fields. Changing presentation does not replace your questions."
       },
       {
-        "title": "Example: contact collection",
-        "body": "Use Form for first name, last name and email together. Place those fields on one editor page. Add a second page for preferences if you want a separate step. Display headings introduce the fields instead of requiring a separate Next for each heading."
+        "title": "How Cards advances",
+        "body": "A valid single-choice selection advances automatically after a short pause. Text, email, multi-select and other fields use Next so visitors can finish their answer. Immediate graded feedback pauses advancement so the explanation can be read. Back allows earlier answers to be changed, and the path is resolved again from those answers."
       },
       {
-        "title": "Verify before publishing",
-        "body": "Preview the selected format, complete every required field, go back and change an answer. For branching quizzes, verify the changed answer leads to the intended next card. Publish again when you want saved changes reflected in the live experience."
+        "title": "Understand the last answer",
+        "body": "If review is enabled, the visitor can review before final submission. If review is disabled, selecting the last single-choice answer can submit the quiz; the player explains this. Test the final card deliberately rather than assuming every quiz ends with a separate submit button."
+      },
+      {
+        "title": "How Form advances",
+        "body": "Next validates the visible fields on the current page together. It does not auto-advance after one choice when other fields on that page still need answers. Branching can hide fields or change the next page. Test each branch, required-field validation and Back navigation."
+      },
+      {
+        "title": "Publish the new layout",
+        "body": "Preview on desktop and mobile, wait for Saved, then Publish. Visit the public Share link to check the published version. If the old arrangement remains, confirm the fields share a Page and that the latest draft was published."
       }
     ]
   },
@@ -392,11 +468,11 @@ export const helpArticles: HelpArticle[] = [
     "sections": [
       {
         "title": "Define a useful scale",
-        "body": "For \u201cHow often do you review your plan?\u201d, use Not yet = 0, Sometimes = 5, and Every week = 10. This example measures frequency; it is not an objectively correct-answer test."
+        "body": "For “How often do you review your plan?”, use Not yet = 0, Sometimes = 5, and Every week = 10. This example measures frequency; it is not an objectively correct-answer test."
       },
       {
         "title": "Configure the appropriate model",
-        "body": "Open the selected question\u2019s scoring controls. Use the answer-level scoring for your chosen scoring model. For category-based scorecards, assign the answer weights to the intended category. Correct-answer grading is a different model; avoid treating preference questions as right or wrong."
+        "body": "Open the selected question’s scoring controls. Use the answer-level scoring for your chosen scoring model. For category-based scorecards, assign the answer weights to the intended category. Correct-answer grading is a different model; avoid treating preference questions as right or wrong."
       },
       {
         "title": "Test literal expectations",
@@ -429,6 +505,22 @@ export const helpArticles: HelpArticle[] = [
       {
         "title": "Apply and verify",
         "body": "Select Apply report design. Merely editing the panel is not the same as applying it. Save and publish the quiz, generate a synthetic result, download its PDF and check page breaks, long text and links. Check more than one outcome."
+      },
+      {
+        "title": "Find and apply the controls",
+        "body": "In the guided editor, open the results step and expand Report design. The full editor also includes Report design alongside the result email copy controls in Quiz Completion & Outcomes. Edit the fields, review the sample, and select Apply report design. Wait for Saved and then Publish. Unapplied settings are not included in the saved quiz."
+      },
+      {
+        "title": "Example: a concise executive assessment",
+        "body": "Choose Executive, enable a cover only if you want a separate introduction page, write a title such as Your readiness report and a short introduction explaining the assessment. Include the score/category information and practical next steps relevant to your quiz. Set a helpful call-to-action label and a valid destination. Avoid including sections that the quiz cannot populate."
+      },
+      {
+        "title": "Understand the preview and existing reports",
+        "body": "The sample preview uses fixed example data; it is not a participant record and is not an exact PDF pagination preview. Complete a fresh published quiz and download the actual report to check long text and page breaks. Existing responses retain their original report settings, so a previously created report is not a valid test of the new design."
+      },
+      {
+        "title": "Troubleshoot PDF differences",
+        "body": "The native PDF uses bundled fonts and readable accent colors. Logos, images and videos stay online. Some writing systems require Print / Save as PDF. Check both the saved online result and the downloaded file before assuming the report design failed. If Apply is disabled, correct the visible validation errors or resolve stale settings using the panel’s available reload/discard controls."
       }
     ]
   },
@@ -448,7 +540,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Example",
-        "body": "A score range of 0\u201339 can show a foundation-building explanation, while a higher range can offer more advanced steps. Make sure ranges do not accidentally overlap if you want mutually exclusive advice. Sections can be hidden when there are not enough scored answers."
+        "body": "A score range of 0–39 can show a foundation-building explanation, while a higher range can offer more advanced steps. Make sure ranges do not accidentally overlap if you want mutually exclusive advice. Sections can be hidden when there are not enough scored answers."
       },
       {
         "title": "Verify",
@@ -472,11 +564,27 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "If it is in Junk",
-        "body": "Moving your own test message to Inbox may improve your experience but does not prove delivery is fixed for everyone. The operator needs the actual message\u2019s authentication results and sending-provider evidence to investigate domain alignment or reputation. Do not change DNS blindly based only on a missing root-domain SPF record."
+        "body": "Moving your own test message to Inbox may improve your experience but does not prove delivery is fixed for everyone. The operator needs the actual message’s authentication results and sending-provider evidence to investigate domain alignment or reputation. Do not change DNS blindly based only on a missing root-domain SPF record."
       },
       {
         "title": "What to report",
         "body": "Share the flow, time, inbox provider and visible error with your product administrator. Keep passwords, API keys, reset links and customer answers out of chat. The AI assistant cannot read your inbox, inspect server logs or resend a message."
+      },
+      {
+        "title": "Start by identifying which email is missing",
+        "body": "An account-confirmation message, password-reset message and requested quiz-result email are different workflows. For a result email, completing a quiz or collecting an email answer is not the same as requesting delivery. Complete the published quiz, create the private result link, and use Email my result with the separate consent checkbox."
+      },
+      {
+        "title": "Use the visible status to narrow the problem",
+        "body": "For quiz results, check Result email delivery and Refresh delivery in creator reporting. No request suggests the respondent may not have completed the request flow. Queued or sending means processing is incomplete; accepted means the provider accepted the message; delivered means the destination server accepted it. Bounced, failed or delayed states need their own investigation. Record the visible status and approximate time without sharing private links in chat."
+      },
+      {
+        "title": "If it is in Junk",
+        "body": "Check a fresh test message, not only an older one. An operator should inspect authentication results on that actual message and compare them with the sending provider’s configured domain. Missing SPF on a root domain alone is not a diagnosis; the sender may use a subdomain. The AI assistant cannot inspect headers, provider logs or DNS on your behalf. Moving your own message out of Junk does not establish a fix for other recipients."
+      },
+      {
+        "title": "What to report if it still fails",
+        "body": "Provide the affected workflow, public page type, approximate time, visible error/status, and whether a fresh message reached Inbox, Junk or neither. Do not provide your password, API key, reset URL, private report link or customer addresses to the AI assistant. Avoid repeated sends while investigating: a second accepted request does not explain the first failure."
       }
     ]
   },
@@ -520,7 +628,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Separate website and quiz issues",
-        "body": "Open the direct public link outside the embed. If it works there, check the host website\u2019s iframe block, copied source and dimensions. If it fails directly as well, investigate the quiz\u2019s publication or server availability first."
+        "body": "Open the direct public link outside the embed. If it works there, check the host website’s iframe block, copied source and dimensions. If it fails directly as well, investigate the quiz’s publication or server availability first."
       },
       {
         "title": "Report a reproducible problem",
@@ -583,7 +691,7 @@ export const helpArticles: HelpArticle[] = [
     "summary": "Make the experience relevant without pressure.",
     "sections": [
       {
-        "title": "Start with the visitor\u2019s goal",
+        "title": "Start with the visitor’s goal",
         "body": "Ask what they want to accomplish in their own terms. Follow with their current situation, constraints and preferences. Each answer should improve the result or recommendation."
       },
       {
