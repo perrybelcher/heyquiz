@@ -30,7 +30,7 @@ export default function BehaviorAnalytics() {
     setVisible(false);
   }
   if (!eligible) return null;
-  return <aside aria-label="Behavior analytics preferences" data-clarity-mask="true" className="fixed bottom-3 right-3 z-[100] max-w-[calc(100vw-1.5rem)]">
+  return <aside aria-label="Behavior analytics preferences" data-clarity-mask="true" className="fixed bottom-3 left-3 z-[100] max-w-[calc(100vw-1.5rem)]">
     {visible ? <div className="w-96 max-w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-5 text-slate-900 shadow-[0_12px_48px_-12px_rgba(15,23,42,0.22)]">
       <div className="flex items-start gap-3"><ShieldCheck size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-[#922c3b]" /><h2 className="flex-1 text-base font-semibold">Help us make Pippi easier</h2>{consent && <button type="button" aria-label="Close analytics preferences" onClick={() => setVisible(false)} className="-m-2 rounded-lg p-2 text-slate-500 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-[#922c3b]"><X size={20} aria-hidden="true" /></button>}</div>
       {consent && <p className="mt-2 text-xs font-medium text-slate-600">Saved preference: analytics {consent === "granted" ? "allowed" : "off"}. You can change this anytime.</p>}
