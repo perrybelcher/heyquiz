@@ -27,11 +27,13 @@ import {
   resolvePath,
   validationError,
   displayTypes,
+  singleTypes,
   formatAnswer,
   type Answers,
 } from "@/lib/engine";
 import { quizThemeStyle } from "@/lib/theme-style";
 import QuestionField from "./QuestionField";
+import { playerPages } from "@/lib/player-pages";
 import MarketingResultCard from "./MarketingResultCard";
 import LeadCapture from "./LeadCapture";
 import QuizTracking from "./QuizTracking";
@@ -75,6 +77,9 @@ export default function QuizPlayer({
     [busy, setBusy] = useState(false),
     [remaining, setRemaining] = useState<number | null>(null),
     [resumeDismissed, setResumeDismissed] = useState(false);
+  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function cancelAutoAdvance() { if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current); autoAdvanceTimer.current = null; }
+  useEffect(() => () => cancelAutoAdvance(), []);
   const inFlight = useRef(false),
     latestAnswers = useRef(answers);
   useEffect(() => {
@@ -94,6 +99,11 @@ export default function QuizPlayer({
     ),
     q = visible[index],
     storageKey = `heyquiz:${form.id}:${experimentId || (preview ? "preview" : "live")}`;
+  const screens = playerPages(active, visible);
+  const screenIndex = Math.max(0, screens.findIndex(items => items.some(item => item.id === q?.id)));
+  const screenQuestions = screens[screenIndex] || [];
+  const grouped = active.settings.presentation === "page";
+  const lastScreen = screenIndex === screens.length - 1;
   const savedSession = useSyncExternalStore(
     () => () => {},
     () => { try { return sessionStorage.getItem(storageKey); } catch { return null; } },
@@ -124,14 +134,16 @@ export default function QuizPlayer({
       );
     } catch {}
   }, [session, answers, currentId, result, storageKey, active]);
+  const visibleScreenIds = screenQuestions.map(item => item.id).join("|");
   useEffect(() => {
     if (!session || !q || result) return;
-    void fetch(`/api/forms/${form.id}/progress`, {
+    // Serial writes avoid competing updates to the same attempt on grouped pages.
+    void (async () => { for (const questionId of visibleScreenIds.split("|")) await fetch(`/api/forms/${form.id}/progress`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: session.token, questionId: q.id }),
-    }).catch(() => {});
-  }, [session?.token, q?.id, result, form.id]);
+      body: JSON.stringify({ token: session.token, questionId }),
+    }).catch(() => {}); })();
+  }, [session?.token, visibleScreenIds, result, form.id]);
   const trackResult = useCallback((event: "result_view" | "offer_click") => {
     if (!session || preview) return;
     if (event === "offer_click") window.dispatchEvent(new Event("heyquiz-offer-click"));
@@ -233,17 +245,22 @@ export default function QuizPlayer({
       setBusy(false);
     }
   }
-  async function next() {
-    if (!q) return;
-    const validation = validationError(q, answers[q.id]);
+  async function next(nextAnswers: Answers = answers, freshChoice = false) {
+    cancelAutoAdvance();
+    if (!q || inFlight.current || busy) return;
+    // Resolve with the newly selected value; React state may not have rendered yet.
+    const nextScreens = playerPages(active, resolvePath(active, nextAnswers).questions.filter(item => item.type !== "hidden"));
+    const position = Math.max(0, nextScreens.findIndex(items => items.some(item => item.id === q.id)));
+    const invalid = (nextScreens[position] || []).find(item => validationError(item, nextAnswers[item.id]));
+    const validation = invalid ? `${invalid.title}: ${validationError(invalid, nextAnswers[invalid.id])}` : null;
     if (validation) {
       setError(validation);
       return;
     }
     setError("");
     if (
-      active.settings.feedbackMode === "immediate" &&
-      !feedback &&
+      !grouped && active.settings.feedbackMode === "immediate" &&
+      (!feedback || freshChoice) &&
       !displayTypes.has(q.type)
     ) {
       setBusy(true);
@@ -254,7 +271,7 @@ export default function QuizPlayer({
           body: JSON.stringify({
             token: session?.token,
             questionId: q.id,
-            answers,
+            answers: nextAnswers,
           }),
         });
         const data = await response.json();
@@ -271,11 +288,12 @@ export default function QuizPlayer({
       }
     }
     setFeedback(null);
-    if (index < visible.length - 1) setCurrentId(visible[index + 1].id);
+    if (position < nextScreens.length - 1) setCurrentId(nextScreens[position + 1][0].id);
     else if (active.settings.showReviewBeforeSubmit) setReview(true);
     else void submit();
   }
   function retake() {
+    cancelAutoAdvance();
     setFeedback(null);
     setSession(null);
     setCapturing(false); setContactDone(false);
@@ -481,7 +499,7 @@ export default function QuizPlayer({
                     <span>
                       {active.settings.progressBarMode === "percentage" ||
                       !active.settings.progressBarMode
-                        ? `${Math.round(((index + 1) / Math.max(visible.length, 1)) * 100)}%`
+                        ? `${Math.round(((screenIndex + 1) / Math.max(screens.length, 1)) * 100)}%`
                         : active.settings.progressBarMode === "pages" &&
                             active.pages?.length
                           ? `Page ${
@@ -492,14 +510,14 @@ export default function QuizPlayer({
                                 ),
                               ) + 1
                             } of ${active.pages.length}`
-                          : `${index + 1} of ${visible.length}`}
+                          : `${screenIndex + 1} of ${screens.length}`}
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
                     <div
                       className="h-full bg-indigo-600 transition-all duration-300"
                       style={{
-                        width: `${visible.length ? ((index + 1) / visible.length) * 100 : 0}%`,
+                        width: `${screens.length ? ((screenIndex + 1) / screens.length) * 100 : 0}%`,
                       }}
                     />
                   </div>
@@ -521,6 +539,7 @@ export default function QuizPlayer({
                         disabled={busy || target > index}
                         className="hq-secondary"
                         onClick={() => {
+                          cancelAutoAdvance();
                           setCurrentId(visible[target].id);
                           setFeedback(null);
                           setError("");
@@ -538,34 +557,21 @@ export default function QuizPlayer({
             >
               {q ? (
                 <>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-5">
-                    Question {index + 1}
-                    {q.required && !displayTypes.has(q.type)
-                      ? " · Required"
-                      : ""}
-                  </p>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight mb-3">
-                    {q.title}
-                  </h1>
-                  {q.description && (
-                    <p className="text-slate-500 leading-relaxed mb-7">
-                      {q.description}
-                    </p>
-                  )}
-                  <div className="mt-7">
-                    <QuestionField
-                      key={q.id}
-                      q={q}
-                      value={answers[q.id]}
-                      answers={answers}
-                      token={session?.token || ""}
-                      onChange={(value) => {
-                        setFeedback(null);
-                        setAnswers((prev) => ({ ...prev, [q.id]: value }));
-                        setError("");
-                      }}
-                    />
-                  </div>
+                  {screenQuestions.map((field, fieldIndex) => { const Title = fieldIndex === 0 ? "h1" : "h2"; return <div key={field.id} className={fieldIndex ? "mt-8 pt-6 border-t border-slate-100" : ""}>
+                    {!displayTypes.has(field.type) && <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-3">{grouped ? "" : `Question ${index + 1}`}{field.required ? " · Required" : ""}</p>}
+                    <Title className="text-2xl font-semibold tracking-tight leading-tight mb-3">{field.title}</Title>
+                    {field.description && <p className="text-slate-500 leading-relaxed mb-5">{field.description}</p>}
+                    {!["heading", "banner"].includes(field.type) && <QuestionField q={field} value={answers[field.id]} answers={answers} token={session?.token || ""} onChange={value => {
+                      cancelAutoAdvance();
+                      const updated = { ...answers, [field.id]: value };
+                      latestAnswers.current = updated;
+                      setFeedback(null); setAnswers(updated); setError("");
+                      if (!grouped && singleTypes.has(field.type) && value && !validationError(field, value)) {
+                        autoAdvanceTimer.current = setTimeout(() => { void next(updated, true); }, 250);
+                      }
+                    }} />}
+                  </div>; })}
+                  {!grouped && singleTypes.has(q.type) && !feedback && <p className="mt-4 text-xs text-slate-500" role="status">{lastScreen && !active.settings.showReviewBeforeSubmit ? "Choosing an answer submits your response." : "Choose an answer to continue automatically. You can go back to change it."}</p>}
                   {feedback && (
                     <div
                       role="status"
@@ -587,36 +593,37 @@ export default function QuizPlayer({
                   <div className="flex justify-between items-center mt-9 pt-6 border-t border-slate-100">
                     <button
                       className="hq-secondary"
-                      disabled={index === 0 || busy}
+                      disabled={screenIndex === 0 || busy}
                       onClick={() => {
+                        cancelAutoAdvance();
                         setFeedback(null);
-                        setCurrentId(visible[index - 1].id);
+                        setCurrentId(screens[screenIndex - 1][0].id);
                         setError("");
                       }}
                     >
                       <ArrowLeft size={16} /> Back
                     </button>
-                    <button
+                    {(grouped || !singleTypes.has(q.type) || feedback || answers[q.id] || !q.required) ? <button
                       className="hq-primary"
                       disabled={busy}
-                      onClick={next}
+                      onClick={() => void next()}
                     >
                       {busy
                         ? "Saving…"
-                        : active.settings.feedbackMode === "immediate" &&
+                        : !grouped && active.settings.feedbackMode === "immediate" &&
                             !feedback
                           ? "Check answer"
-                          : index === visible.length - 1
+                          : lastScreen
                             ? active.settings.showReviewBeforeSubmit
                               ? "Review answers"
                               : "Submit response"
-                            : "Continue"}
-                      {index === visible.length - 1 ? (
+                            : "Next"}
+                      {lastScreen ? (
                         <Check size={17} />
                       ) : (
                         <ArrowRight size={17} />
                       )}
-                    </button>
+                    </button> : null}
                   </div>
                 </>
               ) : (

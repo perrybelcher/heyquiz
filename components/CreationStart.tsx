@@ -31,6 +31,7 @@ export default function CreationStart() {
         <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg">Write every question yourself, make a template your own, follow the wizard, or let AI draft it. You can edit everything along the way.</p>
       </header>
       <CreationPaths />
+      <Link href="/help/first-quiz" className="mt-6 inline-block text-sm font-semibold text-red-800 underline">New to Pippi? Follow the first-quiz guide →</Link>
       <p className="mt-6 flex items-start gap-2 text-sm leading-relaxed text-slate-600"><Check aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-red-800" /><span>All accounts are free. Start blank, use a template, or try the wizard without signing up. Create a free account to save, publish, or use AI. No credit card.</span></p>
       {draft && <section aria-label="Continue your draft" className="mt-9 flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white/70 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3"><FilePenLine size={22} aria-hidden="true" className="shrink-0 text-red-800" /><div className="min-w-0"><h2 className="text-sm font-semibold">Pick up where you left off</h2><p className="mt-1 break-words text-sm text-slate-600">{draft.title || "Untitled quiz"} <span className="text-slate-500">· Saved on this device</span></p></div></div>

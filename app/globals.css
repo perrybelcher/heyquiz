@@ -354,3 +354,6 @@ img[src="/pippi-logo.svg"] { mix-blend-mode: multiply; object-fit: contain; }
     height: 0 !important;
   }
 }
+
+/* Walkthrough emphasis is temporary and does not intercept editor input. */
+.pippi-tour-highlight { outline: 3px solid #9b3042; outline-offset: 4px; }

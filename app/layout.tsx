@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SupportWidget from "@/components/SupportWidget";
 import BehaviorAnalytics from "@/components/BehaviorAnalytics";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased" data-clarity-mask="true">
-      <body className="min-h-full flex flex-col">{children}<BehaviorAnalytics /></body>
+      <body className="min-h-full flex flex-col">{children}<BehaviorAnalytics /><SupportWidget /></body>
     </html>
   );
 }

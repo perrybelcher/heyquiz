@@ -31,4 +31,9 @@ test('Private navigation stops before history changes; no restart in the same do
   s.scripts[0].onload();assert.equal(s.window.clarity.q.at(-1)[0],'stop','Late vendor load remains stopped');
 });
 test('Withdrawal and back navigation stop collection',()=>{for(const action of ['stop','back']){const s=setup();s.api.startClarity();action==='stop'?s.api.stopClarity():s.events.popstate();assert.equal(s.window.clarity.q.at(-1)[0],'stop');}});
+test('Outcome events contain fixed names only and vendor failure cannot break workflows',()=>{
+ const s=setup();s.api.startClarity();for(const event of ['draft_saved','save_failed','save_auth_required','publish_succeeded','publish_failed','publish_unconfirmed'])s.api.clarityEvent(event);
+ const calls=s.window.clarity.q.filter(c=>c[0]==='event');assert.equal(calls.length,6);assert.ok(calls.every(c=>c.length===2));
+ s.window.clarity=()=>{throw Error('vendor unavailable');};assert.doesNotThrow(()=>s.api.clarityEvent('draft_saved'));
+});
 console.log(`${n} Clarity privacy groups passed; no network calls.`);

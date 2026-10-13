@@ -143,6 +143,7 @@ import { publicationFingerprint, parsePublicationReceipt, PUBLICATION_CONFIRMATI
 import AnswerScoring, { ScoringMode } from "./AnswerScoring";
 import { clarityEvent, stopClarity } from "@/lib/clarity";
 import ThemeEditor from "./ThemeEditor";
+import BuilderWalkthrough from "./BuilderWalkthrough";
 import ContactsStudio from "./ContactsStudio";
 import MarketingStudio from "./MarketingStudio";
 import MarketingResultCard from "./MarketingResultCard";
@@ -1211,11 +1212,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       if (!res.ok) throw new Error(data.error || "Publishing failed.");
       if (data.success !== true || data.url !== `/play/${form.id}`) throw new Error(PUBLICATION_CONFIRMATION_ERROR);
       const receipt = parsePublicationReceipt(data.publication, form.id);
+      clarityEvent("publish_succeeded");
       setLiveFingerprint(receipt.fingerprint);
       setIsPublished(true);
       setShowReadiness(false);
       setShowPublishModal(true);
     } catch (err) {
+      clarityEvent(receivedSuccessfulResponse ? "publish_unconfirmed" : "publish_failed");
       if (receivedSuccessfulResponse) setPublicationUncertain(true);
       closePublishReadiness();
       setActionError(receivedSuccessfulResponse ? PUBLICATION_CONFIRMATION_ERROR : err instanceof Error ? err.message : "Publishing failed.");
@@ -1672,6 +1675,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </button>
         </div>
       )}
+      <BuilderWalkthrough onShow={target => {
+        if (target === "theme") { setShowThemeModal(true); return; }
+        if (target === "preview") { void handlePreview(); return; }
+        changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page");
+        if (target === "questions") setMobilePanel("fields");
+        requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      }} />
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
       {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
@@ -1824,7 +1834,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <Paintbrush className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Theme</span>
           </button>
-          <ScoringMode form={form} onChange={setForm} />
+          <span data-tour="scoring"><ScoringMode form={form} onChange={setForm} /></span>
           <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Setup checklist</button>
           <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
           {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
@@ -1899,6 +1909,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         <div className="flex-1 flex overflow-hidden">
           {/* LEFT COLUMN: FILLOUT FIELD PALETTE */}
           <aside
+            data-tour="questions"
             className={`hq-field-palette w-64 border-r border-gray-200 bg-white flex flex-col shrink-0 ${mobilePanel === "fields" ? "mobile-open" : ""}`}
           >
             <button
@@ -1978,6 +1989,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   : "max-w-2xl space-y-4"
               }`}
             >
+              <section data-tour="pages" className="rounded-2xl border border-stone-200 bg-white p-4" aria-label="Quiz presentation">
+                <label className="flex flex-wrap items-center justify-between gap-3 text-sm font-semibold">How visitors see your questions
+                  <select aria-label="Quiz presentation" className="rounded-xl border border-stone-300 p-2" value={form.settings.presentation || "question"} onChange={e => setForm(current => ({ ...current, settings: { ...current.settings, presentation: e.target.value as "question" | "page" } }))}>
+                    <option value="question">Cards · One question at a time</option><option value="page">Form · Fields together by page</option>
+                  </select>
+                </label>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">Cards advance automatically after a single-choice answer; other fields use Next. Forms keep related fields together. Group names, email and supporting headings on the same page. Use the page tabs below and the question’s Page setting to organize fields. Grouped pages show grading at the end.</p>
+              </section>
               {/* Fillout Multi-Page Navigation Bar */}
               <div className="bg-white/95 backdrop-blur-md border border-gray-200/90 rounded-2xl p-1.5 shadow-xs flex items-center justify-between gap-2 overflow-x-auto">
                 <div className="flex items-center gap-1.5 min-w-max">

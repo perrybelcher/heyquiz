@@ -8,6 +8,7 @@ import {
   useMemo,
 } from "react";
 import { FormSchema, type FormSchemaType } from "@/lib/schema";
+import { clarityEvent } from "@/lib/clarity";
 const fingerprint = (form: FormSchemaType) =>
   // Schema parsing can reorder object keys without changing a draft. Compare
   // canonical objects while preserving question/answer order and content.
@@ -129,6 +130,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           // recovery snapshot must not reappear merely because the save changed.
           setRecoveryDismissed(true);
           setClaimed(true);
+          clarityEvent("draft_saved");
           setStatus("saved");
           // Each storage area can fail independently. Remove only copies that
           // match the confirmed snapshot, never newer edits from this/another tab.
@@ -154,6 +156,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           // Choosing Stay leaves a confirmed account draft with normal PUT saves.
           return false;
         } catch (e) {
+          clarityEvent(requiresAuth ? "save_auth_required" : "save_failed");
           // A previous 401 must not disguise a network failure or an uncertain
           // save receipt as another account prompt. Keep the prompt mounted
           // during a retry, then classify only that attempt's actual response.
@@ -185,7 +188,9 @@ export function useAutosave(form: FormSchemaType, guest = false) {
           revision.current = data.revision;
           saved.current = fingerprint(snapshot);
           setSavedFingerprint(saved.current);
+          clarityEvent("draft_saved");
         } catch (e) {
+          clarityEvent(requiresAuth ? "save_auth_required" : "save_failed");
           setAuthRequired(requiresAuth);
           setError(
             e instanceof Error

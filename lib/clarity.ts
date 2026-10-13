@@ -1,7 +1,7 @@
 /** Creator-only behavior analytics. Never pass content, contact details or IDs to events. */
 export const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID || "ywmhuufnta";
 export const CLARITY_CONSENT_KEY = "pippi-behavior-consent-v1";
-export const clarityEvents = ["create_blank", "create_template", "create_guided", "create_ai", "scoring_help", "answer_example", "setup_next", "preview_requested", "publish_requested", "account_prompt"] as const;
+export const clarityEvents = ["create_blank", "create_template", "create_guided", "create_ai", "scoring_help", "answer_example", "setup_next", "preview_requested", "publish_requested", "account_prompt", "draft_saved", "save_failed", "save_auth_required", "publish_succeeded", "publish_failed", "publish_unconfirmed"] as const;
 export type ClarityEvent = typeof clarityEvents[number];
 type Clarity = ((...args: unknown[]) => void) & { q?: unknown[][] };
 declare global { interface Window { clarity?: Clarity; } }
@@ -25,7 +25,8 @@ export function readClarityConsent(): "granted" | "denied" | null {
 }
 let started = false, stopped = false;
 export function clarityEvent(event: ClarityEvent) {
-  if (started && !stopped && clarityEvents.includes(event) && readClarityConsent() === "granted") window.clarity?.("event", event);
+  // Observability must never interrupt saving or publishing.
+  try { if (started && !stopped && clarityEvents.includes(event) && readClarityConsent() === "granted") window.clarity?.("event", event); } catch {}
 }
 /** Stop before private content or a token-bearing URL is rendered. Resume only on a fresh document. */
 export function stopClarity() {
