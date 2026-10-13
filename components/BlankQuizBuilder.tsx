@@ -19,7 +19,7 @@ export default function BlankQuizBuilder() {
       const saved = previous ? readGuestDraft(localStorage, sessionStorage, previous) : null;
       const draft = saved ?? blankQuiz(`quiz-${nanoid(10)}`);
       localStorage.setItem(`heyquiz-draft:${draft.id}`, JSON.stringify(draft));
-      localStorage.setItem(`pippi-editor-mode:${draft.id}`, "advanced");
+      if (!localStorage.getItem(`pippi-editor-mode:${draft.id}`)) localStorage.setItem(`pippi-editor-mode:${draft.id}`, "guided");
       sessionStorage.setItem("pippi-blank-draft", draft.id);
       localStorage.setItem("pippi-guest-draft", draft.id);
       // Keep SSR and the first client render on the same placeholder; storage and

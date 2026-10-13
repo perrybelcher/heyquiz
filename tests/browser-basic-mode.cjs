@@ -1,6 +1,7 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
 const base=process.env.TEST_BASE_URL;if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(base||''))throw Error('Local test only');
 (async()=>{const b=await chromium.launch({channel:'chrome'}),ctx=await b.newContext({viewport:{width:1440,height:1000}}),p=await ctx.newPage(),headers={Origin:base},id='qa-basic-'+Date.now();let errors=[];p.on('pageerror',e=>errors.push(e.message));try{
+await p.goto(base+'/create/blank');await p.getByText('Basic mode',{exact:true}).waitFor();await p.getByRole('button',{name:'Advanced mode',exact:true}).click();await p.reload();await p.getByRole('button',{name:'Basic mode',exact:true}).first().waitFor();
 await ctx.request.post(base+'/api/auth',{data:{local:true},headers});
 const fixture={id,title:'Basic fixture',mode:'survey',theme:{primaryColor:'#681d27',backgroundColor:'#ffffff'},questions:[{id:'q1',type:'multiple_choice',title:'What fits?',options:[{id:'a',label:'Ready'},{id:'b',label:'Later'}]}],reportDesign:{title:'Preserve report'},logicRules:[]};
 // Valid defaults supplied by the app schema; only valid existing advanced fields are used.
