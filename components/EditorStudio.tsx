@@ -184,7 +184,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     () => null,
   );
   const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(null);
-  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : !initiallyPublished);
+  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true);
   function changeEditorMode(value: boolean) { setEditorModeOverride(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
   const [showConversationMap, setShowConversationMap] = useState(false);
   const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>();
@@ -1675,6 +1675,12 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </button>
         </div>
       )}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2">
+        <span className="text-xs font-medium text-stone-500">Editor mode</span>
+        <div role="group" aria-label="Editor mode" className="flex rounded-xl bg-stone-100 p-1">
+          {[{label:"Basic",value:true},{label:"Advanced",value:false}].map(mode=><button key={mode.label} type="button" aria-pressed={guided===mode.value} onClick={()=>changeEditorMode(mode.value)} className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-red-800 ${guided===mode.value?"bg-white text-[#681d27] shadow-sm":"text-stone-500 hover:text-stone-900"}`}>{mode.label}</button>)}
+        </div>
+      </div>
       <BuilderWalkthrough onShow={target => {
         if (target === "theme") { setShowThemeModal(true); return; }
         if (target === "preview") { void handlePreview(); return; }
