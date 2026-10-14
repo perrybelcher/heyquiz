@@ -283,8 +283,8 @@ export default function QuestionField({
     case "opinion_scale":
     case "nps":
     case "emoji_rating": {
-      const min = q.minRating ?? (q.type === "nps" ? 0 : 1),
-        max = Math.min(q.maxRating ?? (q.type === "nps" ? 10 : 5), 20);
+      const min = q.type === "nps" ? 0 : (q.minRating ?? 1),
+        max = q.type === "nps" ? 10 : Math.min(q.maxRating ?? 5, 20);
       return (
         <div>
           <div className="flex flex-wrap gap-2">

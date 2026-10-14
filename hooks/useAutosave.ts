@@ -42,6 +42,7 @@ export function useAutosave(form: FormSchemaType, guest = false) {
   const claimedCreatedAt = useRef<string | undefined>(undefined);
   const key = `heyquiz-draft:${form.id}`;
   const draftSnapshot = useRef<string | null | undefined>(undefined);
+  const [initialFingerprint] = useState(() => fingerprint(form));
   const initialDraftSnapshot = useCallback(() => {
     if (draftSnapshot.current === undefined) {
       try { draftSnapshot.current = sessionStorage.getItem(key); } catch { draftSnapshot.current = null; }
@@ -58,11 +59,11 @@ export function useAutosave(form: FormSchemaType, guest = false) {
     if (recoveryDismissed || !stored) return null;
     try {
       const draft = FormSchema.parse(JSON.parse(stored));
-      return fingerprint(draft) !== savedFingerprint ? draft : null;
+      return fingerprint(draft) !== initialFingerprint && fingerprint(draft) !== savedFingerprint ? draft : null;
     } catch {
       return null;
     }
-  }, [stored, recoveryDismissed, savedFingerprint]);
+  }, [stored, recoveryDismissed, savedFingerprint, initialFingerprint]);
   useEffect(() => {
     latest.current = form;
     if (guest || fingerprint(form) !== saved.current) {

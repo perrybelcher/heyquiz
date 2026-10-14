@@ -361,10 +361,15 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
           ) : (
             <>
               <p className="text-sm text-slate-600">
-                Use a sub-account private integration token with Contacts
-                read/write access. This version uses a token connection;
-                marketplace OAuth is not yet available.
+                Connect directly with a sub-account private integration token.
+                GoHighLevel does not use the Nango connection window.
               </p>
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600">
+                <li>In your GoHighLevel sub-account, open Settings → Private Integrations and create a token with Contacts write access (contacts.write).</li>
+                <li>Copy the Location ID from that same sub-account and paste the token below without a Bearer prefix.</li>
+                <li>Save the connection, then run a synthetic test. This creates a test contact in your CRM; account workflows may run.</li>
+              </ol>
+              <p className="text-xs text-slate-500">A saved connection is not proof of delivery. Check the test delivery status before enabling it for real leads. Lead capture and marketing consent are required.</p>
               <label className="block text-sm font-medium space-y-2">
                 <span>Location ID</span>
                 <input

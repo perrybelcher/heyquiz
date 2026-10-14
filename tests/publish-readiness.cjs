@@ -195,7 +195,7 @@ let hookState;
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (parent?.filename === componentPath && request === 'react') return { ...React,
-    useEffect: effect => hookState.effects.push(effect), useMemo: run => run(), useRef: () => ({ current: hookState.dialog }),
+    useState: initial => [initial, () => {}], useEffect: effect => hookState.effects.push(effect), useMemo: run => run(), useRef: () => ({ current: hookState.dialog }),
   };
   if (request.startsWith('@/')) return originalLoad.call(this, path.resolve(__dirname, '..', request.slice(2)), parent, isMain);
   return originalLoad.call(this, request, parent, isMain);
@@ -239,7 +239,7 @@ test('actual dialog preserves busy cancel guards, modal lifecycle and fresh-form
   assert.equal(ui.button('Publishing…').props.disabled, true); assert.equal(ui.button('Back to editor').props.disabled, true);
   let prevented = 0; ui.tree.props.onCancel({ preventDefault() { prevented++; } });
   assert.equal(prevented, 1); assert.equal(ui.state().closes, 0);
-  const cleanup = ui.effects[0](); assert.equal(ui.state().shown, 1); cleanup(); assert.equal(ui.state().closed, 1);
+  const cleanup = ui.effects[ui.effects.length - 1](); assert.equal(ui.state().shown, 1); cleanup(); assert.equal(ui.state().closed, 1);
   const invalid = form(); invalid.title = '';
   assert.equal(render(invalid).button('Publish now').props.disabled, true);
   assert.equal(render(form()).button('Publish now').props.disabled, false);

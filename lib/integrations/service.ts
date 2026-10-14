@@ -294,12 +294,20 @@ class DeliveryFailure extends Error {
     super(message);
   }
 }
-function checkResponse(r: HttpResult) {
+function checkResponse(r: HttpResult, highLevel = false) {
   if (r.status >= 200 && r.status < 300) return;
   const retryable =
     r.status === 408 || r.status === 425 || r.status === 429 || r.status >= 500;
+  // Never expose provider response bodies: they can contain contact data or credentials.
+  const guidance = highLevel ? ({
+    401: "GoHighLevel rejected the token. Use a current sub-account private integration token, pasted without the Bearer prefix.",
+    403: "GoHighLevel denied access. Check that the token belongs to this Location ID and has contacts.write permission.",
+    400: "GoHighLevel rejected the contact data. Check the Location ID, email/phone format, and custom field IDs and value types.",
+    422: "GoHighLevel rejected the contact data. Check the Location ID, email/phone format, and custom field IDs and value types.",
+    404: "GoHighLevel could not find the destination. Check the Location ID and any saved contact or custom field IDs.",
+  } as Record<number, string>)[r.status] : undefined;
   throw new DeliveryFailure(
-    `Destination returned HTTP ${r.status}.${r.status === 401 || r.status === 403 ? " Check credentials and permissions." : r.status >= 300 && r.status < 400 ? " Redirects are not followed; use the final HTTPS URL." : ""}`,
+    guidance || `Destination returned HTTP ${r.status}.${r.status === 401 || r.status === 403 ? " Check credentials and permissions." : r.status >= 300 && r.status < 400 ? " Redirects are not followed; use the final HTTPS URL." : ""}`,
     retryable,
     r.status,
     r.retryAfter,
@@ -441,7 +449,7 @@ export async function deliver(
           email: j.event.contact.email,
           name: j.event.contact.name,
           ...(j.event.contact.phone ? { phone: j.event.contact.phone } : {}),
-          source: `HeyQuiz: ${j.formId}`,
+          source: `Pippi: ${j.formId}`,
           createNewIfDuplicateAllowed: false,
           customFields: Object.entries(j.event.fields).map(([id, value]) => ({
             id,
@@ -454,7 +462,7 @@ export async function deliver(
           JSON.stringify(payload),
           headers,
         );
-        checkResponse(response);
+        checkResponse(response, true);
         status = response.status;
         try {
           contactId = JSON.parse(response.body).contact?.id;
@@ -485,7 +493,7 @@ export async function deliver(
           JSON.stringify({ tags: [...new Set(tags)] }),
           headers,
         );
-        checkResponse(response);
+        checkResponse(response, true);
         status = response.status;
       }
     }

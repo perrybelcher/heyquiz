@@ -1,4 +1,5 @@
 "use client";
+import { reportScore, reportOutcome } from "@/lib/submission-reporting";
 
 import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import {
@@ -280,6 +281,15 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     dismissRecovery,
   } = useAutosave(form, guest);
   const guestDraft = guest && !claimed;
+  const [draftAccountState, setDraftAccountState] = useState<"checking" | "signed-in" | "guest">("checking");
+  useEffect(() => {
+    if (!guest) return;
+    let cancelled = false;
+    fetch("/api/auth", {cache: "no-store"}).then(r => r.ok ? r.json() : null).then(data => {
+      if (!cancelled) setDraftAccountState(data?.signedIn ? "signed-in" : "guest");
+    }).catch(() => {if (!cancelled) setDraftAccountState("checking");});
+    return () => {cancelled = true;};
+  }, [guest]);
   const [accountPromptDismissed, setAccountPromptDismissed] = useState(false);
   const [accountPromptIntent, setAccountPromptIntent] = useState<"save" | "publish" | "preview">("save");
   const [accountPromptTrigger, setAccountPromptTrigger] = useState<HTMLElement | null>(null);
@@ -637,15 +647,15 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       return [
         `"${sub.id || ""}"`,
         `"${new Date(sub.submittedAt).toLocaleString()}"`,
-        sub.percentageScore,
-        sub.totalPointsEarned,
-        sub.totalPointsPossible,
+        reportScore(sub) ?? "",
+        reportScore(sub) === null ? "" : sub.totalPointsEarned,
+        reportScore(sub) === null ? "" : sub.totalPointsPossible,
         sub.marketing
           ? '"Recorded"'
           : sub.passed
             ? '"Passed"'
             : '"Needs Review"',
-        `"${(sub.matchedTier?.title || "").replace(/"/g, '""')}"`,
+        `"${reportOutcome(sub).replace(/"/g, '""').replace(/^[=+@\-\t\r]/, "'$&")}"`,
         `"${(sub.marketing?.title || "").replace(/"/g, '""').replace(/^[=+@\-]/, "'$&")}"`,
         `"${(sub.marketing?.categories.map((c) => `${c.title}: ${c.score === null ? "Not enough information" : c.score + "%"}`).join("; ") || "").replace(/"/g, '""').replace(/^[=+@\-]/, "'$&")}"`,
         ...qValues,
@@ -670,7 +680,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     if (!submissionSearch) return true;
     const q = submissionSearch.toLowerCase();
     const idMatch = (sub.id || "").toLowerCase().includes(q);
-    const tierMatch = (sub.marketing?.title || sub.matchedTier?.title || "")
+    const tierMatch = reportOutcome(sub)
       .toLowerCase()
       .includes(q);
     const scoreMatch = String(sub.percentageScore).includes(q);
@@ -860,7 +870,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       type === "rating" ||
       type === "nps"
     ) {
-      newQ.minRating = 1;
+      newQ.minRating = type === "nps" ? 0 : 1;
       newQ.maxRating = type === "nps" ? 10 : 5;
       newQ.ratingLabels = { low: "Not likely", high: "Extremely likely" };
     } else if (type === "emoji_rating") {
@@ -1160,6 +1170,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       if (parsed.id !== form.id) throw new Error("Keep this quiz's ID unchanged when importing JSON.");
       if (!checkpoint("Before importing JSON", setJsonError)) return;
       setForm({ ...parsed, revision: form.revision });
+      setActivePageId(parsed.pages?.[0]?.id || "page-1");
+      setSelectedQuestionId(null);
+      setCanvasView("page");
       setJsonError(null);
       setShowJsonModal(false);
     } catch (err: unknown) {
@@ -1625,7 +1638,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     }}>
       {guestDraft && (
         <div className="border-b border-stone-200 bg-[#faf8f5] px-4 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:px-5">
-          <span className="flex items-start gap-2.5"><BookmarkCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#882329]" /><span><strong className="font-semibold text-stone-900">Make it yours.</strong> Create a free account to save your quiz, share it and see the answers.</span></span>
+          <span className="flex items-start gap-2.5"><BookmarkCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#882329]" /><span><strong className="font-semibold text-stone-900">Save your first draft.</strong> {draftAccountState === "signed-in" ? "You’re signed in. Save this quiz to your account to share it and see the answers." : draftAccountState === "guest" ? "Create a free account to save your quiz, share it and see the answers." : "Save your quiz to sync it with your account. Your draft stays on this device until then."}</span></span>
           <button type="button" data-account-action="save" className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 py-2 font-semibold text-[#882329] hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#882329] disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void saveNow()}>{saveStatus === "saving" ? "Saving…" : "Save my quiz"}</button>
         </div>
       )}
@@ -1660,7 +1673,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       )}
       {recovery && (
         <div className="bg-amber-50 text-amber-900 text-sm px-6 py-3 flex gap-4">
-          Unsaved edits from your previous session are available.
+          A different draft saved on this device is available. Review it before restoring.
+          <span>“{recovery.title}” · {recovery.questions.length} questions · Based on revision {recovery.revision || 0}.</span>
           <button
             className="font-semibold underline"
             onClick={() => {
@@ -1689,7 +1703,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
       }} />
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? "Saved on this device · Sign in to sync" : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
+      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? (guestDraft && draftAccountState !== "guest" && !authRequired ? "Saved on this device · Save to your account" : "Saved on this device · Sign in to sync") : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
       <EditorMobileHeader
         title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
@@ -3919,7 +3933,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             )}
 
             {/* Outcome Tier Distribution */}
-            {form.outcomeTiers.length > 0 && (
+            {!form.marketing && form.outcomeTiers.length > 0 && (
               <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-gray-800 uppercase tracking-wider">
@@ -4066,9 +4080,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                             </td>
                             <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
                               <span className="text-sm">
-                                {sub.marketing
-                                  ? "—"
-                                  : `${sub.percentageScore}%`}
+                                {reportScore(sub) === null ? "—" : `${reportScore(sub)}%`}
                               </span>
                               <span className="text-[10px] text-gray-400 font-normal ml-1">
                                 {!sub.marketing &&

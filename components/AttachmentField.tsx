@@ -37,6 +37,10 @@ export default function AttachmentField({
       setError(`Choose a file up to ${Math.min(limit, 10)} MB.`);
       return;
     }
+    if (imageOnly && !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(blob.type)) {
+      setError("Choose a PNG, JPEG, WebP or GIF image. Text documents are not images.");
+      return;
+    }
     setBusy(true);
     try {
       const body = new FormData();

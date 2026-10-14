@@ -156,6 +156,10 @@ export function validationError(q: Question, value: unknown): string | null {
     return "Choose available options.";
   if (q.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
     return "Enter a valid email address.";
+  if (q.type === "phone" && (!/^\+?[0-9\s().-]+$/.test(v.trim()) || v.replace(/\D/g, "").length < 7 || v.replace(/\D/g, "").length > 15))
+    return "Enter a phone number with 7–15 digits, optionally including +, spaces, parentheses or hyphens.";
+  if (q.type === "image_upload" && !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(text(obj.mime)))
+    return "Upload a PNG, JPEG, WebP or GIF image.";
   if (q.type === "website" && !/^https?:\/\/[^\s/]+/i.test(v))
     return "Enter a full https:// address.";
   if (
@@ -170,8 +174,8 @@ export function validationError(q: Question, value: unknown): string | null {
     ].includes(q.type)
   ) {
     const n = Number(value),
-      min = q.minVal ?? q.minRating,
-      max = q.maxVal ?? q.maxRating;
+      min = q.type === "nps" ? 0 : q.minVal ?? q.minRating,
+      max = q.type === "nps" ? 10 : q.maxVal ?? q.maxRating;
     if (
       !Number.isFinite(n) ||
       (min !== undefined && n < min) ||

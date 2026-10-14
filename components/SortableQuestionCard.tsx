@@ -791,8 +791,8 @@ export function SortableQuestionCard({
         q.type === "nps") && (
         <div className="flex items-center gap-1.5 pt-2 overflow-x-auto">
           {Array.from(
-            { length: (q.maxRating ?? 5) - (q.minRating ?? 1) + 1 },
-            (_, i) => (q.minRating ?? 1) + i,
+            { length: q.type === "nps" ? 11 : (q.maxRating ?? 5) - (q.minRating ?? 1) + 1 },
+            (_, i) => (q.type === "nps" ? 0 : (q.minRating ?? 1)) + i,
           ).map((num) => (
             <div
               key={num}

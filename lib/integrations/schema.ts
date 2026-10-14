@@ -21,6 +21,7 @@ export const IntegrationInput = z
     signingSecret: z.string().min(16).max(256).optional(),
     locationId: z
       .string()
+      .trim()
       .regex(/^[a-zA-Z0-9_-]*$/)
       .max(128)
       .default(""),

@@ -337,6 +337,18 @@ async function due(r) {
         );
       },
     );
+    await check("HighLevel setup trims Location IDs and reports safe actionable failures", async () => {
+      assert.equal(IntegrationInput.parse({name: "GHL", provider: "gohighlevel", locationId: " location1 "}).locationId, "location1");
+      for (const [status, expected] of [[401, "token"], [403, "contacts.write"], [422, "custom field"], [404, "Location ID"]]) {
+        await s.enqueueSubmission(owner, result(`ghl-error-${status}`));
+        const j = await job(`ghl-error-${status}`, ghl.id);
+        await s.deliver(j.id, owner, async () => ({status, body: "secret-contact-data"}));
+        const saved = (await readRecord("deliveries", j.id)).payload;
+        assert.equal(saved.state, "failed");
+        assert.ok(saved.lastMessage.includes(expected));
+        assert.ok(!saved.lastMessage.includes("secret-contact-data"));
+      }
+    });
     await check(
       "HighLevel cannot be configured to send non-consenting leads",
       async () => {

@@ -475,7 +475,7 @@ export const FormSchema: z.ZodType<FormSchemaType> = z.object({
     borderRadius: "lg",
   }),
   settings: FormSettingsSchema.default({}),
-  questions: z.array(QuestionSchema).max(200).default([]),
+  questions: z.array(QuestionSchema).max(200).default([]).transform(questions => questions.map(q => q.type === "nps" ? { ...q, minRating: 0, maxRating: 10 } : q)),
   outcomeTiers: z.array(OutcomeTierSchema).optional().default([]),
   logicRules: z.array(LogicRuleSchema).optional().default([]),
   pages: z.array(FormPageSchema).optional(),

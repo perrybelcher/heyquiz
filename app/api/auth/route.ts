@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { cookies } from "next/headers";
 import {
   apiError,
+  currentUser,
   checkOrigin,
   HttpError,
   localMode,
@@ -66,4 +67,10 @@ export async function DELETE(req: Request) {
   } catch (e) {
     return apiError(e);
   }
+}
+
+/** Only authentication state; never expose account identifiers. */
+export async function GET() {
+  try { return Response.json({ signedIn: Boolean(await currentUser()) }, { headers: { "Cache-Control": "private, no-store" } }); }
+  catch { return Response.json({ signedIn: false }, { headers: { "Cache-Control": "private, no-store" } }); }
 }

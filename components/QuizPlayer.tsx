@@ -353,7 +353,7 @@ export default function QuizPlayer({
                   <CheckCircle2 size={32} />
                 </div>
                 <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">
-                  Response received
+                  {preview ? "Preview complete · No response recorded" : "Response received"}
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight">
                   {result.matchedTier?.title ||
@@ -361,9 +361,9 @@ export default function QuizPlayer({
                     "Thank you. You’re all set."}
                 </h1>
                 <p className="mt-4 text-slate-500 leading-relaxed">
-                  {result.matchedTier?.message ||
+                  {preview ? "Your preview is complete. No response was recorded." : (result.matchedTier?.message ||
                     active.endingPage?.message ||
-                    "Your answers have been saved successfully."}
+                    "Your answers have been saved successfully.")}
                 </p>
                 {result.totalPointsPossible > 0 && (
                   <div className="mt-8">
