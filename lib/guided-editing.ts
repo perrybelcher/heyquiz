@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
+import { ValidationError } from "./errors";
 import type { FormSchemaType, LogicRule, Question } from "./schema";
-import { orderedQuestions } from "./engine";
+import { evaluateCondition, orderedQuestions } from "./engine";
 
 // Binary controls have a fixed shape. The full editor remains responsible for
 // their settings; these are the choice fields authors can reshape safely here.
@@ -86,7 +87,7 @@ export function renameGuidedAnswer(form: FormSchemaType, questionId: string, ans
   const question = form.questions.find(q => q.id === questionId);
   const previous = question?.options?.find(o => o.id === answerId)?.label;
   const uniqueLabel = previous?.trim() && question?.options?.filter(o => o.label.trim().toLowerCase() === previous.trim().toLowerCase()).length === 1 && !question.options.some(o => o.id !== answerId && o.id.toLowerCase() === previous.trim().toLowerCase());
-  return {
+  const updated: FormSchemaType = {
     ...form,
     questions: form.questions.map(q => q.id === questionId ? { ...q, options: q.options?.map(o => o.id === answerId ? { ...o, label } : o) } : q),
     marketing: form.marketing ? { ...form.marketing, rules: form.marketing.rules.map(r => r.questionId === questionId && r.answerId === answerId ? { ...r, reason: "" } : r) } : undefined,
@@ -94,6 +95,15 @@ export function renameGuidedAnswer(form: FormSchemaType, questionId: string, ans
     // label changes. Substring rules require the author's journey review.
     logicRules: form.logicRules?.map(r => uniqueLabel && r.sourceQuestionId === questionId && ["equals", "not_equals"].includes(r.operator) && r.value?.trim().toLowerCase() === previous!.trim().toLowerCase() ? { ...r, value: answerId } : r),
   };
+  const renamed = updated.questions.find(q => q.id === questionId);
+  // A rule can match labels, IDs, or substrings. Preserve its truth value for
+  // every option, including options whose labels collide with an answer ID.
+  // Ambiguous rules cannot be converted to one ID without changing routing.
+  const unsafe = (form.logicRules || []).some((rule, index) => rule.sourceQuestionId === questionId &&
+    question?.options?.some(option => evaluateCondition(rule.operator, option.id, rule.value, question) !==
+      evaluateCondition(updated.logicRules![index].operator, option.id, updated.logicRules![index].value, renamed)));
+  if (unsafe) throw new ValidationError("This wording change would alter a branching rule. Review the rule in Advanced mode and select the intended answer before renaming it. Your answer has not changed.");
+  return updated;
 }
 
 export function addGuidedQuestion(form: FormSchemaType, type: "multiple_choice" | "multiselect" | "short_answer" | "paragraph" | "email", afterId?: string): { form: FormSchemaType; questionId: string } {

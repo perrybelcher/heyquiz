@@ -131,7 +131,7 @@ import EditorMobileHeader from "./EditorMobileHeader";
 import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
-import { reviewGuidedRemoval } from "@/lib/guided-editing";
+import { renameGuidedAnswer, reviewGuidedRemoval } from "@/lib/guided-editing";
 import WorkspaceHeader from "./WorkspaceHeader";
 import { registerWorkspaceNavigationGuard, workspaceNavigationApproved, subscribeWorkspaceNavigation, workspaceNavigationPending } from "@/lib/workspace-navigation";
 import { editorSection, type EditorSection } from "@/lib/editor-navigation";
@@ -1140,7 +1140,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       imageUrl: string;
     }>,
   ) => {
-    const q = form.questions.find((x) => x.id === qId);
+    let source = form;
+    try {
+      if (updates.label !== undefined) source = renameGuidedAnswer(form, qId, optId, updates.label);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Review this answer’s branching rules before changing its wording.");
+      return;
+    }
+    const q = source.questions.find((x) => x.id === qId);
     if (!q || !q.options) return;
 
     const newOptions = q.options.map((opt) => {
@@ -1153,7 +1160,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       return opt;
     });
 
-    updateQuestion(qId, { options: newOptions });
+    setActionError("");
+    setForm({ ...source, questions: source.questions.map(question => question.id === qId ? { ...question, options: newOptions } : question) });
   };
 
   const deleteOption = (qId: string, optId: string) => {
@@ -4618,6 +4626,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                     rule.operator === "is_not_answered";
                   const hasOptions =
                     sourceQ?.options && sourceQ.options.length > 0;
+                  const exactAnswer = rule.operator === "equals" || rule.operator === "not_equals";
+                  const matchingLabels = sourceQ?.options?.filter(option => option.label.trim().toLowerCase() === rule.value?.trim().toLowerCase()) || [];
+                  const selectedAnswer = sourceQ?.options?.find(option => option.id === rule.value) || (matchingLabels.length === 1 ? matchingLabels[0] : undefined);
+                  const selectionValue = exactAnswer ? selectedAnswer?.id || rule.value || "" : rule.value || "";
+                  const hasSelection = sourceQ?.options?.some(option => (exactAnswer ? option.id : option.label) === selectionValue);
 
                   return (
                     <div
@@ -4653,7 +4666,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                             );
                             handleUpdateLogicRule(rule.id, {
                               sourceQuestionId: newSourceId,
-                              value: newQ?.options?.[0]?.label || "",
+                              value: (rule.operator === "equals" || rule.operator === "not_equals" ? newQ?.options?.[0]?.id : newQ?.options?.[0]?.label) || "",
                             });
                           }}
                           className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[220px] truncate"
@@ -4690,7 +4703,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                         {!isAnsweredOperator &&
                           (hasOptions ? (
                             <select
-                              value={rule.value ?? ""}
+                              aria-label={`Rule ${idx + 1} answer`}
+                              value={selectionValue}
                               onChange={(e) =>
                                 handleUpdateLogicRule(rule.id, {
                                   value: e.target.value,
@@ -4699,8 +4713,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                               className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[200px] truncate"
                             >
                               <option value="">-- Select option --</option>
+                              {selectionValue && !hasSelection && <option value={selectionValue}>Saved condition: {rule.value} (review)</option>}
                               {sourceQ.options!.map((opt) => (
-                                <option key={opt.id} value={opt.label}>
+                                <option key={opt.id} value={exactAnswer ? opt.id : opt.label}>
                                   {opt.label}
                                 </option>
                               ))}

@@ -56,7 +56,7 @@ try {
    assert.match(attemptId, /^[a-zA-Z0-9_-]+$/);
    const lock = `${process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data"}/submissions/${attemptId}.lock`;
    fs.mkdirSync(lock);
-   try { const failed = await request(`/api/forms/${f.id}/submit`, "POST", { ...payload, contact }, false); assert.notEqual(failed.status, 200); assert.match(failed.data.error, /busy/); assert.equal((await request(`/api/forms/${f.id}/contacts`)).data.contacts.length, 0); }
+   try { const failed = await request(`/api/forms/${f.id}/submit`, "POST", { ...payload, contact }, false); assert.equal(failed.status, 503); assert.match(failed.data.error, /temporarily unavailable/); assert.equal((await request(`/api/forms/${f.id}/contacts`)).data.contacts.length, 0); }
    finally { fs.rmdirSync(lock); }
   });
   const submitted = await request(`/api/forms/${f.id}/submit`, "POST", { ...payload, ...(mode !== "after" ? { contact } : {}) }, false);
