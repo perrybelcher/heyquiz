@@ -17,7 +17,7 @@ require.extensions[".ts"] = (m, f) =>
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "heyquiz-integrations-"));
 process.env.HEYQUIZ_DATA_DIR = temp;
 process.env.SESSION_SECRET = "test-only-integration-secret-32-characters";
-delete process.env.SUPABASE_URL;
+for (const name of ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) delete process.env[name];
 delete process.env.VERCEL;
 const { writeRecord, readRecord, listRecords } = require("../lib/records.ts");
 const { seal, unseal } = require("../lib/integrations/secrets.ts");
@@ -67,6 +67,19 @@ function result(id, consent = true) {
       categories: [],
     },
   };
+}
+// Real submit/contact routes persist the response before queueing delivery.
+// Keep that production invariant in transport fixtures as lifecycle validation
+// now rechecks the durable response immediately before sending.
+async function enqueueSaved(submission) {
+  if (!(await readRecord("submissions", submission.id))) {
+    try { await writeRecord("submissions", submission.id, owner, submission, 0); }
+    catch (error) { if (!(await readRecord("submissions", submission.id))) throw error; }
+  }
+  const retained = await readRecord("submissions", submission.id);
+  assert.equal(retained.owner_id, owner);
+  assert.equal(retained.payload.formId, formId);
+  return s.enqueueSubmission(owner, retained.payload);
 }
 async function jobs() {
   return listRecords("deliveries", owner);
@@ -178,8 +191,8 @@ async function due(r) {
       "Concurrent enqueue creates one durable job per response/destination",
       async () => {
         await Promise.all([
-          s.enqueueSubmission(owner, result("one")),
-          s.enqueueSubmission(owner, result("one")),
+          enqueueSaved(result("one")),
+          enqueueSaved(result("one")),
         ]);
         assert.equal(
           (await jobs()).filter((r) => r.payload.event.responseId === "one")
@@ -222,7 +235,7 @@ async function due(r) {
     await check(
       "Declined consent records a skip without a network call",
       async () => {
-        await s.enqueueSubmission(owner, result("declined", false));
+        await enqueueSaved(result("declined", false));
         const j = await job("declined");
         assert.equal(j.payload.state, "skipped");
         await s.deliver(j.id, owner, async () => {
@@ -233,7 +246,7 @@ async function due(r) {
     await check(
       "Transient failure backs off and preserves the same delivery ID",
       async () => {
-        await s.enqueueSubmission(owner, result("retry"));
+        await enqueueSaved(result("retry"));
         let j = await job("retry");
         await s.deliver(j.id, owner, async () => ({
           status: 429,
@@ -258,7 +271,7 @@ async function due(r) {
     await check("Typed temporary storage errors and CAS conflicts remain retryable", async () => {
       const { ServiceUnavailableError, ConflictError } = require("../lib/errors.ts");
       for (const [id, error] of [["typed-storage", new ServiceUnavailableError("Synthetic outage.", 2)], ["typed-cas", new ConflictError()]]) {
-        await s.enqueueSubmission(owner, result(id));
+        await enqueueSaved(result(id));
         const queued = await job(id);
         await s.deliver(queued.id, owner, async () => { throw error; });
         assert.equal((await readRecord("deliveries", queued.id)).payload.state, "pending");
@@ -268,7 +281,7 @@ async function due(r) {
       "Authentication errors and redirects do not retry automatically",
       async () => {
         for (const status of [401, 302]) {
-          await s.enqueueSubmission(owner, result("status-" + status));
+          await enqueueSaved(result("status-" + status));
           const j = await job("status-" + status);
           await s.deliver(j.id, owner, async () => ({
             status,
@@ -284,7 +297,7 @@ async function due(r) {
     await check(
       "Repeated transport errors stop after six attempts",
       async () => {
-        await s.enqueueSubmission(owner, result("timeout"));
+        await enqueueSaved(result("timeout"));
         let j = await job("timeout");
         for (let n = 0; n < 6; n++) {
           await due(j);
@@ -312,7 +325,7 @@ async function due(r) {
           resultTag: true,
           mappings: [{ source: "result.title", target: "customfield1" }],
         });
-        await s.enqueueSubmission(owner, result("ghl"));
+        await enqueueSaved(result("ghl"));
         let j = await job("ghl", ghl.id);
         let calls = [];
         await s.deliver(j.id, owner, async (url, body, headers) => {
@@ -349,7 +362,7 @@ async function due(r) {
     await check("HighLevel setup trims Location IDs and reports safe actionable failures", async () => {
       assert.equal(IntegrationInput.parse({name: "GHL", provider: "gohighlevel", locationId: " location1 "}).locationId, "location1");
       for (const [status, expected] of [[401, "token"], [403, "contacts.write"], [422, "custom field"], [404, "Location ID"]]) {
-        await s.enqueueSubmission(owner, result(`ghl-error-${status}`));
+        await enqueueSaved(result(`ghl-error-${status}`));
         const j = await job(`ghl-error-${status}`, ghl.id);
         await s.deliver(j.id, owner, async () => ({status, body: "secret-contact-data"}));
         const saved = (await readRecord("deliveries", j.id)).payload;
@@ -389,7 +402,7 @@ async function due(r) {
     await check(
       "Connection edits stop old pending jobs until explicit retry",
       async () => {
-        await s.enqueueSubmission(owner, result("changed"));
+        await enqueueSaved(result("changed"));
         const j = await job("changed");
         webhook = await s.saveConnection(formId, owner, {
           ...defaults,
@@ -418,7 +431,7 @@ async function due(r) {
     await check(
       "Disabling a connection prevents pending delivery",
       async () => {
-        await s.enqueueSubmission(owner, result("pause"));
+        await enqueueSaved(result("pause"));
         const j = await job("pause");
         webhook = await s.saveConnection(formId, owner, {
           ...defaults,
@@ -446,7 +459,7 @@ async function due(r) {
         });
         const r = result("old");
         r.contact.recordedAt = "2020-01-01T00:00:00.000Z";
-        await s.enqueueSubmission(owner, r);
+        await enqueueSaved(r);
         assert.equal(await job("old"), undefined);
       },
     );

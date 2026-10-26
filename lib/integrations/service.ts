@@ -19,6 +19,7 @@ import type { QuizSubmissionResult, FormSchemaType } from "../schema";
 import { HttpError } from "../auth";
 import { sendProvider } from "./adapters";
 import { isNangoProvider, providers } from "./providers";
+import { submissionDeleted } from "../submission-lifecycle";
 const scope = (owner: string, c: Pick<IntegrationConfig, "formId" | "id">) =>
   `${owner}:${c.formId}:${c.id}`;
 export const deliveryAllowed = () =>
@@ -295,6 +296,29 @@ class DeliveryFailure extends Error {
     super(message);
   }
 }
+const stoppedSourceMessage = "Stopped: the original response or captured contact is no longer available or has changed. Earlier destination requests may already have completed.";
+class SourceLifecycleFailure extends Error {
+  constructor() { super(stoppedSourceMessage); }
+}
+/** A queued event is a historical snapshot, never authority to resurrect a
+ * deleted response or replay contact/consent that has since changed. */
+async function requireRetainedSource(job: DeliveryJob, owner: string): Promise<void> {
+  if (job.test && job.event.event === "connection.test") return;
+  const row = await readRecord<QuizSubmissionResult>("submissions", job.event.responseId);
+  // The deletion receipt is authoritative even if an interrupted old submit
+  // recreated the same ID. Read it last, immediately before transport handoff.
+  const deleted = await submissionDeleted(job.formId, owner, job.event.responseId);
+  if (deleted || !row || row.owner_id !== owner || row.id !== job.event.responseId
+    || row.payload.id !== job.event.responseId || row.payload.formId !== job.formId
+    || job.event.formId !== job.formId || !row.payload.contact) throw new SourceLifecycleFailure();
+  const captured = row.payload.contact, frozen = job.event.contact;
+  for (const field of ["email", "name", "phone", "marketingConsent", "recordedAt", "consentText", "privacyUrl", "purposeText", "formRevision", "placement"] as const) {
+    if (captured[field] !== frozen[field]) throw new SourceLifecycleFailure();
+  }
+}
+async function stopForMissingSource(row: StoredRecord<DeliveryJob>, owner: string) {
+  await writeRecord("deliveries", row.id, owner, { ...row.payload, state: "skipped", leaseUntil: undefined, lastStatus: 410, lastMessage: stoppedSourceMessage }, row.version);
+}
 function checkResponse(r: HttpResult, highLevel = false) {
   if (r.status >= 200 && r.status < 300) return;
   const retryable =
@@ -395,6 +419,13 @@ export async function deliver(
   } // Another worker claimed the same version.
   const c = connection.payload;
   try {
+    await requireRetainedSource(j, owner);
+    // Every provider adapter operation is guarded, including follow-up tags and
+    // Nango lookups. Once a request is handed to transport it cannot be recalled.
+    const guardedSender: Sender = async (...args) => {
+      await requireRetainedSource(j, owner);
+      return sender(...args);
+    };
     if (!j.test && c.consentOnly && !j.event.contact.marketingConsent)
       throw new DeliveryFailure("Marketing consent is required.", false);
     const secret = unseal(c.secretBox, scope(owner, c));
@@ -407,7 +438,7 @@ export async function deliver(
           "Payload exceeds the 256 KB delivery limit.",
           false,
         );
-      const response = await sender(secret.url, body, {
+      const response = await guardedSender(secret.url, body, {
         "X-HeyQuiz-Event": j.event.event,
         "X-HeyQuiz-Delivery": id,
         "Idempotency-Key": id,
@@ -421,7 +452,7 @@ export async function deliver(
       checkResponse(response);
       status = response.status;
     } else if (isNangoProvider(c.provider)) {
-      const response = await sendProvider(c.provider, j.event, secret, c, sender);
+      const response = await sendProvider(c.provider, j.event, secret, c, guardedSender);
       checkResponse(response);
       let contactId: string | undefined;
       try {
@@ -458,7 +489,7 @@ export async function deliver(
               typeof value === "object" ? JSON.stringify(value) : String(value),
           })),
         };
-        const response = await sender(
+        const response = await guardedSender(
           "https://services.leadconnectorhq.com/contacts/upsert",
           JSON.stringify(payload),
           headers,
@@ -489,7 +520,7 @@ export async function deliver(
         tags.push(`heyquiz-${j.event.result.outcomeId}`.slice(0, 80));
       // Test leads never receive automation-triggering tags.
       if (!j.test && j.event.contact.marketingConsent && tags.length) {
-        const response = await sender(
+        const response = await guardedSender(
           `https://services.leadconnectorhq.com/contacts/${contactId}/tags`,
           JSON.stringify({ tags: [...new Set(tags)] }),
           headers,
@@ -515,6 +546,10 @@ export async function deliver(
       claimed.version,
     );
   } catch (error) {
+    if (error instanceof SourceLifecycleFailure) {
+      await stopForMissingSource(claimed, owner);
+      return;
+    }
     const failure =
       error instanceof DeliveryFailure
         ? error
@@ -553,6 +588,12 @@ export async function retryDelivery(formId: string, owner: string, id: string) {
       409,
       "Only pending or failed deliveries can be retried.",
     );
+  try { await requireRetainedSource(r.payload, owner); }
+  catch (error) {
+    if (!(error instanceof SourceLifecycleFailure)) throw error;
+    await stopForMissingSource(r, owner);
+    throw new HttpError(410, "The original response or captured contact is no longer available. This delivery cannot be retried.");
+  }
   const c = await ownedConnection(r.payload.connectionId, formId, owner);
   if (!c.payload.enabled && !r.payload.test)
     throw new HttpError(422, "Enable the connection before retrying.");

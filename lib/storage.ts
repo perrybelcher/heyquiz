@@ -4,6 +4,7 @@ import { validateLanding } from "./landing";
 import { resolveResultEmailCopy } from "./result-email-copy";
 import { HttpError } from "./auth";
 import { revokeFormResultReports } from "./result-reports";
+import { recordSubmissionDeletion } from "./submission-lifecycle";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -197,6 +198,9 @@ export async function deleteSubmission(
   owner: string,
 ) {
   const s = await readRecord<QuizSubmissionResult>("submissions", id);
-  if (s?.payload.formId !== formId) return false;
+  if (!s || s.owner_id !== owner || s.payload.formId !== formId) return false;
+  // Record the deletion first: an in-flight submission writer can otherwise
+  // recreate the source row and make its old outbound job appear eligible.
+  await recordSubmissionDeletion(formId, owner, id);
   return removeRecord("submissions", id, owner);
 }

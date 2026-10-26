@@ -19,6 +19,12 @@ Saved submissions are the durable source of truth. After a submission/contact re
 
 Each job has an optimistic-lock claim and a 90-second lease. Expired leases are reclaimable. Transient network errors, HTTP 408/425/429 and 5xx retry up to six attempts with backoff and bounded Retry-After support. Other 4xx and redirects require review. Delivery history exposes state, attempts and safe diagnostics, never destination response bodies or credentials. Pausing/editing a connection stops pending jobs from the older configuration. Explicit manual retry uses the current destination and mappings.
 
+Non-test delivery also requires the original response and its matching contact to remain stored under the same owner and quiz. Deleted or changed sources are skipped, and manual retry cannot resurrect their frozen delivery payload. This is checked again before each outbound provider request, including later steps in a multi-request CRM delivery. Temporary storage failures remain retryable. Synthetic connection tests retain their existing behavior and do not require a real response.
+
+Response deletion first writes a small owner-bound receipt in the existing `submission_deletions` record kind. It contains identifiers and a timestamp only. The receipt remains authoritative for delivery even if an interrupted submission writer recreates the original response row. No database migration, provider activation or scheduler change is required.
+
+Deleting a response cannot recall an outbound request already handed to the network or remove a contact already accepted by a destination. This check stops subsequent requests after deletion is observed; it is not an atomic transaction with an external CRM.
+
 Webhook delivery is **at least once**, not exactly once. Receivers must deduplicate `eventId` / `Idempotency-Key`, including when a remote success is followed by a local persistence failure. HighLevel upsert requests disable duplicate creation; completed upsert IDs are persisted so a tag retry can skip the upsert. A crash between remote success and local persistence can still repeat an upsert. Multiple legitimate quiz attempts remain separate events.
 
 The MVP reconciler scans owner submissions and delivery records. This is appropriate for initial volumes; use indexed queue queries and cursor-based reconciliation before high-volume multi-tenant rollout. Worker batches are bounded, but scan volume is not yet bounded.
