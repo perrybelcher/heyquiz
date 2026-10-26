@@ -272,6 +272,16 @@ export function publicForm(form: FormSchemaType): FormSchemaType {
     }),
   };
 }
+/** Publication gate only: incomplete drafts must remain saveable. */
+export function choiceQuestionProblems(form: FormSchemaType): { questionId: string; message: string }[] {
+  return form.questions.flatMap((question, index) => {
+    if (!singleTypes.has(question.type) && !multiTypes.has(question.type)) return [];
+    if ((question.options?.length || 0) < 2 || question.options?.some(option => !option.label.trim()))
+      return [{ questionId: question.id, message: `Question ${index + 1} (“${question.title || "Untitled question"}”) needs at least two answers, each with a label, before publishing.` }];
+    return [];
+  });
+}
+
 export function validateFormReferences(form: FormSchemaType): void {
   const ids = new Set(form.questions.map((q) => q.id));
   if (ids.size !== form.questions.length)

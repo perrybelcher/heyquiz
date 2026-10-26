@@ -20,7 +20,7 @@ import {
   writeRecord,
   removeRecord,
 } from "./records";
-import { validateFormReferences, orderedQuestions } from "./engine";
+import { validateFormReferences, orderedQuestions, choiceQuestionProblems } from "./engine";
 export async function seedLocalForms(owner: string) {
   if (owner !== "local" || cloudEnabled() || (await readRecord("meta", "seed")))
     return;
@@ -124,6 +124,8 @@ export async function saveForm(
   return { ...updated, revision: r.version };
 }
 export async function publishForm(form: FormSchemaType, owner: string) {
+  const choiceProblems = choiceQuestionProblems(form);
+  if (choiceProblems.length) throw new ValidationError(choiceProblems.map(problem => problem.message).join(" "));
   validateMarketing(form, true);
   validateLanding(form.coverPage, true);
   // A later title/brand edit can make previously valid token-expanded copy too

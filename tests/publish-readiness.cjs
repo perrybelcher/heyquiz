@@ -45,10 +45,11 @@ test('question titles stay one aggregate blocker including display fields, with 
   assert.deepEqual(getPublishReadiness(value).blockers[1].targets, [{ kind: 'question-title', questionId: 'a-display' }, { kind: 'question-title', questionId: 'q-one' }]);
 });
 
-test('blank answer labels and invalid landing content do not become new dialog gates', () => {
+test('blank answer labels block publication while landing checks remain separate', () => {
   const value = form(); value.questions[0].options[0].label = '';
   value.coverPage = { enabled: true, title: '', buttonText: '', sections: [] };
-  assert.deepEqual(messages(getPublishReadiness(value)), { blockers: [], warnings: [] });
+  assert.deepEqual(getPublishReadiness(value).blockers.map(item => item.code), ['choice-answers']);
+  assert.equal(getPublishReadiness(value).warnings.length, 0);
 });
 
 test('missing destinations are aggregate recommendations with known outcome IDs, not blockers', () => {

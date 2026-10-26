@@ -7,13 +7,13 @@ const { getPublishReadiness } = require('../lib/publish-readiness.ts');
 const fixture = () => FormSchema.parse({ id: 'guided-checklist-fixture', title: '', mode: 'survey', questions: ['q1', 'q2'].map(id => ({ id, title: '', type: 'multiple_choice', required: true, options: [{ id: 'a', label: '' }, { id: 'b', label: 'Another route' }] })), marketing: { kind: 'segmentation', outcomes: [{ id: 'one', title: 'First route' }, { id: 'two', title: 'Second route' }], rules: [{ id: 'rule1', questionId: 'q1', answerId: 'a', targetId: 'one', points: 1 }, { id: 'rule2', questionId: 'q2', answerId: 'b', targetId: 'two', points: 1 }] }, capture: { ...defaultCapture, enabled: true } });
 let count = 0;
 function test(name, fn) { fn(); count++; console.log('PASS ' + name); }
-test('Current title gates remain blockers; answer wording, destinations and privacy are recommendations', () => {
+test('Titles and usable choices are blockers; destinations and privacy remain recommendations', () => {
   const form = fixture(), items = buildGuidedChecklist(form), targeted = kind => items.filter(item => item.target?.kind === kind);
-  assert.equal(targeted('quiz-title').length, 1); assert.equal(targeted('question-title').length, 2);
+  assert.equal(targeted('quiz-title').length, 1); assert.equal(targeted('question-title').length, 4);
   assert.ok([...targeted('quiz-title'), ...targeted('question-title')].every(item => item.level === 'blocker' && item.source === 'readiness'));
   assert.equal(targeted('answer-label').length, 2); assert.equal(targeted('outcome-cta').length, 2); assert.equal(targeted('capture-privacy').length, 1);
   assert.ok([...targeted('answer-label'), ...targeted('outcome-cta'), ...targeted('capture-privacy')].every(item => item.level === 'recommendation'));
-  const old = getPublishReadiness(form); assert.deepEqual(old.blockers.map(item => item.code), ['quiz-title', 'question-titles']);
+  const old = getPublishReadiness(form); assert.deepEqual(old.blockers.map(item => item.code), ['quiz-title', 'question-titles', 'choice-answers', 'choice-answers']);
 });
 test('Every exact target resolves to its intended current control and step', () => {
   const form = fixture();

@@ -60,7 +60,7 @@ const submit = (harness, index) => nodes(harness.tree).filter(n => n.type === 'f
   const local = component(path.resolve('components/ProfileSettings.tsx'), [{ status: 200, body: { ...profile, local: true } }]); local.mount(); await local.settle();
   assert.ok(nodes(local.tree).filter(node => node.type === 'fieldset').slice(1).every(node => node.props.disabled)); groups++;
   const reports = component(path.resolve('components/ReportsOverview.tsx')); reports.mount({ quizzes: [{ id: 'quiz-one', title: 'First quiz' }, { id: 'quiz-two', title: 'Another quiz', publishedAt: '2026-01-01' }] });
-  assert.match(text(reports.tree), /First quiz/); assert.ok(nodes(reports.tree).some(node => node.props?.href === '/editor/quiz-one?section=results'));
+  assert.match(text(reports.tree), /First quiz/); assert.ok(nodes(reports.tree).some(node => node.props?.href === '/reports/quiz-one'));
   inputs(reports)[0].props.onChange({ target: { value: 'another' } }); await reports.settle(); assert.doesNotMatch(text(reports.tree), /First quiz/); assert.match(text(reports.tree), /Another quiz/);
   inputs(reports)[0].props.onChange({ target: { value: 'missing' } }); await reports.settle(); assert.match(text(reports.tree), /No quizzes match/);
   const empty = component(path.resolve('components/ReportsOverview.tsx')); empty.mount({ quizzes: [] }); assert.match(text(empty.tree), /No quiz reports yet/); groups++;

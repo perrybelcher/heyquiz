@@ -7,6 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import TextareaAutosize from "react-textarea-autosize";
 import { Reorder } from "framer-motion";
 import MediaPickerModal from "./MediaPickerModal";
+import { singleTypes, multiTypes } from "@/lib/engine";
 import {
   GripVertical,
   ChevronUp,
@@ -230,6 +231,8 @@ export function SortableQuestionCard({
         />
       </div>
 
+      {(singleTypes.has(q.type) || multiTypes.has(q.type)) && ((q.options?.length || 0) < 2 || q.options?.some(option => !option.label.trim())) && <p role="status" className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900">Add at least two answers, each with a label, before publishing. You can keep editing and save this draft.</p>}
+
       {/* Choices Canvas (Multiple Choice, Multiselect, Dropdown, Checkboxes) */}
       {(q.type === "multiple_choice" ||
         q.type === "multiselect" ||
@@ -310,8 +313,9 @@ export function SortableQuestionCard({
                 <button
                   type="button"
                   onClick={() => onDeleteOption(q.id, opt.id)}
+                  disabled={(q.options?.length || 0) <= 2}
                   className="p-1 shrink-0 text-gray-600 hover:text-rose-600 transition"
-                  title="Remove option"
+                  title={(q.options?.length || 0) <= 2 ? "Keep at least two answers" : "Remove option"}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -424,8 +428,9 @@ export function SortableQuestionCard({
                     <button
                       type="button"
                       onClick={() => onDeleteOption(q.id, opt.id)}
+                  disabled={(q.options?.length || 0) <= 2}
                       className="w-6 h-6 rounded-lg bg-black/50 text-white hover:bg-rose-600 flex items-center justify-center transition shadow-xs cursor-pointer"
-                      title="Remove picture card"
+                      title={(q.options?.length || 0) <= 2 ? "Keep at least two answers" : "Remove picture card"}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

@@ -1159,6 +1159,10 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const deleteOption = (qId: string, optId: string) => {
     const q = form.questions.find((x) => x.id === qId);
     if (!q || !q.options) return;
+    if (q.options.length <= 2) {
+      setActionError("Keep at least two answers for a choice question.");
+      return;
+    }
     const newOptions = q.options.filter((opt) => opt.id !== optId);
     updateQuestion(qId, { options: newOptions });
   };

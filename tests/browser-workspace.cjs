@@ -27,12 +27,12 @@ async function editor(id){await page.addInitScript(id=>localStorage.setItem('pip
   const more=header().getByRole('button',{name:'More',exact:true});await more.click();await header().getByRole('link',{name:'Experiments',exact:true}).waitFor();await header().getByRole('link',{name:'Help',exact:true}).waitFor();await more.press('Escape');assert.equal(await more.getAttribute('aria-expanded'),'false');assert.equal(await more.evaluate(element=>element===document.activeElement),true);
   await page.screenshot({path:path.join(artifacts,'workspace-overview-desktop.png'),fullPage:false});
  });
- await check('Reports searches retained quiz definitions and opens refresh-stable Results deep link',async()=>{
+ await check('Reports searches quizzes and opens a focused, refresh-stable report',async()=>{
   await nav().getByRole('link',{name:'Reports',exact:true}).click();await page.waitForURL(base+'/reports');await page.getByRole('heading',{name:'Reports',exact:true}).waitFor();
   await page.getByRole('searchbox',{name:'Search quiz reports'}).fill(first.title);await page.getByRole('heading',{name:first.title,exact:true}).waitFor();assert.equal(await page.getByRole('heading',{name:second.title,exact:true}).count(),0);
-  const report=page.getByRole('link',{name:'View report',exact:true});assert.equal(await report.count(),1);assert.equal(await report.getAttribute('href'),`/editor/${first.id}?section=results`);
+  const report=page.getByRole('link',{name:'View report',exact:true});assert.equal(await report.count(),1);assert.equal(await report.getAttribute('href'),`/reports/${first.id}`);
   await page.screenshot({path:path.join(artifacts,'workspace-reports-desktop.png'),fullPage:false});
-  await report.click();await page.waitForURL(`${base}/editor/${first.id}?section=results`);await page.getByRole('heading',{name:'Submissions & Analytics',exact:true}).waitFor();await page.reload();await page.getByRole('heading',{name:'Submissions & Analytics',exact:true}).waitFor();
+  await report.click();await page.waitForURL(`${base}/reports/${first.id}`);await page.getByRole('heading',{name:first.title,exact:true}).waitFor();await page.getByRole('heading',{name:'All-time responses',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Publish',exact:true}).count(),0);await page.reload();await page.getByRole('heading',{name:first.title,exact:true}).waitFor();
   await nav().getByRole('link',{name:'Reports',exact:true}).click();await page.waitForURL(base+'/reports');assert.equal(await nav().getByRole('link',{name:'Reports',exact:true}).getAttribute('aria-current'),'page');
  });
  await check('Profile details save through actual local API, refresh the header and survive reload',async()=>{

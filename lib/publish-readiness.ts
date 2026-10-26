@@ -1,5 +1,5 @@
 import type { FormSchemaType } from "./schema";
-import { validateFormReferences } from "./engine";
+import { choiceQuestionProblems, validateFormReferences } from "./engine";
 import { validateMarketing } from "./marketing";
 import { scoringDiagnostics } from "./scoring-diagnostics";
 
@@ -12,6 +12,7 @@ export type PublishReadinessTarget =
 
 export interface PublishReadinessFinding {
   code:
+    | "choice-answers"
     | "questions-empty"
     | "quiz-title"
     | "question-titles"
@@ -47,6 +48,10 @@ export function getPublishReadiness(form: FormSchemaType, options: PublishReadin
   if (missingTitles.length) blockers.push({
     code: "question-titles", message: "Give every question a title.",
     targets: missingTitles.map(question => ({ kind: "question-title", questionId: question.id })),
+  });
+  for (const problem of choiceQuestionProblems(form)) blockers.push({
+    code: "choice-answers", message: problem.message,
+    targets: [{ kind: "question-title", questionId: problem.questionId }],
   });
   // Preserve first-failure behavior: a reference error prevents a second
   // marketing validation call. The source is known, never parsed from prose.

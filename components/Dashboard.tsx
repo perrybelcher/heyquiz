@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import WorkspaceWelcome from "./WorkspaceWelcome";
+import CreationPaths from "./CreationPaths";
 import { nanoid } from "nanoid";
 import {
   Search,
@@ -128,7 +129,7 @@ export default function Dashboard({
     <div className="pippi-app min-h-screen bg-[#f8f9f5] text-slate-900">
       <WorkspaceHeader active="overview" />
       <main className="max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10">
-        <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
+        <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} recentQuiz={forms[0]} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
         {error && !agent && (
           <p role="alert" className="hq-error mb-6">
             {error}
@@ -136,11 +137,11 @@ export default function Dashboard({
         )}
         <div className="flex flex-col sm:flex-row justify-between gap-5 mb-6">
           <nav
-            aria-label="Filter forms"
+            aria-label="Filter quizzes"
             className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit max-w-full overflow-x-auto"
           >
             {[
-              ["all", "All forms"],
+              ["all", "All quizzes"],
               ["quiz", "Quizzes"],
               ["survey", "Surveys"],
               ["form", "Forms"],
@@ -161,8 +162,8 @@ export default function Dashboard({
               size={16}
             />
             <input
-              aria-label="Search your forms"
-              placeholder="Search forms…"
+              aria-label="Search your quizzes"
+              placeholder="Search quizzes…"
               className="hq-input !pl-10 !py-2.5 !text-sm"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -226,6 +227,7 @@ export default function Dashboard({
                       {f.description || "Ready for your next question."}
                     </p>
                   </Link>
+                  {f.title.trim().toLowerCase() === "untitled quiz" && <p className="mt-3 text-xs text-[#922c3b]">Give this quiz a name in the editor so you can find it again.{f.updatedAt && Number.isFinite(Date.parse(f.updatedAt)) ? ` Updated ${new Date(f.updatedAt).toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC.` : ""}</p>}
                   <p className="text-xs text-slate-400 mt-6">
                     {f.questions.length} questions ·{" "}
                     {f.mode === "quiz"
@@ -240,7 +242,7 @@ export default function Dashboard({
                     href={`/editor/${f.id}`}
                     className="font-medium text-indigo-600"
                   >
-                    Open editor
+                    Continue editing
                   </Link>
                   <Link
                     href={`/play/${f.id}${f.publishedAt ? "" : "?preview=1"}`}
@@ -258,15 +260,19 @@ export default function Dashboard({
           <div className="rounded-2xl border border-dashed border-slate-300 py-20 text-center">
             <Search className="mx-auto text-slate-300 mb-4" />
             <h2 className="font-medium">
-              {query ? "No matching forms" : "A fresh start"}
+              {query ? "No matching quizzes" : "A fresh start"}
             </h2>
             <p className="text-sm text-slate-500 mt-2">
               {query
                 ? "Try another search or filter."
-                : "Create your first form to get started."}
+                : "Create your first quiz to get started."}
             </p>
           </div>
         )}
+        {forms.length > 0 && <details className="mt-8 rounded-2xl border border-stone-200 bg-white p-5">
+          <summary className="cursor-pointer font-semibold">Start another quiz</summary>
+          <div className="mt-5"><CreationPaths busy={busy} onBlank={() => void create()} onAI={() => { setError(""); setAIGoal("choose"); setAgent(true); }} /></div>
+        </details>}
       </main>
       {agent && (
         <div

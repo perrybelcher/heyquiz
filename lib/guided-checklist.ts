@@ -67,7 +67,7 @@ export function buildGuidedChecklist(form: FormSchemaType): GuidedChecklistItem[
     findings.forEach((finding, index) => {
       if (finding.targets?.length) for (const target of finding.targets) items.push({
         id: JSON.stringify(["readiness", finding.code, guidedTargetKey(target)]), level, source: "readiness",
-        message: targetMessage(form, target, finding.message),
+        message: finding.code === "choice-answers" ? finding.message : targetMessage(form, target, finding.message),
         ...(resolveGuidedChecklistTarget(form, target) ? { target } : {}),
       });
       else items.push({ id: JSON.stringify(["readiness", finding.code, index]), level, source: "readiness", message: finding.message,
