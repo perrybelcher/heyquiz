@@ -5,7 +5,8 @@ require.extensions['.css']=()=>{};const resolve=Module._resolveFilename;Module._
 const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
 const {default:Header,workspaceProfileLabel,workspaceProfileInitials,usesNativeWorkspaceLink}=require('../components/WorkspaceHeader.tsx');
 const html=renderToStaticMarkup(React.createElement(Header,{active:'reports'}));
-for(const href of ['/','/reports','/templates','/create'])assert.ok(html.includes(`href="${href}"`),href);
+for(const href of ['/','/reports','/contacts','/templates','/create'])assert.ok(html.includes(`href="${href}"`),href);
+const contactHeader=renderToStaticMarkup(React.createElement(Header,{active:'contacts'}));assert.match(contactHeader,/aria-current="page"[^>]*>Contacts<\/a>/);
 assert.match(html,/<header[^>]*class="workspace-header"/);assert.match(html,/aria-current="page"[^>]*>Reports<\/a>/);assert.ok(!html.includes('aria-current="page" class="workspace-header-link is-current ">Templates'));
 assert.match(html,/aria-label="Workspace menu"[^>]*aria-expanded="false"/);assert.match(html,/aria-label="Profile"[^>]*aria-expanded="false"/);
 assert.equal(workspaceProfileLabel({name:'  Corné van Willigen ',email:'c@example.test'}),'Corné van Willigen');assert.equal(workspaceProfileInitials({name:'Corné Willigen',email:''}),'CW');assert.equal(workspaceProfileLabel({name:'',email:'c@example.test'}),'c@example.test');assert.equal(workspaceProfileLabel({name:'',email:'',local:true}),'Local workspace');assert.equal(workspaceProfileLabel(null),'My profile');

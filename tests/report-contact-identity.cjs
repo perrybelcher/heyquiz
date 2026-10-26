@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
+const {reportIdentity,reportResponseMatches}=require('../lib/submission-reporting.ts');
+const response={respondentName:'Older Name',contact:{name:'Alex Example',email:'Alex@Example.test'},grading:[{questionTitle:'Preference',userAnswer:'Bread'}],matchedTier:{title:'Baker'}};
+assert.deepEqual(reportIdentity(response),{label:'Alex Example',email:'Alex@Example.test'});
+for(const value of [' Alex example ','ALEX@EXAMPLE.TEST','Older Name','bread','Preference','baker',''])assert.equal(reportResponseMatches(response,value),true,value);
+assert.equal(reportResponseMatches(response,'no-match'),false);
+assert.equal(reportIdentity({...response,contact:{name:' ',email:'only@example.test'},respondentName:''}).label,'only@example.test');
+assert.equal(reportIdentity({respondentName:'Legacy Reader'}).label,'Legacy Reader');
+assert.deepEqual(reportIdentity({}),{label:'Response',email:''});
+assert.equal(reportResponseMatches({},'missing'),false);
+assert.equal(reportResponseMatches({grading:[]},''),true);
+console.log('PASS report identity/search: captured name/email, case/whitespace, legacy name, answer/outcome search, anonymous responses and missing legacy grading.');

@@ -23,7 +23,7 @@ async function editor(id){await page.addInitScript(id=>localStorage.setItem('pip
  const first=await create('Report one'),second=await create('Report two');page=await context.newPage();page.on('dialog',async dialog=>{dialogs.push({type:dialog.type(),message:dialog.message()});if(dialogPolicy==='dismiss')await dialog.dismiss();else await dialog.accept()});
  await check('shared desktop header exposes overview, reports, templates, create and keyboard More navigation',async()=>{
   await go('/');assert.equal(await nav().getByRole('link',{name:'Overview',exact:true}).getAttribute('aria-current'),'page');
-  for(const label of ['Overview','Reports','Templates'])await nav().getByRole('link',{name:label,exact:true}).waitFor();assert.equal(await header().getByRole('link',{name:'Create quiz',exact:true}).getAttribute('href'),'/create');
+  for(const label of ['Overview','Reports','Contacts','Templates'])await nav().getByRole('link',{name:label,exact:true}).waitFor();assert.equal(await header().getByRole('link',{name:'Create quiz',exact:true}).getAttribute('href'),'/create');
   const more=header().getByRole('button',{name:'More',exact:true});await more.click();await header().getByRole('link',{name:'Experiments',exact:true}).waitFor();await header().getByRole('link',{name:'Help',exact:true}).waitFor();await more.press('Escape');assert.equal(await more.getAttribute('aria-expanded'),'false');assert.equal(await more.evaluate(element=>element===document.activeElement),true);
   await page.screenshot({path:path.join(artifacts,'workspace-overview-desktop.png'),fullPage:false});
  });

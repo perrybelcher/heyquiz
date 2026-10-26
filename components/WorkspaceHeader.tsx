@@ -10,10 +10,10 @@ import { navigateWorkspace, signOutWorkspace } from "@/lib/workspace-navigation"
 import "./WorkspaceHeader.css";
 import "./QuizAccountPrompt.css";
 
-type Section = "overview" | "reports" | "templates" | "more" | "profile";
+type Section = "overview" | "reports" | "contacts" | "templates" | "more" | "profile";
 type Profile = ProfileView;
 type ProfileState = "loading" | "signed-in" | "signed-out" | "unavailable";
-const primary = [{ label: "Overview", href: "/", section: "overview" }, { label: "Reports", href: "/reports", section: "reports" }, { label: "Templates", href: "/templates", section: "templates" }] as const;
+const primary = [{ label: "Overview", href: "/", section: "overview" }, { label: "Reports", href: "/reports", section: "reports" }, { label: "Contacts", href: "/contacts", section: "contacts" }, { label: "Templates", href: "/templates", section: "templates" }] as const;
 const secondary = [{ label: "Experiments", href: "/experiments" }, { label: "Help", href: "/help" }] as const;
 const subscribePath = () => () => {};
 const browserPath = () => window.location.pathname;
@@ -35,7 +35,7 @@ export default function WorkspaceHeader({ active, guest = false }: { active?: Se
   const [open, setOpen] = useState<"more" | "profile" | "mobile" | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null), [profileState, setProfileState] = useState<ProfileState>("loading");
   const pathname = useSyncExternalStore(subscribePath, browserPath, serverPath);
-  const section = active || (pathname === "/" ? "overview" : pathname.startsWith("/reports") ? "reports" : pathname.startsWith("/templates") ? "templates" : pathname.startsWith("/profile") ? "profile" : /^\/(?:experiments|help)(?:\/|$)/.test(pathname) ? "more" : undefined);
+  const section = active || (pathname === "/" ? "overview" : pathname.startsWith("/reports") ? "reports" : pathname.startsWith("/contacts") ? "contacts" : pathname.startsWith("/templates") ? "templates" : pathname.startsWith("/profile") ? "profile" : /^\/(?:experiments|help)(?:\/|$)/.test(pathname) ? "more" : undefined);
   const returnTo = safeCreationReturn(guest ? "/create/draft" : pathname);
   const signInHref = creationAuthHref("/login", returnTo), signupHref = creationAuthHref("/signup", returnTo);
   const signedOut = profileState === "signed-out";
