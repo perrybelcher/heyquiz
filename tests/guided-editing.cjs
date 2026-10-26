@@ -60,6 +60,49 @@ test('Deleting a referenced calculation input is blocked instead of silently cha
   assert.throws(() => removeGuidedQuestion(form, 'q1'), /calculation/);
   assert.equal(form.questions.length, 4);
 });
+// Exercise the actual Advanced editor callback, not a second deletion model.
+function advancedRemoval(form, questionId) {
+  const source = ts.createSourceFile('EditorStudio.tsx', fs.readFileSync(require.resolve('../components/EditorStudio.tsx'), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let callback;
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(source) === 'deleteQuestion') callback = node.initializer.getText(source);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  assert.ok(callback, 'Advanced editor deletion callback must exist');
+  const compiled = ts.transpileModule(`const callback = ${callback}; return callback;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  let saved, selected = questionId, message = '', writes = 0;
+  const remove = new Function('form', 'selectedQuestionId', 'reviewGuidedRemoval', 'setForm', 'setSelectedQuestionId', 'setActionError', compiled)(
+    form, selected, reviewGuidedRemoval, value => { saved = value; writes++; }, value => { selected = value; }, value => { message = value; },
+  );
+  remove(questionId);
+  return { saved, selected, message, writes };
+}
+test('Advanced deletion preserves referenced inputs, formulas and selection with a clear explanation', () => {
+  const form = FormSchema.parse({ id: 'advanced-removal', title: 'Estimate', mode: 'survey', questions: [
+    { id: 'input', type: 'number', title: 'Quantity' },
+    { id: 'calc', type: 'calculation', title: 'Total estimate', calculationFormula: '{{input}} * 20' },
+    { id: 'calc2', type: 'calculation', title: 'Additional estimate', calculationFormula: '{{input}} + 5' },
+  ] });
+  const original = JSON.stringify(form), outcome = advancedRemoval(form, 'input');
+  assert.equal(outcome.writes, 0, 'Blocked deletion must never reach autosave');
+  assert.equal(outcome.selected, 'input');
+  assert.match(outcome.message, /Total estimate/); assert.match(outcome.message, /Additional estimate/);
+  assert.match(outcome.message, /update.*calculation/i);
+  assert.equal(JSON.stringify(form), original);
+  assert.equal(require('../lib/calculation.ts').calculate(form.questions[1].calculationFormula, { input: 12 }), 240);
+});
+test('Advanced deletion works once the calculation is updated and permits deleting the calculation itself', () => {
+  const form = FormSchema.parse({ id: 'advanced-removal', title: 'Estimate', mode: 'survey', questions: [
+    { id: 'input', type: 'number', title: 'Quantity' },
+    { id: 'calc', type: 'calculation', title: 'Total estimate', calculationFormula: '240' },
+  ] });
+  assert.deepEqual(advancedRemoval(form, 'input').saved.questions.map(q => q.id), ['calc']);
+  form.questions[1].calculationFormula = '{{input}} * 20';
+  assert.deepEqual(advancedRemoval(form, 'calc').saved.questions.map(q => q.id), ['input']);
+  form.questions[1].calculationFormula = '{{input-extra}} * 20';
+  assert.deepEqual(advancedRemoval(form, 'input').saved.questions.map(q => q.id), ['calc']);
+});
 test('Repeated selected tracking IDs cannot broaden tracking when their question is removed', () => {
   const form = fixture(); form.tracking = { enabled: false, ga4Id: '', metaPixelId: '', events: ['question_view', 'quiz_complete'], questionIds: ['q1', 'q1'], privacyUrl: '' };
   assert.deepEqual(removeGuidedQuestion(form, 'q1').tracking.events, ['quiz_complete']);

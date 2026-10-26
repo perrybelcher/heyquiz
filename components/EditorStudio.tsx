@@ -131,6 +131,7 @@ import EditorMobileHeader from "./EditorMobileHeader";
 import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
+import { reviewGuidedRemoval } from "@/lib/guided-editing";
 import { saveStatusLabel } from "@/lib/draft-recovery";
 import { FormSchema } from "@/lib/schema";
 import {
@@ -995,6 +996,12 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   };
 
   const deleteQuestion = (qId: string) => {
+    const review = reviewGuidedRemoval(form, qId);
+    if (review.blockers.length) {
+      setActionError(review.blockers.join(" "));
+      return;
+    }
+    setActionError("");
     const updated = form.questions.filter((q) => q.id !== qId);
     setForm({
       ...form,

@@ -40,7 +40,7 @@ export function reviewGuidedRemoval(form: FormSchemaType, questionId: string, an
   if (answerId && question.options?.find(o => o.id === answerId)?.isCorrect) changes.push("Remove a correct answer. Review correct-answer scoring before publishing.");
   if (!answerId) {
     const references = form.questions.filter(q => q.id !== questionId && q.calculationFormula?.includes(`{{${questionId}}}`));
-    if (references.length) blockers.push(`First update the calculation in ${references.map(q => `“${q.title || "Untitled question"}”`).join(", ")} using the full editor.`);
+    if (references.length) blockers.push(`First update the calculation in ${references.map(q => `“${q.title || "Untitled question"}”`).join(", ")} to stop using this question. You can edit formulas in Advanced mode.`);
     if (form.pages?.some(page => page.questionIds.includes(questionId))) changes.push("Remove this question from its page.");
     if (form.tracking?.questionIds.includes(questionId)) {
       changes.push(form.tracking.questionIds.every(id => id === questionId)
