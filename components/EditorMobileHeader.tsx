@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
-import Image from "next/image";
 import { Ellipsis, Paintbrush, Pause, Play, X, Zap } from "lucide-react";
 
 type Action = { label: string; onClick: () => void; disabled?: boolean };
@@ -64,7 +63,6 @@ export default function EditorMobileHeader({ title, onTitleChange, status, onSav
   if (!mobile) return null;
   return <header data-mobile-editor-header className="shrink-0 border-b border-stone-200 bg-white lg:hidden">
     <div className="flex min-w-0 items-center gap-2 px-3 py-2">
-      <Image src="/pippi-logo.svg" alt="pippi" width={48} height={20} className="h-5 w-12 shrink-0 object-contain"/>
       <div className="min-w-0 flex-1"><input aria-label="Quiz name" className="block h-5 w-full min-w-0 truncate rounded border border-transparent bg-transparent px-1 text-sm font-semibold focus:border-red-800 focus:outline-none" value={title} onChange={event => onTitleChange(event.target.value)}/>
         <p role="status" className="truncate px-1 text-[11px] leading-4 text-slate-500" title={`${status} · ${publicationLabel}`}>{saveFailed ? <button className="text-red-800 underline" onClick={onSave}>{status}</button> : status} · {publicationLabel}</p>
       </div>

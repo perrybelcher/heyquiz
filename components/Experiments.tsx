@@ -1,4 +1,5 @@
 "use client";
+import WorkspaceHeader from "./WorkspaceHeader";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FlaskConical, ArrowLeft, RefreshCw, Copy, Pause, Play, ClipboardCheck } from "lucide-react";
@@ -175,7 +176,7 @@ export default function Experiments({ handoff = null, handoffError = "" }: { han
     window.history.replaceState(window.history.state, "", "/experiments");
     requestAnimationFrame(() => versionAControl.current?.focus());
   }
-  return <main className="mx-auto w-full min-w-0 max-w-6xl px-5 py-10 text-slate-900">
+  return <><WorkspaceHeader active="more" /><main className="mx-auto w-full min-w-0 max-w-6xl px-5 py-10 text-slate-900">
     <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-600"><ArrowLeft size={16} aria-hidden="true"/>Workspace</Link>
     <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div><p className="flex items-center gap-2 text-sm font-semibold text-red-800"><FlaskConical size={18} aria-hidden="true"/>Conversion experiments</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">Find the words that work.</h1><p className="mt-3 max-w-2xl text-slate-600">Compare two published quiz versions with an approximately 50/50 random split. Change one thing at a time for a clearer comparison.</p></div><button className="hq-secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={16} aria-hidden="true"/>Refresh results</button></div>
     {handoffError && <p role="alert" className="my-5 rounded-xl bg-amber-50 p-4 text-amber-900">{handoffError}</p>}
@@ -217,5 +218,5 @@ export default function Experiments({ handoff = null, handoffError = "" }: { han
       <div role="region" aria-label={`Results for ${test.name}`} tabIndex={0} className="mt-5 overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-red-800"><table className="w-full text-left text-sm"><thead><tr className="border-b text-slate-600">{['Version', 'Assigned browser starts', 'Completed', 'Captured contacts', 'Offer clicks'].map((label, index) => <th scope="col" key={label} className="p-3 font-medium">{label}{test.plan?.primaryMetric === (index === 2 ? "completions" : index === 3 ? "leads" : "") && <span className="mt-1 block text-xs font-semibold text-red-800">Primary metric</span>}</th>)}</tr></thead><tbody>{test.stats.map((counts, index) => <tr key={index} className="border-b"><th scope="row" className="p-3 font-semibold">{index === 0 ? 'A' : 'B'} · {test.titles[index]}</th><td className="p-3 tabular-nums">{counts.visitors}</td>{(['completions', 'leads', 'clicks'] as const).map(metric => <td key={metric} className={`p-3 tabular-nums ${test.plan?.primaryMetric === metric ? "bg-red-50" : ""}`}>{counts[metric]} <span className="block text-slate-600">{percent(experimentMetricRate(counts[metric], counts.visitors))}</span></td>)}</tr>)}</tbody></table></div>
       <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{test.stats.some(counts => counts.visitors < 100) ? "Early data: at least one version has fewer than 100 assigned browser starts. There is not enough evidence to judge a winner." : "Directional results only. Starter count alone does not establish a winner; check conversion counts, traffic quality and statistical uncertainty before acting."} Avoid stopping at the first apparent improvement.</p><p className="mt-3 text-xs text-slate-600">Rates use assigned browser starts; offer clicks are not purchases. Later completions can change these counts, and deleting retained contact records can reduce captured-contact counts. Rounded rates are for display; the completion floor uses the underlying fraction.</p>
     </section>)}</div>
-  </main>;
+  </main></>;
 }

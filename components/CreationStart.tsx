@@ -1,6 +1,6 @@
 "use client";
+import WorkspaceHeader from "./WorkspaceHeader";
 import Link from "next/link";
-import Image from "next/image";
 
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, FilePenLine } from "lucide-react";
@@ -19,12 +19,9 @@ export default function CreationStart() {
     } catch {}
   }, []);
 
-  return <main className="min-h-screen bg-[#faf8f4] px-5 pt-7 pb-24 text-slate-900 sm:px-8 sm:pt-10 sm:pb-24">
+  return <><WorkspaceHeader active="overview" /><main className="min-h-screen bg-[#faf8f4] px-5 pt-7 pb-24 text-slate-900 sm:px-8 sm:pt-10 sm:pb-24">
     <div className="mx-auto max-w-6xl">
-      <nav aria-label="Creation navigation" className="mb-10 flex items-center justify-between gap-4">
-        <Link prefetch={false} href="/welcome" aria-label="Pippi home"><Image width={144} height={48} src="/pippi-logo.svg" alt="Pippi" className="w-36" /></Link>
-        <Link prefetch={false} href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-red-800">My workspace</Link>
-      </nav>
+
       <header className="mb-8 max-w-3xl sm:mb-10">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-800">YOUR QUIZ. YOUR WAY.</p>
         <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-5xl">How would you like to start?</h1>
@@ -38,5 +35,5 @@ export default function CreationStart() {
         <Link prefetch={false} href="/create/draft" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold hover:border-red-800 focus-visible:outline-2 focus-visible:outline-red-800">Continue editing<ArrowRight size={16} aria-hidden="true" /></Link>
       </section>}
     </div>
-  </main>;
+  </main></>;
 }

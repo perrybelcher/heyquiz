@@ -68,15 +68,134 @@ function providerSettings() {
   if (!url || !apiKey) throw unavailable();
   return { url, apiKey };
 }
-async function provider(path: string, access?: string, body?: unknown, timeout = 15000) {
+async function provider(path: string, access?: string, body?: unknown, timeout = 15000, method?: "GET" | "POST" | "PUT") {
   const { url, apiKey } = providerSettings();
   try {
     return await fetch(`${url}/auth/v1/${path}`, {
-      method: body === undefined ? "GET" : "POST", redirect: "error", cache: "no-store",
+      method: method || (body === undefined ? "GET" : "POST"), redirect: "error", cache: "no-store",
       headers: { apikey: apiKey, "Content-Type": "application/json", ...(access ? { Authorization: `Bearer ${access}` } : {}) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(timeout),
     });
   } catch { throw unavailable(); }
+}
+
+/** Server-only metadata for profile settings. Never return provider tokens. */
+export type AccountUser = { id: string; email: string; pendingEmail?: string; emailConfirmed: boolean };
+function accountUser(value: unknown, expectedOwner: string): AccountUser {
+  const data = value as { id?: unknown; email?: unknown; new_email?: unknown; email_confirmed_at?: unknown } | null;
+  if (!data || data.id !== expectedOwner || typeof data.email !== "string" || data.email.length > 254
+    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) throw unavailable();
+  const email = data.email.trim().toLowerCase();
+  const pending = typeof data.new_email === "string" ? data.new_email.trim().toLowerCase() : "";
+  if (pending && (pending.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending))) throw unavailable();
+  return { id: expectedOwner, email, ...(pending && pending !== email ? { pendingEmail: pending } : {}),
+    emailConfirmed: typeof data.email_confirmed_at === "string" && Number.isFinite(Date.parse(data.email_confirmed_at)) };
+}
+async function accountUserFor(access: string, owner: string): Promise<AccountUser> {
+  const response = await provider("user", access);
+  if (response.status === 401 || response.status === 403) throw new HttpError(401, "Sign in again to manage your profile.");
+  if (!response.ok) throw unavailable();
+  return accountUser(await response.json().catch(() => null), owner);
+}
+export async function getAccountUser(owner: string): Promise<AccountUser> {
+  const jar = await cookies(), handle = jar.get(ACCOUNT_SESSION_COOKIE)?.value;
+  if (handle) {
+    // Reuse normal refresh/lease/revocation checks. A revoked new handle never
+    // falls through to a legacy cookie, even for a read-only profile request.
+    for (let n = 0; n < 2; n++) {
+      const identity = await resolveAccountSession();
+      if (!identity || identity.id !== owner) throw new HttpError(401, "Sign in again to manage your profile.");
+      const row = await read(recordId(handle));
+      if (!active(row) || row.owner_id !== owner) throw new HttpError(401, "Sign in again to manage your profile.");
+      try { return await accountUserFor(open(row).accessToken, owner); }
+      catch (error) { if (!(error instanceof HttpError) || error.status !== 401 || n === 1) throw error; }
+    }
+  }
+  const access = jar.get("hq_access")?.value;
+  if (!access) throw new HttpError(401, "Sign in again to manage your profile.");
+  return accountUserFor(access, owner);
+}
+export async function verifyAccountSessionUser(value: unknown, owner: string): Promise<AccountUser> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new HttpError(502, "Account service returned an invalid session.");
+  const token = credentials(value as ProviderSession);
+  const response = await provider("user", token.accessToken);
+  if (response.status === 401 || response.status === 403) throw new HttpError(401, "Sign in again to manage your profile.");
+  if (!response.ok) throw unavailable();
+  const user = await response.json().catch(() => null);
+  if (user?.id !== owner) throw new HttpError(403, "This verification belongs to a different account.");
+  return accountUser(user, owner);
+}
+function accountChangeError(response: Response, data: unknown, passwordCheck = false): never {
+  const code = data && typeof data === "object" ? String((data as Record<string, unknown>).code || (data as Record<string, unknown>).error_code || "") : "";
+  if (response.status === 429) {
+    const seconds = Number(response.headers.get("retry-after"));
+    throw new HttpError(429, "Too many attempts. Wait a few minutes before trying again.", Number.isFinite(seconds) ? Math.max(1, Math.min(3600, seconds)) : 60);
+  }
+  if (response.status >= 500 || ["unexpected_failure", "email_address_not_authorized"].includes(code)) throw unavailable();
+  if (passwordCheck && (response.status === 400 || response.status === 401) && ["invalid_credentials", "invalid_grant", ""].includes(code))
+    throw new HttpError(400, "Your current password is incorrect.");
+  if (["weak_password", "same_password"].includes(code)) throw new HttpError(422, "Choose a different, stronger password with at least 12 characters.");
+  if (["reauthentication_needed", "reauthentication_not_valid", "mfa_verification_failed"].includes(code))
+    throw new HttpError(422, "This change needs additional account verification. Sign in again before retrying.");
+  if (response.status === 401 || response.status === 403) throw new HttpError(401, "Sign in again before changing your account details.");
+  throw new HttpError(422, "The account service could not accept this change. Check your details and try again.");
+}
+/** Fresh password authentication is restricted to this confirmed account. The
+ * fresh session is durably saved before a provider mutation can revoke older
+ * sessions; no recovery grant, token export, or direct browser DB access exists. */
+export async function updateAccountUser(owner: string, currentPassword: string, change: {
+  email?: string; password?: string; code_challenge?: string; code_challenge_method?: "s256"; redirectTo?: string;
+}): Promise<AccountUser> {
+  const original = await getAccountUser(owner);
+  const jar = await cookies(), handle = jar.get(ACCOUNT_SESSION_COOKIE)?.value;
+  // Access-only legacy grants have no durable logout fence. Require the normal
+  // sign-in flow to establish a renewable handle before a sensitive mutation.
+  if (!handle || !/^[A-Za-z0-9_-]{43}$/.test(handle)) throw new HttpError(401, "Sign in again before changing your email or password.");
+  const id = recordId(handle), deadline = Date.now() + 2000; let claimed: SessionRow;
+  for (;;) {
+    const row = await read(id);
+    if (!active(row) || row.owner_id !== owner) throw new HttpError(401, "Sign in again before changing your account details.");
+    if (row.payload.lease && row.payload.lease.until > Date.now()) {
+      if (Date.now() >= deadline) throw unavailable();
+      await new Promise(resolve => setTimeout(resolve, 50)); continue;
+    }
+    try {
+      claimed = await writeRecord("account_sessions", id, owner, { ...row.payload, lease: { claim: randomUUID(), until: Date.now() + LEASE_LIFETIME } }, row.version); break;
+    } catch (error) { if (!(error instanceof ConflictError) || Date.now() >= deadline) throw error; }
+  }
+  let held = claimed;
+  try {
+    const response = await provider("token?grant_type=password", undefined, { email: original.email, password: currentPassword });
+    const signedIn = await response.json().catch(() => null);
+    if (!response.ok) accountChangeError(response, signedIn, true);
+    const fresh = await verifyAccountSessionUser(signedIn, owner);
+    if (fresh.email !== original.email || (signedIn?.user?.id !== undefined && signedIn.user.id !== owner))
+      throw new HttpError(409, "Your account email changed. Refresh your profile before retrying.");
+    const token = credentials(signedIn), credentialBox = seal(token, id, owner);
+    let updatedSession: SessionRow;
+    try { updatedSession = await writeRecord("account_sessions", id, owner, { ...claimed.payload, credentialBox }, claimed.version); held = updatedSession; }
+    catch (error) {
+      const latest = await read(id);
+      if (!active(latest) || latest.owner_id !== owner) throw new HttpError(401, "You signed out before the change completed. Sign in again to retry.");
+      if (latest.payload.lease?.claim === claimed.payload.lease?.claim && latest.payload.credentialBox === credentialBox) { updatedSession = latest; held = latest; }
+      else throw error;
+    }
+    // The old opaque handle remains stable. A logout tombstone must win even
+    // after fresh credentials were persisted and before transport handoff.
+    const live = await read(id);
+    if (!active(live) || live.owner_id !== owner) throw new HttpError(401, "You signed out before the change completed. Sign in again to retry.");
+    if (live.version !== updatedSession.version || live.payload.credentialBox !== credentialBox || !live.payload.lease
+      || live.payload.lease.claim !== claimed.payload.lease?.claim || live.payload.lease.until <= Date.now()) throw unavailable();
+    const { redirectTo, ...attributes } = change;
+    const updated = await provider(`user${redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : ""}`, token.accessToken,
+      { ...attributes, ...(change.password ? { current_password: currentPassword } : {}) }, 15000, "PUT");
+    const data = await updated.json().catch(() => null);
+    if (!updated.ok) accountChangeError(updated, data);
+    return accountUser(data, owner);
+  } finally {
+    try { await writeRecord("account_sessions", id, owner, { ...held.payload, lease: undefined }, held.version); }
+    catch { /* A logout, newer claim, or unavailable store stays authoritative. */ }
+  }
 }
 async function userFor(access: string): Promise<string | null> {
   const response = await provider("user", access);

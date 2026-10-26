@@ -3,6 +3,7 @@ import { apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { readJsonRequest } from "@/lib/errors";
 import { revokeAccountSession } from "@/lib/account-session";
+import { verifyProfileEmailExchange } from "@/lib/profile";
 import {
   authCookies,
   authRequest,
@@ -85,6 +86,12 @@ export async function POST(req: Request) {
           400,
           "This email link has expired. Request a new one.",
         );
+      if (flow.kind === "email_change") {
+        await verifyProfileEmailExchange(data, flow);
+        await setAccountSession(data);
+        jar.delete("hq_email_flow");
+        return Response.json({ next: "/profile" }, { headers: { "Cache-Control": "private, no-store" } });
+      }
       jar.delete("hq_email_flow");
       if (flow.kind === "recovery") {
         // Recovery has its own short-lived cookie; it never silently signs into a workspace.

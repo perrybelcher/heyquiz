@@ -1,4 +1,5 @@
 "use client";
+import WorkspaceHeader from "./WorkspaceHeader";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { reviewQuizCopy } from "@/lib/quiz-copy-review";
@@ -57,8 +58,8 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
   function editQuestion(id:string,title:string){setPreview(p=>p?{...p,form:{...p.form,questions:p.form.questions.map(q=>q.id===id?{...q,title}:q)}}:p);}
   function editAnswer(id:string,answerId:string,label:string){setPreview(p=>p?{...p,form:{...p.form,marketing:p.form.marketing?{...p.form.marketing,rules:p.form.marketing.rules.map(r=>r.questionId===id&&r.answerId===answerId&&r.reason===`You selected: ${p.form.questions.find(q=>q.id===id)?.options?.find(o=>o.id===answerId)?.label}`?{...r,reason:`You selected: ${label}`}:r)}:p.form.marketing,questions:p.form.questions.map(q=>q.id===id?{...q,options:q.options?.map(o=>o.id===answerId?{...o,label}:o)}:q)}}:p);}
   const result=preview?evaluateMarketing(preview.form,answers):null;
-  return <main className="min-h-screen bg-[#faf8f5] text-slate-900 px-5 py-8 sm:py-12"><div className="max-w-6xl mx-auto">
-    <header className="flex items-center justify-between mb-10"><Link href="/" aria-label="Pippi workspace"><img src="/pippi-logo.svg" alt="pippi" className="w-32"/></Link><Link href="/" className="text-sm inline-flex items-center gap-2"><ArrowLeft size={16}/>Back to workspace</Link></header>
+  return <><WorkspaceHeader active="overview" /><main className="min-h-screen bg-[#faf8f5] text-slate-900 px-5 py-8 sm:py-12"><div className="max-w-6xl mx-auto">
+
     <p className="text-sm font-semibold text-red-800 flex items-center gap-2"><Sparkles size={17}/>Marketing quiz studio</p>
     <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mt-3">Help people discover what matters—and what fits.</h1>
     <p className="mt-4 text-slate-600 max-w-2xl leading-relaxed">Turn your expertise into a thoughtful sequence: their goal, what gets in the way, what matters in a solution, and a relevant next step. Review the wording, test the scoring, and make it yours before publishing.</p>
@@ -103,5 +104,5 @@ export default function MarketingBriefBuilder({aiAvailable}:{aiAvailable:boolean
         {copyFindings.filter(f=>f.questionId===q.id).map(f=><p key={f.message} className="text-sm text-amber-900 mb-2">{f.message}</p>)}{q.options?.map(o=><label key={o.id} className="flex gap-3 items-start py-2 text-sm"><input type="radio" className="mt-1" name={q.id} checked={answers[q.id]===o.id} onChange={()=>setAnswers(a=>({...a,[q.id]:o.id}))}/>{o.label}</label>)}<details className="mt-3 text-xs text-slate-500"><summary className="cursor-pointer">View answer scoring</summary>{q.options?.map(o=><p key={o.id} className="mt-2">{o.label}: {preview.form.marketing?.rules.filter(r=>r.questionId===q.id&&r.answerId===o.id).map(r=>`${[...(preview.form.marketing?.outcomes||[]),...(preview.form.marketing?.categories||[])].find(t=>t.id===r.targetId)?.title} +${r.points}`).join(", ")||"No score"}</p>)}</details></fieldset>)}</section>
       <aside className="bg-white rounded-2xl border border-slate-200 p-6 h-fit lg:sticky lg:top-6"><p className="text-sm font-semibold text-slate-500 mb-3">Result preview · no lead is created</p><p className="text-sm text-slate-500 mb-3">{Object.keys(answers).length} of {preview.form.questions.length} questions answered. Try different paths before saving.</p><button type="button" className="hq-secondary mb-6" onClick={()=>setAnswers({})} disabled={!Object.keys(answers).length}>Reset test answers</button>{result&&<MarketingResultCard result={result}/>}</aside>
     </div></div>}
-  </div></main>;
+  </div></main></>;
 }

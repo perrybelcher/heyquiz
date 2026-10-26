@@ -24,6 +24,11 @@ async function waitSaved(id, expected) {
   }
   assert.fail(`Expected saved title ${expected}`);
 }
+async function signOutFromProfile(page) {
+  const button = page.getByRole('button', { name: 'Sign out', exact: true });
+  if (!(await button.isVisible())) await page.getByRole('button', { name: 'Profile', exact: true }).click();
+  await button.click();
+}
 async function login() { const response = await context.request.post(base + '/api/auth', { headers, data: { local: true } }); assert.equal(response.status(), 200); }
 async function fixture(label, extra = {}) {
   const id = 'qa-reliability-' + label + '-' + Date.now();
@@ -163,12 +168,12 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     await page.route(`**/api/forms/${id}`, route => route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Synthetic logout outage' } }) : route.continue());
     await title(page).fill('Retained through explicit logout'); await page.getByText('Synthetic logout outage', { exact: false }).first().waitFor();
     const dashboard = await context.newPage(); await dashboard.goto(base + '/');
-    await dashboard.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await signOutFromProfile(dashboard);
     const choice = dashboard.getByRole('dialog', { name: 'Unsynced changes before sign-out' });
     await choice.waitFor(); await choice.getByRole('button', { name: 'Cancel logout', exact: true }).click();
     assert.equal((await context.request.get(`${base}/api/forms/${id}`)).status(), 200);
     assert.equal(await title(page).inputValue(), 'Retained through explicit logout');
-    await dashboard.getByRole('button', { name: 'Sign out', exact: true }).click(); await choice.waitFor();
+    await signOutFromProfile(dashboard); await choice.waitFor();
     await choice.getByRole('button', { name: 'Sign out and retain the device draft', exact: true }).click();
     await dashboard.waitForURL(base + '/login');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -184,7 +189,7 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     await page.route(`**/api/forms/${id}`, route => route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Synthetic retry logout outage' } }) : route.continue());
     await title(page).fill('Saved before confirmed logout'); await page.getByText('Synthetic retry logout outage', { exact: false }).first().waitFor();
     const dashboard = await context.newPage(); await dashboard.goto(base + '/');
-    await dashboard.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await signOutFromProfile(dashboard);
     const choice = dashboard.getByRole('dialog', { name: 'Unsynced changes before sign-out' }); await choice.waitFor();
     await page.unroute(`**/api/forms/${id}`);
     await choice.getByRole('button', { name: 'Retry', exact: true }).click();

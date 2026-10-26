@@ -19,8 +19,9 @@ let counter = 0, refreshCalls = 0, refreshDelay = 0, authUnavailable = false, st
 const children = [];
 const key = row => `${row.kind}:${row.id}`;
 const clone = value => JSON.parse(JSON.stringify(value));
+const providerUser = owner => ({id: owner, email: owner === 'owner-b' ? 'other@example.test' : 'qa@example.test', email_confirmed_at: '2026-10-26T00:00:00.000Z'});
 function pair(owner) {
-  const n=++counter, value={access_token:`synthetic-access-${n}`,refresh_token:`synthetic-refresh-${n}`,expires_in:3600,user:{id:owner}};
+  const n=++counter, value={access_token:`synthetic-access-${n}`,refresh_token:`synthetic-refresh-${n}`,expires_in:3600,user:providerUser(owner)};
   access.set(value.access_token,{owner,valid:true});refresh.set(value.refresh_token,{owner,pair:null});return value;
 }
 function json(response,status,value) {response.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});response.end(JSON.stringify(value));}
@@ -49,7 +50,7 @@ const fake = http.createServer((request,response)=>void (async()=>{
     }
     if(url.pathname==='/auth/v1/user'&&request.method==='GET'){
       const user=access.get(String(request.headers.authorization||'').replace(/^Bearer /,''));
-      json(response,user?.valid?200:401,user?.valid?{id:user.owner}:{code:'bad_jwt'});return;
+      json(response,user?.valid?200:401,user?.valid?providerUser(user.owner):{code:'bad_jwt'});return;
     }
     if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='refresh_token'&&request.method==='POST'){
       refreshCalls++;const input=await body(request),previous=refresh.get(input.refresh_token);

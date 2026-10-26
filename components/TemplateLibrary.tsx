@@ -1,6 +1,6 @@
 "use client";
+import WorkspaceHeader from "./WorkspaceHeader";
 import Link from "next/link";
-import Image from "next/image";
 import { useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { ArrowRight, BarChart3, ShoppingBag, Users, Search, SlidersHorizontal, Check, X } from "lucide-react";
@@ -39,8 +39,8 @@ export default function TemplateLibrary() {
   }
   function closePreview(){setSelected(null);selectedButton.current?.focus();}
   if (form) return <EditorStudio initialForm={form} guest />;
-  return <main className="min-h-screen bg-[#faf8f4] px-5 py-10 text-slate-900"><div className="mx-auto max-w-6xl">
-    <nav className="mb-12 flex items-center justify-between gap-4"><Link prefetch={false} href="/welcome"><Image width={144} height={48} src="/pippi-logo.svg" alt="Pippi home" className="w-36" /></Link><Link prefetch={false} href="/create" className="text-sm underline">All ways to create</Link></nav>
+  return <><WorkspaceHeader active="templates" /><main className="min-h-screen bg-[#faf8f4] px-5 py-10 text-slate-900"><div className="mx-auto max-w-6xl">
+
     <p className="text-sm font-semibold uppercase tracking-widest text-red-800">{launchTemplates.length} free templates. Your next idea starts here.</p>
     <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">A head start for<br />your kind of business.</h1>
     <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">Help shoppers find their fit. Match prospects with the right service. Give people a useful scorecard. Start with real questions and results, then make every word your own.</p>
@@ -64,5 +64,5 @@ export default function TemplateLibrary() {
     {!filtered.length&&<div className="py-16 text-center"><SlidersHorizontal className="mx-auto text-stone-400"/><h2 className="mt-4 text-xl font-semibold">No templates match those filters yet.</h2><p className="mt-2 text-slate-600">Try a broader term or browse a different industry.</p><button onClick={clearFilters} className="mt-5 font-semibold text-red-800 underline">Show all templates</button></div>}
     {visible<filtered.length&&<div className="mt-8 text-center"><button onClick={()=>setVisible(n=>n+pageSize)} className="rounded-xl border border-stone-300 bg-white px-6 py-3 font-semibold">Show more templates ({filtered.length-visible} remaining)</button></div>}
     <p className="mt-12 text-center text-sm text-slate-600">A useful starting point, never a locked formula. Every question, answer, score, result, and design is editable.</p>
-  </div></main>;
+  </div></main></>;
 }

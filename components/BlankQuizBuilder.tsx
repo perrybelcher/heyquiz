@@ -5,6 +5,7 @@ import { blankQuiz } from "@/lib/blank-quiz";
 import type { FormSchemaType } from "@/lib/schema";
 import { readGuestDraft, recoverBuilderReload } from "@/lib/guest-draft";
 import EditorStudio from "./EditorStudio";
+import WorkspaceHeader from "./WorkspaceHeader";
 
 export default function BlankQuizBuilder() {
   const initialized = useRef(false);
@@ -29,5 +30,5 @@ export default function BlankQuizBuilder() {
     } catch { setError("Your browser could not open a recoverable draft. Enable site storage, then reload this page."); }
   }, []);
   if (form) return <EditorStudio initialForm={form} guest />;
-  return <main className="p-8"><p role={error ? "alert" : "status"}>{error || "Opening your blank canvas…"}</p>{error && <a href="/create" className="underline">Back to quiz creation</a>}</main>;
+  return <><WorkspaceHeader guest /><main className="p-8"><p role={error ? "alert" : "status"}>{error || "Opening your blank canvas…"}</p>{error && <a href="/create" className="underline">Back to quiz creation</a>}</main></>;
 }

@@ -11,7 +11,7 @@ export default function SessionActivity() {
   const pathname = usePathname();
   const lastCheck = useRef(0);
   useEffect(() => {
-    if (!(pathname === "/" || /^\/(?:create|templates|help|experiments)(?:\/|$)/.test(pathname))) return;
+    if (!(pathname === "/" || pathname === "/reports" || pathname === "/profile" || /^\/(?:create|templates|help|experiments)(?:\/|$)/.test(pathname))) return;
     let disposed = false, checking = false;
     const check = async (force = false) => {
       if (checking || document.visibilityState !== "visible" || !navigator.onLine || (!force && Date.now() - lastCheck.current < 300000)) return;

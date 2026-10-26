@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { HttpError, ServiceUnavailableError } from "./errors";
 import { ACCOUNT_SESSION_COOKIE, accountKeyForUser, resolveAccountSession } from "./account-session";
+import { safeAuthReturn } from "./auth-return-path";
 export { HttpError } from "./errors";
 export const localMode = () => process.env.HEYQUIZ_LOCAL_MODE === "1" && process.env.VERCEL !== "1";
 function secret() {
@@ -67,7 +68,7 @@ export async function requireUser() {
 }
 export async function requirePageUser(returnTo?: string) {
   const user = await currentUser();
-  if (!user) redirect(returnTo && !/\s/.test(returnTo) && /^\/editor\/[a-zA-Z0-9_-]{1,128}$/.test(returnTo) ? `/login?next=${encodeURIComponent(returnTo)}` : "/login");
+  if (!user) redirect(safeAuthReturn(returnTo) ? `/login?next=${encodeURIComponent(returnTo!)}` : "/login");
   return user;
 }
 export function checkOrigin(req: Request) {

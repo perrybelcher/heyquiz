@@ -5,7 +5,7 @@ require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule
 const { safeCreationReturn, creationReturnFromSearch, creationAuthHref, creationAuthDestination, rememberCreationReturn, CREATION_RETURN_KEY } = require('../lib/creation-auth-return.ts');
 const now = 1_800_000_000_000;
 function store() { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) }; }
-for (const path of ['/create/ai', '/create/marketing', '/editor/quiz-recovery_123']) {
+for (const path of ['/create/ai', '/create/marketing', '/create/draft', '/editor/quiz-recovery_123', '/editor/quiz-recovery_123?section=results', '/reports', '/profile', '/experiments']) {
   assert.equal(safeCreationReturn(path), path);
   assert.equal(creationReturnFromSearch(`?next=${encodeURIComponent(path)}`), path);
   assert.equal(creationAuthHref('/login', path), `/login?next=${encodeURIComponent(path)}`);

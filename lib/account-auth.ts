@@ -108,18 +108,21 @@ export async function setAccountSession(data: {
   await createAccountSession(data);
 }
 // The verifier stays HttpOnly. A stolen email authorization code alone cannot create a session.
-export async function beginEmailFlow(kind: "signup" | "recovery") {
+export async function beginEmailFlow(kind: "signup" | "recovery" | "email_change", context?: { ownerId: string; requestedEmail: string }) {
+  if (kind === "email_change" && (!context?.ownerId || context.ownerId.length > 128))
+    throw new HttpError(400, "Start the email change from your signed-in profile.");
   const verifier = randomBytes(32).toString("base64url");
   const signed = signToken({
     role: "email-flow",
     kind,
+    ...(kind === "email_change" ? { ownerId: context!.ownerId, requestedEmail: emailAddress(context!.requestedEmail) } : {}),
     verifier,
     exp: Date.now() + 3600000,
   });
   return {
     challenge: {
       code_challenge: createHash("sha256").update(verifier).digest("base64url"),
-      code_challenge_method: "s256",
+      code_challenge_method: "s256" as const,
     },
     // A failed resend must not invalidate the link already in the user's inbox.
     persist: async () =>
@@ -137,12 +140,15 @@ export async function emailFlow() {
     !flow ||
     flow.role !== "email-flow" ||
     typeof flow.verifier !== "string" ||
-    !["signup", "recovery"].includes(String(flow.kind))
+    !["signup", "recovery", "email_change"].includes(String(flow.kind))
   )
     throw new HttpError(
       400,
       "Open the email link in the same browser where you requested it. If it has expired, request a new link.",
     );
+  if (flow.kind === "email_change" && (typeof flow.ownerId !== "string" || !flow.ownerId || flow.ownerId.length > 128
+    || typeof flow.requestedEmail !== "string" || emailAddress(flow.requestedEmail) !== flow.requestedEmail))
+    throw new HttpError(400, "Restart the email change from your signed-in profile.");
   return flow;
 }
 export function callbackUrl(requestUrl?: string) {

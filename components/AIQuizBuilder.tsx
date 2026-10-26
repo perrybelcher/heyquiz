@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import WorkspaceHeader from "./WorkspaceHeader";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, GraduationCap, LockKeyhole, Sparkles, Target } from "lucide-react";
@@ -55,6 +56,7 @@ export default function AIQuizBuilder({ signedIn, aiAvailable }: { signedIn: boo
     }
   }
   return (
+    <><WorkspaceHeader active="overview" />
     <main className="pippi-app min-h-screen bg-[#faf8f5] px-5 py-7 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-4xl">
         <Link href="/create" className="inline-flex items-center gap-2 text-sm font-semibold text-stone-600 hover:text-red-800"><ArrowLeft size={16} aria-hidden="true" /> All creation options</Link>
@@ -98,6 +100,6 @@ export default function AIQuizBuilder({ signedIn, aiAvailable }: { signedIn: boo
           </section>
         )}
       </div>
-    </main>
+    </main></>
   );
 }

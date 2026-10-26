@@ -1,7 +1,7 @@
 "use client";
 import { reportScore, reportOutcome } from "@/lib/submission-reporting";
 
-import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import {
   FormSchemaType,
   Question,
@@ -132,6 +132,9 @@ import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
 import { reviewGuidedRemoval } from "@/lib/guided-editing";
+import WorkspaceHeader from "./WorkspaceHeader";
+import { registerWorkspaceNavigationGuard, workspaceNavigationApproved, subscribeWorkspaceNavigation, workspaceNavigationPending } from "@/lib/workspace-navigation";
+import { editorSection, type EditorSection } from "@/lib/editor-navigation";
 import { saveStatusLabel } from "@/lib/draft-recovery";
 import { FormSchema } from "@/lib/schema";
 import {
@@ -161,6 +164,7 @@ interface EditorStudioProps {
   accountKey?: string;
   sessionExpiresAt?: number;
   localSession?: boolean;
+  initialSection?: EditorSection;
 }
 
 function containDialogFocus(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -183,15 +187,20 @@ function PausePublicationDialog({ busy, onClose, onConfirm }: { busy: boolean; o
   </dialog>;
 }
 
-export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "", accountKey, localSession = false }: EditorStudioProps) {
+export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "", accountKey, localSession = false, initialSection = "edit" }: EditorStudioProps) {
+  const navigationPending = useSyncExternalStore(subscribeWorkspaceNavigation, workspaceNavigationPending, () => false);
   const storedEditorMode = useSyncExternalStore(
     () => () => {},
     () => { try { return localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); } catch { return null; } },
     () => null,
   );
-  const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(null);
+  const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(initialSection === "edit" ? null : false);
   const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true);
-  function changeEditorMode(value: boolean) { setEditorModeOverride(value); try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {} }
+  function changeEditorMode(value: boolean) {
+    setEditorModeOverride(value);
+    if (value) setActiveNavTab("edit");
+    try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {}
+  }
   const [showConversationMap, setShowConversationMap] = useState(false);
   const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>();
   const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
@@ -263,19 +272,36 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     if (!emailCopyDraft && !reportDesignDraft) return;
     // Pending copy is deliberately outside autosave. Keep it across editor tabs,
     // and warn before a document navigation can discard it.
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const warn = (event: BeforeUnloadEvent) => { if (!workspaceNavigationApproved()) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [emailCopyDraft, reportDesignDraft]);
   const reportDesignEditor = <>{reportDesignAlternatives.length > 0 && <div role="alert" className="hq-error">Several unapplied report designs are saved on this device. Review a copy: {reportDesignAlternatives.map((draft, index) => <button className="underline ml-3" key={index} onClick={() => { if (canEdit()) setReportDesignDraft(draft); }}>Recover design {index + 1}</button>)}</div>}<ReportDesignEditor value={form.reportDesign} quizTitle={form.title} theme={form.theme} draft={reportDesignDraft} restored={reportDesignRestored} storageWarning={reportDesignStorageWarning} onDraftChange={(value, reason) => { if (canEdit()) setReportDesignDraft(value, reason); }} onChange={reportDesign => setForm(current => ({ ...current, reportDesign }))} /></>;
   const resultEmailEditor = <>{emailCopyAlternatives.length > 0 && <div role="alert" className="hq-error">Several unapplied email copies are saved on this device. Review a copy: {emailCopyAlternatives.map((draft, index) => <button className="underline ml-3" key={index} onClick={() => { if (canEdit()) setEmailCopyDraft(draft); }}>Recover copy {index + 1}</button>)}</div>}<ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={(value, reason) => { if (canEdit()) setEmailCopyDraft(value, reason); }} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} /></>;
-  const [activeNavTab, updateActiveNavTab] = useState<
-    "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
-  >("edit");
+  const [activeNavTab, updateActiveNavTab] = useState<EditorSection>(initialSection);
+  useEffect(() => {
+    if (["contacts", "results", "integrate"].includes(initialSection)) stopClarity();
+    const restore = () => {
+      const section = editorSection(new URL(window.location.href).searchParams.get("section"));
+      if (["contacts", "results", "integrate"].includes(section)) stopClarity();
+      if (section !== "edit") setEditorModeOverride(false);
+      updateActiveNavTab(section);
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [initialSection]);
   function setActiveNavTab(tab: typeof activeNavTab) {
     // Stop synchronously, before contact records or provider settings enter the DOM.
     if (["contacts", "results", "integrate"].includes(tab)) stopClarity();
     updateActiveNavTab(tab);
+    // Keep direct report links and browser Back aligned without remounting drafts.
+    if (!guest && window.location.pathname.startsWith("/editor/")) {
+      const url = new URL(window.location.href);
+      if (editorSection(url.searchParams.get("section")) !== tab) {
+        if (tab === "edit") url.searchParams.delete("section"); else url.searchParams.set("section", tab);
+        window.history.pushState(null, "", url.pathname + url.search + url.hash);
+      }
+    }
   }
   const [canvasView, setCanvasView] = useState<"cover" | "page" | "ending">(
     "page",
@@ -327,6 +353,31 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     null,
   );
   const [actionError, setActionError] = useState("");
+  const departureState = useRef({ accountKey, backedUp, emailCopyDraft, emailCopyStorageWarning, guestDraft, reportDesignDraft, reportDesignStorageWarning });
+  useLayoutEffect(() => {
+    departureState.current = { accountKey, backedUp, emailCopyDraft, emailCopyStorageWarning, guestDraft, reportDesignDraft, reportDesignStorageWarning };
+  }, [accountKey, backedUp, emailCopyDraft, emailCopyStorageWarning, guestDraft, reportDesignDraft, reportDesignStorageWarning]);
+  useEffect(() => registerWorkspaceNavigationGuard(async () => {
+    if (!departureState.current.guestDraft && !(await saveNow())) return false;
+    // Saving may take seconds. Review current panel state after the save, not
+    // the snapshot captured when navigation was first requested.
+    const pending = departureState.current;
+    if (pending.emailCopyDraft || pending.reportDesignDraft) {
+      if (!pending.accountKey || pending.emailCopyStorageWarning || pending.reportDesignStorageWarning) {
+        setActionError("Apply or discard the unfinished email or report design before leaving. Its recovery copy has not been confirmed saved on this device.");
+        return false;
+      }
+      if (!window.confirm("You have unapplied email or report-design edits saved on this device. Leave without applying them? They will remain available for this account.")) return false;
+    }
+    if (pending.guestDraft) {
+      if (!pending.backedUp) {
+        setActionError("Keep this tab open and save or export your quiz before leaving. A persistent recovery copy has not been confirmed.");
+        return false;
+      }
+      return window.confirm("This quiz is saved on this device, but has not been saved to your account. Leave the editor and keep the device draft?");
+    }
+    return true;
+  }), [saveNow]);
   const [shareCopied, setShareCopied] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const previewPending = useRef(false);
@@ -1654,10 +1705,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const hasUnpublishedChanges = !publicationUncertain && isPublished && liveFingerprint !== publicationFingerprint(form);
   const publicationLabel = publicationUncertain ? "Publication status needs checking" : !isPublished ? "Draft · Not public" : hasUnpublishedChanges ? "Published · Unpublished changes" : "Published · Up to date";
   return (
-    <div className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white" onClickCapture={event => {
+    <div inert={navigationPending} className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white" onClickCapture={event => {
       const control = event.target instanceof Element ? event.target.closest<HTMLElement>('button, a[href]') : null;
       if (control && !control.closest('dialog')) setAccountPromptTrigger(control);
     }}>
+      <WorkspaceHeader active={activeNavTab === "results" ? "reports" : "overview"} guest={guestDraft} />
       {guestDraft && (
         <div className="border-b border-stone-200 bg-[#faf8f5] px-4 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:px-5">
           <span className="flex items-start gap-2.5"><BookmarkCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#882329]" /><span><strong className="font-semibold text-stone-900">Save your first draft.</strong> {draftAccountState === "signed-in" ? "You’re signed in. Save this quiz to your account to share it and see the answers." : draftAccountState === "guest" ? "Create a free account to save your quiz, share it and see the answers." : "Save your quiz to sync it with your account. Your draft stays on this device until then."}</span></span>
@@ -1747,21 +1799,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       {/* Full-width studio controls stay available on larger screens. */}
       <header className="studio-toolbar hidden lg:flex min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 items-center justify-between shrink-0 z-30 shadow-xs">
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/"
-            onClick={async (e) => {
-              e.preventDefault();
-              if (await saveNow()) window.location.assign("/");
-            }}
-            className="flex items-center pr-2.5 border-r border-gray-200 transition hover:opacity-85"
-            title="pippi - Back to Dashboard"
-          >
-            <img
-              src="/pippi-logo.svg"
-              alt="pippi"
-              className="h-6 w-auto object-contain"
-            />
-          </Link>
+
 
           <div className="flex items-center gap-1 group cursor-pointer">
             <input

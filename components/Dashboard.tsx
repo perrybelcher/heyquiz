@@ -12,14 +12,13 @@ import {
   Sparkles,
   Layers,
   FileText,
-  LogOut,
   X,
 } from "lucide-react";
 import type { FormSchemaType } from "@/lib/schema";
 import { blankQuiz } from "@/lib/blank-quiz";
 import { marketingTemplate } from "@/lib/marketing-templates";
 import type { MarketingConfig } from "@/lib/marketing";
-import { requestSafeLogout } from "@/lib/session-client";
+import WorkspaceHeader from "./WorkspaceHeader";
 export default function Dashboard({
   initialForms,
 }: {
@@ -127,22 +126,7 @@ export default function Dashboard({
   }
   return (
     <div className="pippi-app min-h-screen bg-[#f8f9f5] text-slate-900">
-      <header className="workspace-header h-20 bg-[#f8f9f5] border-b border-[#e4e5de] flex items-center justify-between px-6 sm:px-10">
-        <img src="/pippi-logo.svg" alt="pippi" className="h-8" />
-        <div className="flex items-center gap-4">
-          <nav aria-label="Workspace navigation" className="hidden sm:flex items-center gap-6 text-sm text-slate-500"><a href="#quiz-starters" className="hover:text-slate-900">Quiz starters</a><a href="#your-quizzes" className="hover:text-slate-900">My quizzes</a></nav>
-          <button
-            className="hq-icon text-slate-400"
-            aria-label="Sign out"
-            onClick={async () => {
-              try { if (await requestSafeLogout()) window.location.assign("/login"); }
-              catch (e) { setError(e instanceof Error ? e.message : "Sign-out could not be confirmed. Please try again."); }
-            }}
-          >
-            <LogOut size={18} />
-          </button>
-        </div>
-      </header>
+      <WorkspaceHeader active="overview" />
       <main className="max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10">
         <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
         {error && !agent && (

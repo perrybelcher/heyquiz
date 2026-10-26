@@ -11,6 +11,8 @@
     "test:reliability": "node tests/save-errors.cjs && node tests/account-sessions.cjs && node tests/draft-reliability.cjs && node tests/autosave-reliability.cjs && node tests/panel-draft-reliability.cjs && node tests/session-client.cjs",
     "test:browser-reliability": "node tests/browser-reliability.cjs",
     "test:hosted-session-reliability": "node tests/hosted-session-reliability.cjs",
+    "test:workspace": "node tests/workspace-navigation.cjs && node tests/workspace-header.cjs && node tests/workspace-screens.cjs && node tests/editor-workspace-navigation.cjs && node tests/profile.cjs && node tests/creation-auth-return.cjs",
+    "test:browser-workspace": "node tests/browser-workspace.cjs",
     "test:api": "node tests/api.mjs",
     "setup:local": "node scripts/setup-local.mjs",
     "test:marketing-api": "node tests/marketing-api.cjs",
