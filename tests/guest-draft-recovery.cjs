@@ -26,6 +26,11 @@ assert.equal(readGuestDraft(local, session).title, 'Device draft');
 assert.equal(readGuestDraft(local, session, 'missing-id'), null);
 assert.equal(readGuestDraft({ getItem: () => '{broken' }, session, form.id), null);
 assert.equal(JSON.stringify([...localRows]), before, 'read helper never mutates the device copy or pointer');
+const interim = { ...sessionForm, questions: [{ id: 'upload', type: 'image_upload', title: 'Unfinished size', maxFileSizeMB: 0 }] };
+sessionRows.set(key, JSON.stringify(interim));
+assert.equal(readGuestDraft(local, session).questions[0].maxFileSizeMB, 0, 'unfinished numeric constraints must survive guest reload');
+sessionRows.set(key, JSON.stringify({ ...interim, questions: [{ ...interim.questions[0], type: 'unknown-field' }] }));
+assert.equal(readGuestDraft(local, session).title, 'Device draft', 'invalid field types still fall back safely');
 
 const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'performance');
 function performanceEntry(entry) {

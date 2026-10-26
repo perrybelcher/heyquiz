@@ -2,7 +2,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { HttpError } from "./auth";
 import { getAttempt, type Attempt } from "./attempts";
-import { listRecords, readRecord, writeRecord, type StoredRecord } from "./records";
+import { ConflictError, listRecords, readRecord, writeRecord, type StoredRecord } from "./records";
 import { issueResultReport, readResultReport } from "./result-reports";
 import { liveRecipientDigest, liveResultEmailSettings, openLiveResultEmail, resultEmailAddress, sealLiveResultEmail } from "./result-email-config";
 import { DEFAULT_RESULT_EMAIL_COPY, renderResultEmailCopy, resolveResultEmailCopy } from "./result-email-copy";
@@ -138,7 +138,7 @@ export async function processLiveResultEmail(id: string, owner: string, transpor
   if (job.firstAttemptAt !== undefined && now >= job.firstAttemptAt + LIVE_EMAIL_RETRY_WINDOW_MS || job.attempts >= LIVE_EMAIL_MAX_ATTEMPTS) return viewLiveResultEmail((await writeStatus(row, { state: job.uncertain ? "unknown" : "failed", retryable: false, claim: undefined, leaseUntil: undefined })).payload);
   if (job.credentialFingerprint !== credentialFingerprint()) return viewLiveResultEmail((await writeStatus(row, { state: job.firstAttemptAt === undefined ? "failed" : "unknown", retryable: false })).payload);
   // Check lifecycle before claiming. A revoked link must never generate a new send.
-  try { await reportFor(row); } catch (error) { if (error instanceof HttpError && [400, 404, 409, 410].includes(error.status)) return viewLiveResultEmail((await writeStatus(row, { state: job.uncertain ? "unknown" : "cancelled", retryable: false })).payload); throw error; }
+  try { await reportFor(row); } catch (error) { if (error instanceof HttpError && !(error instanceof ConflictError) && [400, 404, 409, 410].includes(error.status)) return viewLiveResultEmail((await writeStatus(row, { state: job.uncertain ? "unknown" : "cancelled", retryable: false })).payload); throw error; }
   const payload = frozenPayload(row), claim = randomUUID();
   row = await writeStatus(row, { state: "sending", attempts: job.attempts + 1, firstAttemptAt: job.firstAttemptAt ?? now, leaseUntil: now + LIVE_EMAIL_LEASE_MS, claim, uncertain: true });
   if (row.payload.claim !== claim) return viewLiveResultEmail(row.payload);
@@ -163,7 +163,7 @@ export async function processLiveResultEmail(id: string, owner: string, transpor
     // intact: reclaiming within the window repeats the same key/payload and
     // recovers that provider ID. Do not mislabel known acceptance as cancelled.
     if (providerReturned) throw new HttpError(503, "Delivery confirmation is temporarily unavailable. The request remains saved.");
-    const cancelled = !providerReturned && error instanceof HttpError && [400, 404, 409, 410].includes(error.status);
+    const cancelled = !providerReturned && error instanceof HttpError && !(error instanceof ConflictError) && [400, 404, 409, 410].includes(error.status);
     const ambiguous = providerReturned || (error instanceof ResendResultTransportError ? error.ambiguous : !cancelled);
     const transient = error instanceof ResendResultTransportError && [408, 409, 425, 429].includes(error.status) || error instanceof ResendResultTransportError && error.status >= 500;
     const uncertain = job.uncertain || ambiguous;

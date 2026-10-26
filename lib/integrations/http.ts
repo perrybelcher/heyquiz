@@ -1,3 +1,4 @@
+import { ValidationError } from "../errors";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { request } from "node:https";
@@ -31,7 +32,7 @@ export function webhookUrl(value: string) {
   try {
     u = new URL(value);
   } catch {
-    throw Error("Enter a valid HTTPS webhook URL.");
+    throw new ValidationError("Enter a valid HTTPS webhook URL.");
   }
   if (
     u.protocol !== "https:" ||
@@ -45,7 +46,7 @@ export function webhookUrl(value: string) {
     (isIP(u.hostname.replace(/^\[|\]$/g, "")) &&
       !publicAddress(u.hostname.replace(/^\[|\]$/g, "")))
   )
-    throw Error(
+    throw new ValidationError(
       "Use a public HTTPS destination on port 443, without embedded credentials or fragments.",
     );
   return u;
@@ -70,7 +71,7 @@ export const sendHttps: Sender = async (
   const url = webhookUrl(value);
   const addresses = await lookup(url.hostname, { all: true, verbatim: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
-    throw Error("Destination must resolve only to public IP addresses.");
+    throw new ValidationError("Destination must resolve only to public IP addresses.");
   const pinned = addresses.find((a) => a.family === 4) || addresses[0];
   // Pin the validated address to prevent DNS rebinding; HTTPS still validates the original hostname.
   return new Promise((resolve, reject) => {

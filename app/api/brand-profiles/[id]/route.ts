@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { apiError, checkOrigin, requireUser, HttpError } from "@/lib/auth";
 import { readRecord, writeRecord } from "@/lib/records";
 import { BrandProfileUpdate, type BrandProfileData } from "@/lib/brand-profiles";
@@ -22,7 +23,7 @@ export async function PUT(req: Request, { params }: Context) {
     checkOrigin(req);
     const user = await requireUser();
     const row = await owned((await params).id, user.id);
-    const { revision, ...input } = BrandProfileUpdate.parse(await req.json());
+    const { revision, ...input } = BrandProfileUpdate.parse(await readJsonRequest(req));
     if (revision !== row.version) throw new HttpError(409, "This profile changed in another tab. Refresh profiles before updating it.");
     const updated = await writeRecord<BrandProfileData>("brand_profiles", row.id, user.id, { ...input, updatedAt: new Date().toISOString() }, revision);
     return Response.json({ ...updated.payload, id: updated.id, revision: updated.version }, { headers });

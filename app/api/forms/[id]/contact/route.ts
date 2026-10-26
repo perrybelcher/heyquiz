@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { scheduleDeliveries } from "@/lib/integrations/after-submit";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
@@ -19,7 +20,7 @@ export async function POST(
     checkOrigin(req);
     rateLimit(req, "contact", 30);
     const { id } = await params,
-      body = await req.json(),
+      body = await readJsonRequest(req),
       attempt = await getAttempt(body.token, id),
       a = attempt.payload;
     if (

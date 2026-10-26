@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { randomUUID } from "node:crypto";
 import { apiError, checkOrigin, requireUser, HttpError } from "@/lib/auth";
 import { listRecords, writeRecord } from "@/lib/records";
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   try {
     checkOrigin(req);
     const user = await requireUser();
-    const input = BrandProfileInput.parse(await req.json());
+    const input = BrandProfileInput.parse(await readJsonRequest(req));
     if ((await listRecords("brand_profiles", user.id)).length >= 50) throw new HttpError(400, "You can save up to 50 profiles.");
     const row = await writeRecord<BrandProfileData>("brand_profiles", randomUUID(), user.id, { ...input, updatedAt: new Date().toISOString() }, 0);
     return Response.json({ ...row.payload, id: row.id, revision: row.version }, { status: 201, headers });

@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { resultEmailMode } from "@/lib/result-email-config";
 import { apiError, checkOrigin } from "@/lib/auth";
 import { getAttempt } from "@/lib/attempts";
@@ -11,7 +12,7 @@ export async function POST(req: Request, { params }: {
     try {
         checkOrigin(req);
         rateLimit(req, "result-link", 30);
-        const body = await req.json();
+        const body = await readJsonRequest(req);
         const attempt = await getAttempt(body.token, (await params).id);
         return Response.json({ ...await issueResultReport(attempt), resultEmail: resultEmailMode() }, { headers: { "Cache-Control": "private, no-store" } });
     }

@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { getAttempt } from "@/lib/attempts";
 import { gradeQuizSubmission } from "@/lib/scoring";
@@ -9,7 +10,7 @@ export async function POST(
   try {
     checkOrigin(req);
     const { id } = await params,
-      b = await req.json(),
+      b = await readJsonRequest(req),
       r = await getAttempt(b.token, id),
       form = r.payload.form;
     if (form.settings.feedbackMode !== "immediate")

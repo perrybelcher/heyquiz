@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { getAttempt } from "@/lib/attempts";
 import { writeRecord, ConflictError } from "@/lib/records";
@@ -10,7 +11,7 @@ export async function POST(req: Request, { params }: {
     try {
         checkOrigin(req);
         rateLimit(req, "progress", 240);
-        const { id } = await params, b = await req.json();
+        const { id } = await params, b = await readJsonRequest(req);
         const event = b.event || "question_view";
         if (!["question_view", "result_view", "offer_click"].includes(event))
             throw new HttpError(400, "Unknown analytics event.");

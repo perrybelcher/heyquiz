@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { z } from "zod";
 import { apiError, checkOrigin, requireUser, HttpError } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
@@ -25,7 +26,7 @@ export async function POST(req: Request, { params }: Context) {
         409,
         "HubSpot authorization is disabled on preview deployments.",
       );
-    const action = Action.parse(await req.json());
+    const action = Action.parse(await readJsonRequest(req));
     rateLimit(
       req,
       `hubspot-${action.action}:${user.id}`,

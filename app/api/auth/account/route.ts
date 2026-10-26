@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { readJsonRequest } from "@/lib/errors";
+import { revokeAccountSession } from "@/lib/account-session";
 import {
   authCookies,
   authRequest,
@@ -15,7 +17,9 @@ export async function POST(req: Request) {
   try {
     checkOrigin(req);
     rateLimit(req, "account", 10);
-    const body = await req.json();
+    const body = await readJsonRequest(req);
+    if (!body || typeof body !== "object" || Array.isArray(body))
+      throw new HttpError(400, "Send a valid account request.");
     const jar = await cookies();
     if (body.action === "signup") {
       const email = emailAddress(body.email),
@@ -101,6 +105,7 @@ export async function POST(req: Request) {
           401,
           "Your reset link has expired. Request a new one.",
         );
+      await revokeAccountSession();
       await authRequest("user", { password }, token, "PUT");
       jar.delete("hq_recovery");
       jar.delete("hq_access");

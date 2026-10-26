@@ -124,7 +124,7 @@ export async function prepareResultEmail(id: string, owner: string, transport: R
     if (receipt.receiptId !== `test-${id}`) throw new ResultEmailTransportError(502);
     next = { ...claimed.payload, state: "prepared", preparedAt: Date.now(), receiptId: receipt.receiptId, claim: undefined, leaseUntil: undefined };
   } catch (error) {
-    const cancelled = error instanceof HttpError && [400, 404, 409, 410].includes(error.status);
+    const cancelled = error instanceof HttpError && !(error instanceof ConflictError) && [400, 404, 409, 410].includes(error.status);
     const permanent = error instanceof ResultEmailTransportError && error.status >= 400 && error.status < 500 && ![408, 425, 429].includes(error.status);
     const retry = !cancelled && !permanent && claimed.payload.attempts < RESULT_EMAIL_MAX_ATTEMPTS;
     const retryAfter = error instanceof ResultEmailTransportError && Number.isFinite(error.retryAfterMs) ? Math.min(60000, Math.max(0, error.retryAfterMs!)) : 0;

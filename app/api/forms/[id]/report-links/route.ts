@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { apiError, checkOrigin, requireUser } from "@/lib/auth";
 import { listResultLinks, revokeResultLink } from "@/lib/report-management";
 
@@ -13,7 +14,7 @@ export async function GET(req: Request, { params }: Context) {
 export async function DELETE(req: Request, { params }: Context) {
   try {
     checkOrigin(req);
-    const user = await requireUser(), { id } = await params, body = await req.json();
+    const user = await requireUser(), { id } = await params, body = await readJsonRequest(req);
     return Response.json(await revokeResultLink(id, user.id, body?.responseId), { headers });
   } catch (error) { return apiError(error); }
 }

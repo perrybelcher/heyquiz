@@ -255,6 +255,15 @@ async function due(r) {
         );
       },
     );
+    await check("Typed temporary storage errors and CAS conflicts remain retryable", async () => {
+      const { ServiceUnavailableError, ConflictError } = require("../lib/errors.ts");
+      for (const [id, error] of [["typed-storage", new ServiceUnavailableError("Synthetic outage.", 2)], ["typed-cas", new ConflictError()]]) {
+        await s.enqueueSubmission(owner, result(id));
+        const queued = await job(id);
+        await s.deliver(queued.id, owner, async () => { throw error; });
+        assert.equal((await readRecord("deliveries", queued.id)).payload.state, "pending");
+      }
+    });
     await check(
       "Authentication errors and redirects do not retry automatically",
       async () => {

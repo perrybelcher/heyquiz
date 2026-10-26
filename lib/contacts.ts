@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors";
 import { z } from "zod";
 import type { QuizSubmissionResult } from "./schema";
 import { contactScore } from "./contact-filters";
@@ -29,13 +30,13 @@ export function parseContact(config: CaptureConfig | undefined, input: unknown, 
         return undefined;
     if (input == null) {
         if (config.required)
-            throw Error("Please enter your contact details to see your results.");
+            throw new ValidationError("Please enter your contact details to see your results.");
         return undefined;
     }
     const value = z.object({ email: z.string().trim().email().max(254), name: z.string().trim().max(160).optional(), phone: z.string().trim().max(50).optional(), marketingConsent: z.boolean() }).parse(input);
     for (const field of ["name", "phone"] as const) {
         if (config[field] === "required" && !value[field])
-            throw Error(`Please enter your ${field}.`);
+            throw new ValidationError(`Please enter your ${field}.`);
         if (config[field] === "off")
             delete value[field];
     }

@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { nangoProviders } from "@/lib/integrations/providers";
 import { z } from "zod";
 import { apiError, checkOrigin, requireUser, HttpError } from "@/lib/auth";
@@ -26,7 +27,7 @@ export async function POST(req: Request, { params }: Context) {
         409,
         "CRM authorization is disabled on preview deployments.",
       );
-    const action = Action.parse(await req.json());
+    const action = Action.parse(await readJsonRequest(req));
     rateLimit(
       req,
       `crm-connect-${action.action}:${user.id}`,

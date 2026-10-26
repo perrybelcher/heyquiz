@@ -5,6 +5,8 @@ import {
 } from "@/lib/account-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { cookies } from "next/headers";
+import { readJsonRequest } from "@/lib/errors";
+import { revokeAccountSession } from "@/lib/account-session";
 import {
   apiError,
   currentUser,
@@ -17,8 +19,10 @@ export async function POST(req: Request) {
   try {
     checkOrigin(req);
     rateLimit(req, "auth", 20);
-    const body = await req.json(),
+    const body = await readJsonRequest(req),
       jar = await cookies();
+    if (!body || typeof body !== "object" || Array.isArray(body))
+      throw new HttpError(400, "Send a valid sign-in request.");
     const options = {
       httpOnly: true,
       sameSite: "strict" as const,
@@ -31,6 +35,7 @@ export async function POST(req: Request) {
       localMode() &&
       ["127.0.0.1", "localhost", "[::1]"].includes(new URL(req.url).hostname)
     ) {
+      await revokeAccountSession();
       jar.set(
         "hq_local",
         signToken({ role: "local", exp: Date.now() + 8 * 3600000 }),
@@ -58,6 +63,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     checkOrigin(req);
+    await revokeAccountSession();
     const jar = await cookies();
     jar.delete("hq_access");
     jar.delete("hq_local");
@@ -72,5 +78,5 @@ export async function DELETE(req: Request) {
 /** Only authentication state; never expose account identifiers. */
 export async function GET() {
   try { return Response.json({ signedIn: Boolean(await currentUser()) }, { headers: { "Cache-Control": "private, no-store" } }); }
-  catch { return Response.json({ signedIn: false }, { headers: { "Cache-Control": "private, no-store" } }); }
+  catch (error) { const response = apiError(error); response.headers.set("Cache-Control", "private, no-store"); return response; }
 }

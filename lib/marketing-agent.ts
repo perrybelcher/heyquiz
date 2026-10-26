@@ -1,6 +1,7 @@
 import { aiProviderError } from "./ai-provider-error";
 import { z } from "zod";
 import { HttpError } from "./auth";
+import { ValidationError } from "./errors";
 import { MarketingBriefSchema, MarketingDraftSchema, compileMarketingDraft, marketingSystemPrompt } from "./marketing-brief";
 
 // One fresh retry for malformed/invalid drafts; never retry configuration or quota errors.
@@ -39,7 +40,7 @@ export async function generateMarketingQuiz(input: unknown) {
       const json = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
       return compileMarketingDraft(brief, JSON.parse(json));
     } catch (error) {
-      if (error instanceof HttpError) throw error;
+      if (error instanceof HttpError && !(error instanceof ValidationError)) throw error;
       // Log classifications only: no brief, model output, or provider body.
       const category = error instanceof SyntaxError ? "invalid_json" : "invalid_draft";
       const issues = error instanceof z.ZodError

@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors";
 import type { FormSchemaType, Question, LogicOperator } from "./schema";
 
 export type Answers = Record<string, unknown>;
@@ -95,7 +96,7 @@ export function resolvePath(
   while (index < all.length) {
     const q = all[index];
     if (seen.has(q.id))
-      throw new Error("A logic rule creates a loop. Choose a later question.");
+      throw new ValidationError("A logic rule creates a loop. Choose a later question.");
     seen.add(q.id);
     const visibility = (form.logicRules || []).filter(
       (r) =>
@@ -274,19 +275,19 @@ export function publicForm(form: FormSchemaType): FormSchemaType {
 export function validateFormReferences(form: FormSchemaType): void {
   const ids = new Set(form.questions.map((q) => q.id));
   if (ids.size !== form.questions.length)
-    throw new Error("Question IDs must be unique.");
+    throw new ValidationError("Question IDs must be unique.");
   const ordered = orderedQuestions(form);
   for (const q of form.questions) {
     if (
       q.options &&
       new Set(q.options.map((o) => o.id)).size !== q.options.length
     )
-      throw new Error("Option IDs must be unique within a question.");
+      throw new ValidationError("Option IDs must be unique within a question.");
     if (
       singleTypes.has(q.type) &&
       (q.options?.filter((o) => o.isCorrect).length || 0) > 1
     )
-      throw new Error(
+      throw new ValidationError(
         "Single-choice questions can only have one correct answer.",
       );
   }
@@ -295,12 +296,12 @@ export function validateFormReferences(form: FormSchemaType): void {
       !ids.has(r.sourceQuestionId) ||
       (r.targetQuestionId && !ids.has(r.targetQuestionId))
     )
-      throw new Error("A logic rule refers to a deleted question.");
+      throw new ValidationError("A logic rule refers to a deleted question.");
     if (
       r.action === "jump_to_question" &&
       ordered.findIndex((q) => q.id === r.targetQuestionId) <=
         ordered.findIndex((q) => q.id === r.sourceQuestionId)
     )
-      throw new Error("Jump rules must move forward to avoid loops.");
+      throw new ValidationError("Jump rules must move forward to avoid loops.");
   }
 }

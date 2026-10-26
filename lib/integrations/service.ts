@@ -12,6 +12,7 @@ import {
   readRecord,
   writeRecord,
   listRecords,
+  ConflictError,
   type StoredRecord,
 } from "../records";
 import type { QuizSubmissionResult, FormSchemaType } from "../schema";
@@ -518,7 +519,8 @@ export async function deliver(
       error instanceof DeliveryFailure
         ? error
         : error instanceof HttpError
-          ? new DeliveryFailure(error.message, false, error.status)
+          ? new DeliveryFailure(error.message, error instanceof ConflictError || [408, 425, 429].includes(error.status) || error.status >= 500, error.status,
+              error.retryAfterSeconds === undefined ? undefined : String(error.retryAfterSeconds))
           : new DeliveryFailure(
               "Connection failed or timed out. Check the destination and saved credentials.",
               true,

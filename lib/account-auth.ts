@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { HttpError, localMode, signToken, verifyToken } from "./auth";
+import { createAccountSession } from "./account-session";
 
 export const authCookies = () => ({
   httpOnly: true,
@@ -100,14 +101,11 @@ export async function authRequest(
 }
 export async function setAccountSession(data: {
   access_token?: string;
+  refresh_token?: string;
   expires_in?: number;
+  user?: { id?: string };
 }) {
-  if (!data.access_token || typeof data.expires_in !== "number")
-    throw new HttpError(502, "Account service returned an invalid session.");
-  (await cookies()).set("hq_access", data.access_token, {
-    ...authCookies(),
-    maxAge: Math.min(data.expires_in, 3600),
-  });
+  await createAccountSession(data);
 }
 // The verifier stays HttpOnly. A stolen email authorization code alone cannot create a session.
 export async function beginEmailFlow(kind: "signup" | "recovery") {

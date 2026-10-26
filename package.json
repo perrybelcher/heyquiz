@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node tests/regression.cjs",
+    "test:reliability": "node tests/save-errors.cjs && node tests/account-sessions.cjs && node tests/draft-reliability.cjs && node tests/autosave-reliability.cjs && node tests/panel-draft-reliability.cjs && node tests/session-client.cjs",
+    "test:browser-reliability": "node tests/browser-reliability.cjs",
+    "test:hosted-session-reliability": "node tests/hosted-session-reliability.cjs",
     "test:api": "node tests/api.mjs",
     "setup:local": "node scripts/setup-local.mjs",
     "test:marketing-api": "node tests/marketing-api.cjs",
@@ -40,13 +43,13 @@
     "framer-motion": "^14.0.0",
     "lucide-react": "^1.52.0",
     "nanoid": "^6.0.2",
-    "next": "16.4.0",
+    "next": "16.4.3",
     "pdfkit": "0.20.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-textarea-autosize": "^8.5.9",
     "tailwind-merge": "^3.7.0",
-    "zod": "^4.6.5"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -57,7 +60,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.3",
     "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5"

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useId, useState } from "react";
 import { ZodError } from "zod";
+import { usePanelDraft } from "@/hooks/usePanelDraft";
 import {
   DEFAULT_RESULT_EMAIL_COPY, ResultEmailCopySchema, previewResultEmailCopy,
   resolveResultEmailCopy, type ResultEmailCopy,
@@ -23,39 +24,14 @@ function storedCopyDraft(raw: string | null, quizId: string): ResultEmailCopyDra
   } catch { return null; }
 }
 
-export function useResultEmailCopyDraft(quizId: string) {
-  const key = `pippi-result-email-copy:${quizId}`, cached = useRef<string | null | undefined>(undefined);
-  const read = useCallback(() => {
-    if (cached.current === undefined) try { cached.current = sessionStorage.getItem(key); } catch { cached.current = null; }
-    return cached.current;
-  }, [key]);
-  const raw = useSyncExternalStore(() => () => {}, read, () => null);
-  const recovered = useMemo(() => storedCopyDraft(raw, quizId), [raw, quizId]);
-  const [override, setOverride] = useState<ResultEmailCopyDraft | undefined>(undefined), [storageWarning, setStorageWarning] = useState(false);
-  const persisted = useRef<string | null | undefined>(undefined);
-  const draft = override === undefined ? recovered : override;
-  const update = (next: ResultEmailCopyDraft) => {
-    const previous = persisted.current === undefined ? raw : persisted.current;
-    setOverride(next);
-    try {
-      if (next) {
-        const text = JSON.stringify({ version: 1, quizId, draft: next });
-        if (!storedCopyDraft(text, quizId)) throw Error("Pending copy is too large for recovery.");
-        sessionStorage.setItem(key, text); persisted.current = text;
-      } else {
-        // A mismatched stored draft may belong to another mounted editor instance.
-        if (sessionStorage.getItem(key) === previous) sessionStorage.removeItem(key);
-        persisted.current = null;
-      }
-      setStorageWarning(false);
-    } catch { setStorageWarning(true); }
-  };
-  return { draft, update, restored: override === undefined && !!recovered, storageWarning };
+export function useResultEmailCopyDraft(quizId: string, accountKey?: string) {
+  return usePanelDraft(`pippi-result-email-copy:${quizId}`, accountKey,
+    raw => storedCopyDraft(raw, quizId), draft => JSON.stringify({ version: 1, quizId, draft }));
 }
 
 export default function ResultEmailCopyEditor({ value, quizTitle, brandName, draft, onDraftChange, onChange, restored, storageWarning }: {
   value?: ResultEmailCopy; quizTitle: string; brandName?: string;
-  draft: ResultEmailCopyDraft; onDraftChange: (draft: ResultEmailCopyDraft) => void;
+  draft: ResultEmailCopyDraft; onDraftChange: (draft: ResultEmailCopyDraft, reason?: "apply" | "discard") => void;
   onChange: (value: ResultEmailCopy | undefined) => void;
   restored?: boolean; storageWarning?: boolean;
 }) {
@@ -89,7 +65,7 @@ export default function ResultEmailCopyEditor({ value, quizTitle, brandName, dra
     if (!draft || stale || invalid) return;
     const valid = ResultEmailCopySchema.parse(copy);
     resolveResultEmailCopy(valid, { quizTitle, brandName });
-    onChange(valid); onDraftChange(null);
+    onChange(valid); onDraftChange(null, "apply");
   };
   return <details className="min-w-0 rounded-xl border border-stone-200 bg-white p-4">
     <summary className="cursor-pointer font-semibold text-stone-900">Result email copy <span className="font-normal text-stone-600">· preview only{draft ? " · unapplied changes" : ""}</span></summary>

@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { withLocalRecordRead } from "./local-record-reads";
+import { ConflictError, HttpError, ServiceUnavailableError, ValidationError } from "./errors";
+export { ConflictError } from "./errors";
 export const cloudEnabled = () =>
   Boolean(
     process.env.SUPABASE_URL &&
@@ -13,9 +15,22 @@ export const dataDirectory = () =>
   // The configured directory is read at runtime; cloud deployments use the DB.
   path.resolve(/* turbopackIgnore: true */ process.env.HEYQUIZ_DATA_DIR || ".heyquiz-data");
 const safe = (v: string) => {
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(v)) throw new Error("Invalid identifier.");
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(v)) throw new ValidationError("Invalid identifier.");
   return v;
 };
+function localStorageError(error: unknown): unknown {
+  if (error instanceof HttpError) return error;
+  if (error && typeof error === "object" && "code" in error && typeof error.code === "string")
+    return new ServiceUnavailableError("Stored data is temporarily unavailable. Your changes have not been confirmed saved.");
+  return error;
+}
+async function cloudJson<T>(response: Response): Promise<T> {
+  try { return await response.json() as T; }
+  catch (error) {
+    if (error instanceof SyntaxError) throw new Error("Cloud storage returned invalid data.");
+    throw new ServiceUnavailableError("Cloud storage is temporarily unavailable. Please try again.");
+  }
+}
 export interface StoredRecord<T> {
   id: string;
   kind: string;
@@ -27,8 +42,9 @@ export async function supabaseFetch(endpoint: string, init: RequestInit = {}) {
   const key =
     process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!process.env.SUPABASE_URL || !key)
-    throw new Error("Cloud storage is not configured.");
-  const res = await fetch(`${process.env.SUPABASE_URL}${endpoint}`, {
+    throw new ServiceUnavailableError("Cloud storage is not configured.");
+  let res: Response;
+  try { res = await fetch(`${process.env.SUPABASE_URL}${endpoint}`, {
     ...init,
     cache: "no-store",
     headers: {
@@ -40,7 +56,16 @@ export async function supabaseFetch(endpoint: string, init: RequestInit = {}) {
       ...init.headers,
     },
     signal: AbortSignal.timeout(20000),
-  });
+  }); } catch {
+    throw new ServiceUnavailableError("Cloud storage is temporarily unavailable. Please try again.");
+  }
+  if (res.status === 409) throw new ConflictError();
+  if ([401, 403, 408, 425, 429].includes(res.status) || res.status >= 500) {
+    const raw = res.headers.get("retry-after");
+    const seconds = raw === null ? NaN : Number(raw);
+    const retryAfter = Number.isFinite(seconds) && seconds >= 0 ? Math.min(3600, Math.ceil(seconds)) : undefined;
+    throw new ServiceUnavailableError("Cloud storage is temporarily unavailable. Please try again.", retryAfter);
+  }
   if (!res.ok)
     throw new Error(
       `Cloud storage request failed (${res.status}). Check the database migration and configuration.`,
@@ -54,11 +79,11 @@ export async function readRecord<T>(
   safe(kind);
   safe(id);
   if (cloudEnabled()) {
-    const rows: StoredRecord<T>[] = await (
+    const rows = await cloudJson<StoredRecord<T>[]>(
       await supabaseFetch(
         `/rest/v1/hq_records?kind=eq.${kind}&id=eq.${id}&select=*`,
       )
-    ).json();
+    );
     return rows[0] || null;
   }
   try {
@@ -69,6 +94,7 @@ export async function readRecord<T>(
     ) as StoredRecord<T>);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (!(e instanceof SyntaxError)) throw localStorageError(e);
     throw new Error(
       "Stored data could not be read. No data has been overwritten.",
     );
@@ -85,11 +111,11 @@ export async function listRecords<T>(
     // The server can cap a response below our requested limit. Continue until
     // an empty page, using stable IDs rather than offsets that shift on deletion.
     for (;;) {
-      const page: StoredRecord<T>[] = await (
+      const page = await cloudJson<StoredRecord<T>[]>(
         await supabaseFetch(
           `/rest/v1/hq_records?kind=eq.${kind}${owner ? `&owner_id=eq.${encodeURIComponent(owner)}` : ""}&select=*&order=id.asc&limit=500${cursor ? `&id=gt.${encodeURIComponent(cursor)}` : ""}`,
         )
-      ).json();
+      );
       if (!page.length) return records;
       const next = page[page.length - 1].id;
       if (next === cursor)
@@ -103,7 +129,7 @@ export async function listRecords<T>(
     names = await fs.readdir(/* turbopackIgnore: true */ path.join(/* turbopackIgnore: true */ dataDirectory(), kind));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw e;
+    throw localStorageError(e);
   }
   const files = names.filter((name) => name.endsWith(".json"));
   const rows: (StoredRecord<T> | undefined)[] = new Array(files.length);
@@ -129,13 +155,6 @@ export async function listRecords<T>(
   if (failed) throw failure;
   return rows.filter((row): row is StoredRecord<T> => row !== undefined);
 }
-export class ConflictError extends Error {
-  constructor() {
-    super(
-      "This quiz changed in another tab. Reload before saving to avoid overwriting those changes.",
-    );
-  }
-}
 export async function writeRecord<T>(
   kind: string,
   id: string,
@@ -148,7 +167,7 @@ export async function writeRecord<T>(
   if (cloudEnabled()) {
     const old = await readRecord<T>(kind, id);
     if (old && old.owner_id !== owner)
-      throw new Error("Record owner mismatch.");
+      throw new HttpError(404, "Record not found.");
     if (expected !== undefined && (old?.version || 0) !== expected)
       throw new ConflictError();
     const row = {
@@ -166,12 +185,13 @@ export async function writeRecord<T>(
         body: JSON.stringify(row),
       },
     );
-    const result: StoredRecord<T>[] = await res.json();
+    const result = await cloudJson<StoredRecord<T>[]>(res);
     if (!result.length) throw new ConflictError();
     return result[0];
   }
   const dir = path.join(dataDirectory(), kind);
-  await fs.mkdir(/* turbopackIgnore: true */ dir, { recursive: true, mode: 0o700 });
+  try { await fs.mkdir(/* turbopackIgnore: true */ dir, { recursive: true, mode: 0o700 }); }
+  catch (error) { throw localStorageError(error); }
   const lock = path.join(dir, `${id}.lock`);
   let acquired = false;
   for (let n = 0; n < 50; n++) {
@@ -180,15 +200,15 @@ export async function writeRecord<T>(
       acquired = true;
       break;
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw localStorageError(e);
       await new Promise((r) => setTimeout(r, 40));
     }
   }
-  if (!acquired) throw new Error("This record is busy. Please try again.");
+  if (!acquired) throw new ServiceUnavailableError("This record is busy. Please try again.", 2);
   try {
     const old = await readRecord<T>(kind, id);
     if (old && old.owner_id !== owner)
-      throw new Error("Record owner mismatch.");
+      throw new HttpError(404, "Record not found.");
     if (expected !== undefined && (old?.version || 0) !== expected)
       throw new ConflictError();
     const row = {
@@ -208,8 +228,11 @@ export async function writeRecord<T>(
     }
     await fs.rename(tmp, path.join(dir, `${id}.json`));
     return row;
+  } catch (error) {
+    throw localStorageError(error);
   } finally {
-    await fs.rmdir(lock);
+    try { await fs.rmdir(lock); }
+    catch (error) { throw localStorageError(error); }
   }
 }
 export async function removeRecord(kind: string, id: string, owner: string) {
@@ -220,6 +243,9 @@ export async function removeRecord(kind: string, id: string, owner: string) {
       `/rest/v1/hq_records?kind=eq.${safe(kind)}&id=eq.${safe(id)}&owner_id=eq.${encodeURIComponent(owner)}`,
       { method: "DELETE" },
     );
-  else await fs.unlink(path.join(dataDirectory(), kind, `${safe(id)}.json`));
+  else {
+    try { await fs.unlink(path.join(dataDirectory(), kind, `${safe(id)}.json`)); }
+    catch (error) { throw localStorageError(error); }
+  }
   return true;
 }

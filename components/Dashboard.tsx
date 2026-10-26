@@ -19,6 +19,7 @@ import type { FormSchemaType } from "@/lib/schema";
 import { blankQuiz } from "@/lib/blank-quiz";
 import { marketingTemplate } from "@/lib/marketing-templates";
 import type { MarketingConfig } from "@/lib/marketing";
+import { requestSafeLogout } from "@/lib/session-client";
 export default function Dashboard({
   initialForms,
 }: {
@@ -134,8 +135,8 @@ export default function Dashboard({
             className="hq-icon text-slate-400"
             aria-label="Sign out"
             onClick={async () => {
-              await fetch("/api/auth", { method: "DELETE" });
-              window.location.assign("/login");
+              try { if (await requestSafeLogout()) window.location.assign("/login"); }
+              catch (e) { setError(e instanceof Error ? e.message : "Sign-out could not be confirmed. Please try again."); }
             }}
           >
             <LogOut size={18} />

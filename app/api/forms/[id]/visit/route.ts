@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
 import { readRecord } from "@/lib/records";
 import { rateLimit } from "@/lib/rate-limit";
@@ -9,7 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     checkOrigin(req);
     rateLimit(req, "landing-visit", 90);
     if (Number(req.headers.get("content-length")) > 4096) throw new HttpError(413, "Landing view request is too large.");
-    const { id } = await params, body = await req.json();
+    const { id } = await params, body = await readJsonRequest(req);
     if (!body || typeof body !== "object" || Array.isArray(body) || body.preview === true) throw new HttpError(400, "Only public landing views are measured.");
     const experiment = body.experimentToken ? await resolveExperiment(body.experimentToken) : undefined;
     if (experiment && experiment.form.id !== id) throw new HttpError(400, "Invalid experiment landing.");

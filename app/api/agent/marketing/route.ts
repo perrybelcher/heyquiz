@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { apiError, checkOrigin, requireUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateMarketingQuiz } from "@/lib/marketing-agent";
@@ -9,6 +10,6 @@ export async function POST(req: Request) {
     await requireUser();
     rateLimit(req, "marketing-generate", 5);
     // Generation is a preview. The creator reviews the result before saving it.
-    return Response.json(await generateMarketingQuiz(await req.json()));
+    return Response.json(await generateMarketingQuiz(await readJsonRequest(req)));
   } catch (e) { return apiError(e); }
 }

@@ -5,7 +5,7 @@ require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule
 const { safeCreationReturn, creationReturnFromSearch, creationAuthHref, creationAuthDestination, rememberCreationReturn, CREATION_RETURN_KEY } = require('../lib/creation-auth-return.ts');
 const now = 1_800_000_000_000;
 function store() { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) }; }
-for (const path of ['/create/ai', '/create/marketing']) {
+for (const path of ['/create/ai', '/create/marketing', '/editor/quiz-recovery_123']) {
   assert.equal(safeCreationReturn(path), path);
   assert.equal(creationReturnFromSearch(`?next=${encodeURIComponent(path)}`), path);
   assert.equal(creationAuthHref('/login', path), `/login?next=${encodeURIComponent(path)}`);
@@ -14,7 +14,7 @@ for (const path of ['/create/ai', '/create/marketing']) {
   assert.equal(tab.getItem(CREATION_RETURN_KEY), null);
   assert.equal(creationAuthDestination('/', '', tab, now + 2), '/');
 }
-for (const unsafe of ['//evil.test', '/\\evil.test', 'https://evil.test/create/ai', '/create/ai?x=1', '/create/ai#x', '/create/ai/', '/create/ai\n', '/editor/x', '%2Fcreate%2Fai', null, {}]) {
+for (const unsafe of ['//evil.test', '/\\evil.test', 'https://evil.test/create/ai', '/create/ai?x=1', '/create/ai#x', '/create/ai/', '/create/ai\n', '/editor/x\n', '/editor/x?next=//evil.test', '/editor/../login', '/editor/x/extra', '/editor/' + 'x'.repeat(129), '%2Fcreate%2Fai', null, {}]) {
   assert.equal(safeCreationReturn(unsafe), null);
   assert.equal(creationAuthHref('/login', unsafe), '/login');
 }
@@ -42,4 +42,4 @@ assert.equal(creationAuthDestination('/', '?next=/create/ai', blocked, now), '/c
 assert.equal(creationAuthDestination('/', '', blocked, now), '/');
 rememberCreationReturn('/create/ai', tab, now);
 assert.equal(creationAuthDestination('/', '', store(), now), '/', 'new tabs do not inherit tab-scoped signup state');
-console.log('PASS creation auth return: two exact destinations; encoded/duplicate/foreign path rejection; explicit next/reset precedence; one-use same-tab signup return; recovery unchanged; expiry/corruption/blocked storage/new-tab fallback.');
+console.log('PASS auth return: creation destinations and protected editor return; encoded/duplicate/foreign path rejection; explicit next/reset precedence; one-use same-tab signup return; recovery unchanged; expiry/corruption/blocked storage/new-tab fallback.');

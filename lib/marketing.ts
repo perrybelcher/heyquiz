@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors";
 import { z } from "zod";
 import { resultVideoEmbed } from "./result-video";
 import type { FormSchemaType } from "./schema";
@@ -144,48 +145,48 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
   const targets = m.kind === "scorecard" ? m.categories : m.outcomes;
   const unique = (ids: string[]) => new Set(ids).size === ids.length;
   if (!unique(targets.map((t) => t.id)) || !unique(m.rules.map((r) => r.id)))
-    throw Error("Marketing IDs must be unique.");
-  if (!unique((m.resultSections ?? []).map(s => s.id))) throw Error("Result section IDs must be unique.");
+    throw new ValidationError("Marketing IDs must be unique.");
+  if (!unique((m.resultSections ?? []).map(s => s.id))) throw new ValidationError("Result section IDs must be unique.");
   if (publishing) for (const [index, section] of (m.resultSections ?? []).entries()) {
     const name = `Result section ${index + 1}`;
-    if (["image", "cta", "video"].includes(section.type) && !section.url.trim()) throw Error(`${name}: add a URL.`);
-    if (section.type === "video" && !resultVideoEmbed(section.url)) throw Error(`${name}: use an HTTPS YouTube or Vimeo video link.`);
+    if (["image", "cta", "video"].includes(section.type) && !section.url.trim()) throw new ValidationError(`${name}: add a URL.`);
+    if (section.type === "video" && !resultVideoEmbed(section.url)) throw new ValidationError(`${name}: use an HTTPS YouTube or Vimeo video link.`);
     const condition = section.condition;
-    if (condition?.type === "outcome" && (m.kind === "scorecard" || !m.outcomes.some(o => o.id === condition.outcomeId))) throw Error(`${name}: choose an existing result.`);
+    if (condition?.type === "outcome" && (m.kind === "scorecard" || !m.outcomes.some(o => o.id === condition.outcomeId))) throw new ValidationError(`${name}: choose an existing result.`);
     if (condition?.type === "score") {
-      if (m.kind !== "scorecard") throw Error(`${name}: score conditions require a scorecard.`);
-      if (condition.min > condition.max) throw Error(`${name}: minimum score exceeds maximum.`);
-      if (condition.categoryId ? !m.categories.some(c => c.id === condition.categoryId) : !m.scorecard) throw Error(`${name}: choose an available score category or enable overall score results.`);
+      if (m.kind !== "scorecard") throw new ValidationError(`${name}: score conditions require a scorecard.`);
+      if (condition.min > condition.max) throw new ValidationError(`${name}: minimum score exceeds maximum.`);
+      if (condition.categoryId ? !m.categories.some(c => c.id === condition.categoryId) : !m.scorecard) throw new ValidationError(`${name}: choose an available score category or enable overall score results.`);
     }
-    if (section.type === "cta" && !section.label.trim()) throw Error(`${name}: add a button label.`);
-    if (section.type === "faq" && !section.title.trim()) throw Error(`${name}: add a question.`);
-    if (["text", "faq", "testimonial"].includes(section.type) && !section.body.trim()) throw Error(`${name}: add content.`);
+    if (section.type === "cta" && !section.label.trim()) throw new ValidationError(`${name}: add a button label.`);
+    if (section.type === "faq" && !section.title.trim()) throw new ValidationError(`${name}: add a question.`);
+    if (["text", "faq", "testimonial"].includes(section.type) && !section.body.trim()) throw new ValidationError(`${name}: add content.`);
   }
   if (publishing && (!targets.length || !m.rules.length))
-    throw Error(
+    throw new ValidationError(
       "Add a result and at least one answer rule before publishing this marketing quiz.",
     );
   if (m.kind === "scorecard") {
     const groups = [{ title: "Overall result", bands: m.scorecard?.bands }, ...m.categories];
     for (const group of groups) {
       const bands = [...(group.bands || [])].sort((a, b) => a.min - b.min);
-      if (!unique(bands.map(b => b.id))) throw Error(`${group.title}: band IDs must be unique.`);
+      if (!unique(bands.map(b => b.id))) throw new ValidationError(`${group.title}: band IDs must be unique.`);
       for (let i = 0; i < bands.length; i++) {
-        if (bands[i].min > bands[i].max) throw Error(`${group.title}: minimum score exceeds maximum.`);
-        if (i && bands[i].min <= bands[i - 1].max) throw Error(`${group.title}: score bands overlap.`);
+        if (bands[i].min > bands[i].max) throw new ValidationError(`${group.title}: minimum score exceeds maximum.`);
+        if (i && bands[i].min <= bands[i - 1].max) throw new ValidationError(`${group.title}: score bands overlap.`);
         if (publishing && bands[i].min !== (i ? bands[i - 1].max + 1 : 0))
-          throw Error(`${group.title}: score bands must cover every percentage from 0 to 100.`);
-        if (bands[i].ctaUrl && !bands[i].ctaLabel.trim()) throw Error(`${group.title}: add a button label.`);
+          throw new ValidationError(`${group.title}: score bands must cover every percentage from 0 to 100.`);
+        if (bands[i].ctaUrl && !bands[i].ctaLabel.trim()) throw new ValidationError(`${group.title}: add a button label.`);
       }
       if (publishing && bands.length && bands[bands.length - 1].max !== 100)
-        throw Error(`${group.title}: score bands must end at 100.`);
+        throw new ValidationError(`${group.title}: score bands must end at 100.`);
     }
   }
   const pairs = new Set<string>();
   for (const rule of m.rules) {
     const q = form.questions.find((q) => q.id === rule.questionId);
     if (!q || !q.options?.some((o) => o.id === rule.answerId))
-      throw Error(
+      throw new ValidationError(
         "A marketing rule refers to a missing question or answer. Update it in Marketing.",
       );
     if (
@@ -202,18 +203,18 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
         "like_dislike",
       ].includes(q.type)
     )
-      throw Error("Marketing rules require a choice field.");
+      throw new ValidationError("Marketing rules require a choice field.");
     if (!targets.some((t) => t.id === rule.targetId))
-      throw Error("A marketing rule refers to a missing result.");
+      throw new ValidationError("A marketing rule refers to a missing result.");
     if (m.kind === "scorecard" && rule.effect === "exclude")
-      throw Error("Scorecard rules use points, not product exclusions.");
+      throw new ValidationError("Scorecard rules use points, not product exclusions.");
     const key = [
       rule.questionId,
       rule.answerId,
       rule.targetId,
       rule.effect,
     ].join(":");
-    if (pairs.has(key)) throw Error("This answer rule is duplicated.");
+    if (pairs.has(key)) throw new ValidationError("This answer rule is duplicated.");
     pairs.add(key);
   }
   if (publishing)
@@ -223,7 +224,7 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
           (r) => r.targetId === target.id && r.effect === "add" && r.points > 0,
         )
       )
-        throw Error(`Add a positive points rule for ${target.title}.`);
+        throw new ValidationError(`Add a positive points rule for ${target.title}.`);
 }
 // Resolve visibility on the server, and retain the selected content in saved results.
 // Insufficient coverage is never treated as a zero score.

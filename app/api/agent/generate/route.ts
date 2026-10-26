@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiError, checkOrigin, requireUser } from "@/lib/auth";
 import { generateQuizWithAgent } from "@/lib/agent-generator";
@@ -7,7 +8,7 @@ export async function POST(req: Request) {
     checkOrigin(req);
     rateLimit(req, "generate", 10);
     const user = await requireUser(),
-      body = await req.json();
+      body = await readJsonRequest(req);
     const form = await generateQuizWithAgent({
       ...body,
       topic: body.topic || body.prompt,

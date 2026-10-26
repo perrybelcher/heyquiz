@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useId } from "react";
 import { DEFAULT_REPORT_DESIGN, REPORT_SECTIONS, REPORT_SECTION_LABELS, ReportDesignSchema, type ReportDesign, type ReportSection } from "@/lib/report-design";
 import { buildResultPdfModel } from "@/lib/result-pdf-model";
 import type { FormTheme } from "@/lib/schema";
 import ReportDesignPreview from "./ReportDesignPreview";
+import { usePanelDraft } from "@/hooks/usePanelDraft";
 
 export type ReportDesignDraft = { baseline: string; design: ReportDesign } | null;
 const identity = (value?: ReportDesign) => JSON.stringify(value ?? null);
@@ -23,36 +24,14 @@ function parseDraft(raw: string | null, quizId: string): ReportDesignDraft {
   } catch { return null; }
 }
 
-export function useReportDesignDraft(quizId: string) {
-  const key = `pippi-report-design:${quizId}`, cached = useRef<string | null | undefined>(undefined), persisted = useRef<string | null | undefined>(undefined);
-  const read = useCallback(() => {
-    if (cached.current === undefined) try { cached.current = sessionStorage.getItem(key); } catch { cached.current = null; }
-    return cached.current;
-  }, [key]);
-  const raw = useSyncExternalStore(() => () => {}, read, () => null);
-  const restored = useMemo(() => parseDraft(raw, quizId), [raw, quizId]);
-  const [override, setOverride] = useState<ReportDesignDraft | undefined>(undefined), [storageWarning, setStorageWarning] = useState(false);
-  function update(next: ReportDesignDraft) {
-    const previous = persisted.current === undefined ? raw : persisted.current;
-    setOverride(next);
-    try {
-      if (next) {
-        const serialized = JSON.stringify({ version: 1, quizId, draft: next });
-        if (!parseDraft(serialized, quizId)) throw Error("Invalid pending report input.");
-        sessionStorage.setItem(key, serialized); persisted.current = serialized;
-      } else {
-        if (sessionStorage.getItem(key) === previous) sessionStorage.removeItem(key);
-        persisted.current = null;
-      }
-      setStorageWarning(false);
-    } catch { setStorageWarning(true); }
-  }
-  return { draft: override === undefined ? restored : override, update, restored: override === undefined && !!restored, storageWarning };
+export function useReportDesignDraft(quizId: string, accountKey?: string) {
+  return usePanelDraft(`pippi-report-design:${quizId}`, accountKey,
+    raw => parseDraft(raw, quizId), draft => JSON.stringify({ version: 1, quizId, draft }));
 }
 
 export default function ReportDesignEditor({ value, quizTitle, theme, draft, onDraftChange, onChange, restored, storageWarning }: {
   value?: ReportDesign; quizTitle: string; theme: FormTheme; draft: ReportDesignDraft;
-  onDraftChange: (value: ReportDesignDraft) => void; onChange: (value: ReportDesign | undefined) => void;
+  onDraftChange: (value: ReportDesignDraft, reason?: "apply" | "discard") => void; onChange: (value: ReportDesign | undefined) => void;
   restored?: boolean; storageWarning?: boolean;
 }) {
   const id = useId(), current = value ?? DEFAULT_REPORT_DESIGN, design = draft?.design ?? current;
@@ -100,7 +79,7 @@ export default function ReportDesignEditor({ value, quizTitle, theme, draft, onD
       {!!errors.length && <div role="alert" className="rounded-lg bg-red-50 p-3 text-red-900">{errors.map((error,index) => <p key={index}>{error.path}: {error.message}</p>)}</div>}
       {stale && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-amber-950">The saved report design changed while you were editing. Your pending settings remain here. Reload current design before applying another change.</p>}
       <p role="status" className="text-stone-700">{draft ? "Unapplied settings stay in this browser tab. They are not part of your saved quiz yet." : "Applied design follows normal draft saving and publication."}</p>
-      <div className="flex flex-wrap gap-3"><button type="button" disabled={!parsed.success || stale || (!!value && !draft)} onClick={() => { if (parsed.success && !stale) { onChange(parsed.data); onDraftChange(null); } }} className="rounded-lg bg-stone-900 px-4 py-2.5 font-semibold text-white disabled:bg-stone-200 disabled:text-stone-600">Apply report design</button>{draft && <button type="button" className="rounded-lg border border-stone-300 px-4 py-2.5 font-semibold" onClick={() => onDraftChange(null)}>{stale ? 'Reload current design' : 'Discard unapplied design'}</button>}<button type="button" className="rounded-lg border border-stone-300 px-4 py-2.5 font-semibold" onClick={() => { onChange(undefined); onDraftChange(null); }}>Use original report layout</button></div>
+      <div className="flex flex-wrap gap-3"><button type="button" disabled={!parsed.success || stale || (!!value && !draft)} onClick={() => { if (parsed.success && !stale) { onChange(parsed.data); onDraftChange(null, "apply"); } }} className="rounded-lg bg-stone-900 px-4 py-2.5 font-semibold text-white disabled:bg-stone-200 disabled:text-stone-600">Apply report design</button>{draft && <button type="button" className="rounded-lg border border-stone-300 px-4 py-2.5 font-semibold" onClick={() => onDraftChange(null)}>{stale ? 'Reload current design' : 'Discard unapplied design'}</button>}<button type="button" className="rounded-lg border border-stone-300 px-4 py-2.5 font-semibold" onClick={() => { onChange(undefined); onDraftChange(null); }}>Use original report layout</button></div>
       <p className="text-xs leading-relaxed text-stone-600">PDFs use your brand name and a readable version of your accent color, with bundled fonts. Logos, images and videos remain online. Some writing systems need Print / Save as PDF. This is a structured report designer, with automatic pagination.</p>
       <section aria-label="Report sample preview" className="min-w-0 space-y-3"><h3 className="font-semibold">Live sample preview</h3><p className="text-xs text-stone-600">Fixed example scores and text, not a real participant. This web preview illustrates style and order; PDF page breaks and type sizes can differ. Use a completed quiz’s saved result to download the actual report.</p>{model ? <ReportDesignPreview model={model} sample/> : <p className="rounded-lg bg-stone-100 p-3">Correct the fields above to preview this design. Invalid settings have not changed your quiz.</p>}</section>
     </section>

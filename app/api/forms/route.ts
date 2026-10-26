@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { getAllForms, saveForm } from "@/lib/storage";
 import { FormSchema } from "@/lib/schema";
 import { apiError, checkOrigin, requireUser } from "@/lib/auth";
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
   try {
     checkOrigin(req);
     const u = await requireUser(),
-      body = FormSchema.parse(await req.json());
+      body = FormSchema.parse(await readJsonRequest(req));
     return Response.json(await saveForm({ ...body, revision: 0 }, u.id), {
       status: 201,
     });

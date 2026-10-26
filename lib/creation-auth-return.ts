@@ -5,7 +5,7 @@ export const CREATION_RETURN_KEY = "pippi_creation_auth_return_v1";
 const lifetime = 24 * 60 * 60 * 1000;
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export function safeCreationReturn(value: unknown): string | null {
-  return typeof value === "string" && destinations.has(value) ? value : null;
+  return typeof value === "string" && (destinations.has(value) || (!/\s/.test(value) && /^\/editor\/[a-zA-Z0-9_-]{1,128}$/.test(value))) ? value : null;
 }
 export function creationReturnFromSearch(search: string): string | null {
   const params = new URLSearchParams(search);

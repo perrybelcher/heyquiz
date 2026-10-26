@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors";
 import { z } from "zod";
 import type { CoverPageConfig } from "./schema";
 import { resultVideoEmbed } from "./result-video";
@@ -27,18 +28,18 @@ export type LandingSection = z.infer<typeof LandingSectionSchema>;
 export function validateLanding(cover?: CoverPageConfig, publishing = false): void {
   if (!cover) return;
   const sections = cover.sections || [];
-  if (sections.length > landingSectionLimit) throw Error(`Use no more than ${landingSectionLimit} landing sections.`);
-  if (new Set(sections.map(section => section.id)).size !== sections.length) throw Error("Landing section IDs must be unique.");
+  if (sections.length > landingSectionLimit) throw new ValidationError(`Use no more than ${landingSectionLimit} landing sections.`);
+  if (new Set(sections.map(section => section.id)).size !== sections.length) throw new ValidationError("Landing section IDs must be unique.");
   if (!publishing || !cover.enabled) return;
-  if (!cover.title.trim()) throw Error("Add a landing-page title before publishing.");
-  if (!cover.buttonText.trim()) throw Error("Add a start-button label before publishing.");
-  if (cover.imageUrl && !safeLandingImageUrl(cover.imageUrl)) throw Error("Use a safe image URL for the landing cover.");
+  if (!cover.title.trim()) throw new ValidationError("Add a landing-page title before publishing.");
+  if (!cover.buttonText.trim()) throw new ValidationError("Add a start-button label before publishing.");
+  if (cover.imageUrl && !safeLandingImageUrl(cover.imageUrl)) throw new ValidationError("Use a safe image URL for the landing cover.");
   for (const [index, section] of sections.entries()) {
     const name = `Landing section ${index + 1}`;
-    if (["text", "testimonial", "faq"].includes(section.type) && !section.body.trim()) throw Error(`${name}: add the content.`);
-    if (section.type === "faq" && !section.title.trim()) throw Error(`${name}: add a question.`);
-    if (section.type === "benefits" && (!section.items.length || section.items.some(item => !item.trim()))) throw Error(`${name}: complete the benefit list.`);
-    if (section.type === "video" && !resultVideoEmbed(section.url)) throw Error(`${name}: use a supported HTTPS YouTube or Vimeo URL.`);
-    if (section.type === "start" && !section.label.trim()) throw Error(`${name}: add a start-button label.`);
+    if (["text", "testimonial", "faq"].includes(section.type) && !section.body.trim()) throw new ValidationError(`${name}: add the content.`);
+    if (section.type === "faq" && !section.title.trim()) throw new ValidationError(`${name}: add a question.`);
+    if (section.type === "benefits" && (!section.items.length || section.items.some(item => !item.trim()))) throw new ValidationError(`${name}: complete the benefit list.`);
+    if (section.type === "video" && !resultVideoEmbed(section.url)) throw new ValidationError(`${name}: use a supported HTTPS YouTube or Vimeo URL.`);
+    if (section.type === "start" && !section.label.trim()) throw new ValidationError(`${name}: add a start-button label.`);
   }
 }

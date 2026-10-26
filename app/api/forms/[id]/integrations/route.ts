@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { nangoProviders } from "@/lib/integrations/providers";
 import { schedulerStatus } from "@/lib/integrations/scheduler";
 import { nangoConfigured } from "@/lib/integrations/nango";
@@ -52,7 +53,7 @@ export async function PUT(req: Request, { params }: Context) {
     const user = await requireUser(),
       { id } = await params;
     rateLimit(req, `integration-save:${user.id}`, 30);
-    const saved = await saveConnection(id, user.id, await req.json());
+    const saved = await saveConnection(id, user.id, await readJsonRequest(req));
     return Response.json(saved, {
       headers: { "Cache-Control": "private, no-store" },
     });
@@ -79,9 +80,9 @@ export async function POST(req: Request, { params }: Context) {
       { id } = await params;
     await requireForm(id, user.id);
     rateLimit(req, `integration-action:${user.id}`, 15);
-    const body = Action.parse(await req.json());
+    const body = Action.parse(await readJsonRequest(req));
     if ((body.action === "test" || body.action === "retry") && !body.id)
-      throw new Error("Select a connection or delivery.");
+      throw new HttpError(400, "Select a connection or delivery.");
     let deliveryId: string | undefined;
     if (body.action === "test")
       deliveryId = await createTest(id, user.id, body.id!);

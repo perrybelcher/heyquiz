@@ -1,4 +1,5 @@
-import { FormSchema, type FormSchemaType } from "./schema";
+import type { FormSchemaType } from "./schema";
+import { readDraftForm } from "./draft-recovery";
 
 type DraftStorage = Pick<Storage, "getItem">;
 
@@ -28,8 +29,8 @@ export function readGuestDraft(local: DraftStorage, session?: DraftStorage, id?:
     for (const raw of [tabCopy, deviceCopy]) {
       if (!raw) continue;
       try {
-        const parsed = FormSchema.safeParse(JSON.parse(raw));
-        if (parsed.success && parsed.data.id === draftId) return parsed.data;
+        const parsed = readDraftForm(JSON.parse(raw));
+        if (parsed?.id === draftId) return parsed;
       } catch {}
     }
   } catch {}

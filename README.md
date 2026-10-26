@@ -64,7 +64,7 @@ The native PDF route requires a Node runtime and `assets/pdf-fonts/`, including 
 
 ## Hosted accounts and release setup
 
-The app implements email/password sign-in, signup, resend confirmation, forgot-password, email callback and password reset. Signup/reset passwords require 12–128 characters. Confirmation/recovery uses a browser-bound PKCE flow: open the email link in the browser that requested it. Workspace access sessions currently expire and require signing in again; this code does not implement automatic refresh-token renewal or invitation/team roles.
+The app implements email/password sign-in, signup, resend confirmation, forgot-password, email callback and password reset. Signup/reset passwords require 12–128 characters. Confirmation/recovery uses a browser-bound PKCE flow: open the email link in the browser that requested it. New workspace sessions renew server-side with a rolling 30-day foreground-use window. Existing access-only sessions need one fresh sign-in after expiry. Required reauthentication pauses the editor and preserves account-bound recovery drafts; see [session and save reliability](docs/session-and-save-reliability.md) for behavior, compatibility and isolated verification. Invitation/team roles are not implemented.
 
 For an authorized deployment:
 

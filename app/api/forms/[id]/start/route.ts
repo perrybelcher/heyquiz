@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { verifiedLandingVisit } from "@/lib/landing-visits";
 import { resolveExperiment } from "@/lib/experiments";
 import { rateLimit } from "@/lib/rate-limit";
@@ -16,7 +17,7 @@ export async function POST(
     checkOrigin(req);
     rateLimit(req, "start", 40);
     const { id } = await params,
-      body = await req.json();
+      body = await readJsonRequest(req);
     const preview = body.preview === true,
       user = preview ? await currentUser() : null;
     const published = await readRecord<FormSchemaType>("published", id);

@@ -131,6 +131,7 @@ import EditorMobileHeader from "./EditorMobileHeader";
 import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
+import { saveStatusLabel } from "@/lib/draft-recovery";
 import { FormSchema } from "@/lib/schema";
 import {
   record,
@@ -156,6 +157,9 @@ interface EditorStudioProps {
   guest?: boolean;
   initiallyPublished?: boolean;
   publishedFingerprint?: string;
+  accountKey?: string;
+  sessionExpiresAt?: number;
+  localSession?: boolean;
 }
 
 function containDialogFocus(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -178,7 +182,7 @@ function PausePublicationDialog({ busy, onClose, onConfirm }: { busy: boolean; o
   </dialog>;
 }
 
-export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "" }: EditorStudioProps) {
+export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "", accountKey, localSession = false }: EditorStudioProps) {
   const storedEditorMode = useSyncExternalStore(
     () => () => {},
     () => { try { return localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); } catch { return null; } },
@@ -234,9 +238,26 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     setGuidedShareReturn(false); changeEditorMode(true);
     setGuidedJump(previous => ({ target: "publish", requestId: (previous?.requestId || 0) + 1, focus: true }));
   }
-  const [form, setForm] = useState<FormSchemaType>(initialForm);
-  const { draft: emailCopyDraft, update: setEmailCopyDraft, restored: emailCopyRestored, storageWarning: emailCopyStorageWarning } = useResultEmailCopyDraft(initialForm.id);
-  const { draft: reportDesignDraft, update: setReportDesignDraft, restored: reportDesignRestored, storageWarning: reportDesignStorageWarning } = useReportDesignDraft(initialForm.id);
+  const [form, setFormState] = useState<FormSchemaType>(initialForm);
+  const {
+    status: saveStatus,
+    error: saveError,
+    authRequired,
+    claimed,
+    accountMismatch,
+    tabBackedUp,
+    afterSignIn,
+    canEdit,
+    storageWarning,
+    backedUp,
+    saveNow: persistNow,
+    recovery,
+    recoveries,
+    dismissRecovery,
+  } = useAutosave(form, guest, { accountKey, onRestore: setFormState });
+  const setForm = useCallback<React.Dispatch<React.SetStateAction<FormSchemaType>>>(next => { if (canEdit()) setFormState(next); }, [canEdit]);
+  const { draft: emailCopyDraft, update: setEmailCopyDraft, restored: emailCopyRestored, storageWarning: emailCopyStorageWarning, alternatives: emailCopyAlternatives } = useResultEmailCopyDraft(initialForm.id, accountKey);
+  const { draft: reportDesignDraft, update: setReportDesignDraft, restored: reportDesignRestored, storageWarning: reportDesignStorageWarning, alternatives: reportDesignAlternatives } = useReportDesignDraft(initialForm.id, accountKey);
   useEffect(() => {
     if (!emailCopyDraft && !reportDesignDraft) return;
     // Pending copy is deliberately outside autosave. Keep it across editor tabs,
@@ -245,8 +266,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [emailCopyDraft, reportDesignDraft]);
-  const reportDesignEditor = <ReportDesignEditor value={form.reportDesign} quizTitle={form.title} theme={form.theme} draft={reportDesignDraft} restored={reportDesignRestored} storageWarning={reportDesignStorageWarning} onDraftChange={setReportDesignDraft} onChange={reportDesign => setForm(current => ({ ...current, reportDesign }))} />;
-  const resultEmailEditor = <ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={setEmailCopyDraft} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} />;
+  const reportDesignEditor = <>{reportDesignAlternatives.length > 0 && <div role="alert" className="hq-error">Several unapplied report designs are saved on this device. Review a copy: {reportDesignAlternatives.map((draft, index) => <button className="underline ml-3" key={index} onClick={() => { if (canEdit()) setReportDesignDraft(draft); }}>Recover design {index + 1}</button>)}</div>}<ReportDesignEditor value={form.reportDesign} quizTitle={form.title} theme={form.theme} draft={reportDesignDraft} restored={reportDesignRestored} storageWarning={reportDesignStorageWarning} onDraftChange={(value, reason) => { if (canEdit()) setReportDesignDraft(value, reason); }} onChange={reportDesign => setForm(current => ({ ...current, reportDesign }))} /></>;
+  const resultEmailEditor = <>{emailCopyAlternatives.length > 0 && <div role="alert" className="hq-error">Several unapplied email copies are saved on this device. Review a copy: {emailCopyAlternatives.map((draft, index) => <button className="underline ml-3" key={index} onClick={() => { if (canEdit()) setEmailCopyDraft(draft); }}>Recover copy {index + 1}</button>)}</div>}<ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={(value, reason) => { if (canEdit()) setEmailCopyDraft(value, reason); }} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} /></>;
   const [activeNavTab, updateActiveNavTab] = useState<
     "edit" | "integrate" | "share" | "results" | "marketing" | "contacts"
   >("edit");
@@ -269,24 +290,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const [devicePreview, setDevicePreview] = useState<"desktop" | "mobile">(
     "desktop",
   );
-  const {
-    status: saveStatus,
-    error: saveError,
-    authRequired,
-    claimed,
-    storageWarning,
-    backedUp,
-    saveNow: persistNow,
-    recovery,
-    dismissRecovery,
-  } = useAutosave(form, guest);
   const guestDraft = guest && !claimed;
   const [draftAccountState, setDraftAccountState] = useState<"checking" | "signed-in" | "guest">("checking");
   useEffect(() => {
     if (!guest) return;
     let cancelled = false;
     fetch("/api/auth", {cache: "no-store"}).then(r => r.ok ? r.json() : null).then(data => {
-      if (!cancelled) setDraftAccountState(data?.signedIn ? "signed-in" : "guest");
+      if (!cancelled) setDraftAccountState(typeof data?.signedIn === "boolean" ? data.signedIn ? "signed-in" : "guest" : "checking");
     }).catch(() => {if (!cancelled) setDraftAccountState("checking");});
     return () => {cancelled = true;};
   }, [guest]);
@@ -1628,7 +1638,12 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     },
   ];
 
-  const mobileSaveStatus = saveStatus === "error" ? (authRequired ? (backedUp ? "Saved on device · Sign in to sync" : "Sign in to save") : "Save failed · Retry") : backedUp && (guestDraft || authRequired) ? "Saved on this device" : guestDraft ? "Browser draft" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes";
+  function exportRecovery(value: unknown, name: string) {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a"); link.href = url; link.download = `${name}-${form.id}.json`; link.click(); URL.revokeObjectURL(url);
+  }
+  function exportDraft() { exportRecovery(form, "pippi-draft"); }
+  const mobileSaveStatus = saveStatusLabel({ status: saveStatus, guest: guestDraft, authRequired, persistent: backedUp, tab: tabBackedUp });
   const hasUnpublishedChanges = !publicationUncertain && isPublished && liveFingerprint !== publicationFingerprint(form);
   const publicationLabel = publicationUncertain ? "Publication status needs checking" : !isPublished ? "Draft · Not public" : hasUnpublishedChanges ? "Published · Unpublished changes" : "Published · Up to date";
   return (
@@ -1652,8 +1667,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       </div>}
       {publicationUncertain && <p ref={publicationStatusNotice} tabIndex={-1} role="status" className="bg-amber-50 px-5 py-3 text-sm text-amber-950">Publication may have completed. Keep editing and saving your draft; refresh this editor to check its live version before publishing again.</p>}
       {publicationNotice && <div role="status" className="bg-stone-100 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><span>{publicationNotice}</span><button className="underline font-semibold" onClick={() => setPublicationNotice("")}>Dismiss notice</button></div>}
-      {storageWarning && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved.</p>}
-      {authRequired && !accountPromptDismissed && <QuizAccountPrompt guest={guestDraft} backedUp={backedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} onClose={closeAccountPrompt} onRetry={() => void saveNow(form, accountPromptIntent)} />}
+      {storageWarning && saveStatus !== "saved" && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved to your account. <button type="button" className="underline font-semibold" onClick={exportDraft}>Export draft</button></p>}
+      {authRequired && (!accountPromptDismissed || !guestDraft) && <QuizAccountPrompt guest={guestDraft} backedUp={backedUp} tabBackedUp={tabBackedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} accountMismatch={accountMismatch} local={localSession} sessionError={saveError} onExportDraft={exportDraft} onExportReportDesign={reportDesignDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-report-design",draft:reportDesignDraft}, "pippi-unapplied-report-design") : undefined} onExportEmailCopy={emailCopyDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-email-copy",draft:emailCopyDraft}, "pippi-unapplied-email-copy") : undefined} onAuthenticated={afterSignIn} onClose={closeAccountPrompt} onRetry={() => void saveNow(form)} /> }
       {((saveError && !authRequired) || actionError) && (
         <div
           role="alert"
@@ -1673,22 +1688,18 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       )}
       {recovery && (
         <div className="bg-amber-50 text-amber-900 text-sm px-6 py-3 flex gap-4">
-          A different draft saved on this device is available. Review it before restoring.
+          A different draft saved on this device is available. Restoring replaces the current draft; its current contents will first be preserved in Draft history. {recoveries.length > 1 && `${recoveries.length} differing recovery copies are available; choose a copy below.`}
           <span>“{recovery.title}” · {recovery.questions.length} questions · Based on revision {recovery.revision || 0}.</span>
-          <button
-            className="font-semibold underline"
-            onClick={() => {
-              setForm({ ...recovery, revision: form.revision });
-              dismissRecovery();
-            }}
-          >
-            Restore changes
-          </button>
+          {recoveries.map((copy, index) => <button key={`${copy.instance}:${copy.updatedAt}`} className="font-semibold underline" onClick={() => {
+            if (!canEdit() || !checkpoint("Before recovering a device draft")) return;
+            setForm({ ...copy.form, revision: form.revision }); dismissRecovery();
+          }}>{recoveries.length === 1 ? "Restore changes" : `Restore copy ${index + 1}: ${copy.form.title}`}</button>)}
           <button className="underline" onClick={dismissRecovery}>
             Dismiss
           </button>
         </div>
       )}
+      <div inert={authRequired && !guestDraft} className="contents" aria-label="Quiz editor">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2">
         <span className="text-xs font-medium text-stone-500">Editor mode</span>
         <div role="group" aria-label="Editor mode" className="flex rounded-xl bg-stone-100 p-1">
@@ -1703,7 +1714,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
       }} />
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={backedUp && (guestDraft || authRequired) ? (guestDraft && draftAccountState !== "guest" && !authRequired ? "Saved on this device · Save to your account" : "Saved on this device · Sign in to sync") : guestDraft ? "Browser draft · Not synced" : saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "Unsynced changes"} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
+      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
       <EditorMobileHeader
         title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
@@ -1756,26 +1767,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <ChevronDownIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-600" />
           </div>
 
-          <span className="text-xs text-gray-600 flex items-center gap-1 ml-2 font-mono">
-            {saveStatus === "saving" && (
-              <span className="text-amber-800 animate-pulse">Saving...</span>
-            )}
-            {saveStatus === "saved" && !guestDraft && (
-              <span className="text-emerald-700 flex items-center gap-1 font-medium">
-                <Check className="w-3 h-3 stroke-[3]" /> Saved
-              </span>
-            )}
-            {saveStatus === "unsaved" && (
-              <span className="text-gray-600">Unsaved edits</span>
-            )}
-            {saveStatus === "error" && (
-              <button
-                className={authRequired ? "text-stone-600 underline" : "text-rose-600 underline"}
-                onClick={() => void saveNow()}
-              >
-                {authRequired ? (backedUp ? "Saved on device · Sign in to sync" : "Sign in to save") : "Save failed · Retry"}
-              </button>
-            )}
+          <span role="status" className="text-xs text-gray-600 flex items-center gap-1 ml-2 font-mono">
+            {saveStatus === "error" && !authRequired ? <button className="text-rose-700 underline" onClick={() => void saveNow()}>{mobileSaveStatus} Retry save</button> : <span className={saveStatus === "saved" && !guestDraft ? "text-emerald-700" : "text-stone-700"}>{mobileSaveStatus}</span>}
           </span>
         </div>
 
@@ -4851,6 +4844,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           }));
         }}
       />
+      </div>
     </div>
   );
 }

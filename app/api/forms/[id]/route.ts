@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/errors";
 import { ownedForm, saveForm, deleteForm } from "@/lib/storage";
 import { FormSchema } from "@/lib/schema";
 import { apiError, checkOrigin, requireUser, HttpError } from "@/lib/auth";
@@ -20,7 +21,7 @@ export async function PUT(req: Request, { params }: Context) {
       { id } = await params;
     if (!(await ownedForm(id, u.id)))
       throw new HttpError(404, "Quiz not found.");
-    const body = FormSchema.parse({ ...(await req.json()), id });
+    const body = FormSchema.parse({ ...(await readJsonRequest(req)), id });
     return Response.json(await saveForm(body, u.id));
   } catch (e) {
     return apiError(e);

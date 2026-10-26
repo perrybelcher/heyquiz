@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors";
 import { validateMarketing } from "./marketing";
 import { validateLanding } from "./landing";
 import { resolveResultEmailCopy } from "./result-email-copy";
@@ -134,7 +135,7 @@ export async function publishForm(form: FormSchemaType, owner: string) {
     }
   }
   if (!form.questions.length)
-    throw new Error("Add at least one question before publishing.");
+    throw new ValidationError("Add at least one question before publishing.");
   validateFormReferences(form);
   await writeRecord("published", form.id, owner, {
     ...form,

@@ -46,9 +46,9 @@ async function readSet(formId: string, owner: string): Promise<ContactSegmentRes
 async function safely<T>(operation: () => Promise<T>) {
   try { return await operation(); }
   catch (error) {
+    if (error instanceof ConflictError) throw conflict();
     if (error instanceof HttpError) throw error;
     if (error instanceof ContactSegmentValidationError) throw new HttpError(400, error.message);
-    if (error instanceof ConflictError) throw conflict();
     throw unavailable();
   }
 }

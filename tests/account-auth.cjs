@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const os = require("node:os");
 const fs = require("node:fs"),
   path = require("node:path"),
   Module = require("node:module"),
@@ -45,9 +46,14 @@ Module._load = function (id, parent, main) {
 process.env.SESSION_SECRET = "synthetic-test-secret-32-characters-long";
 process.env.SUPABASE_URL = "https://auth.example.test";
 process.env.SUPABASE_ANON_KEY = "synthetic-public-key";
+delete process.env.SUPABASE_SECRET_KEY;
+delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+const testDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pippi-account-auth-"));
+process.env.HEYQUIZ_DATA_DIR = testDirectory;
 delete process.env.HEYQUIZ_LOCAL_MODE;
 global.fetch = async (url, init) => {
   calls.push({ url, init, body: JSON.parse(init.body || "{}") });
+  if (url.endsWith("/auth/v1/user")) return Response.json({ id: "test-user" });
   return Response.json(reply.data, { status: reply.status });
 };
 const { POST } = require("../app/api/auth/account/route.ts");
@@ -128,19 +134,23 @@ function check(condition, message) {
     "email redirect fixed to app, never supplied host",
   );
   reply = {
-    data: { access_token: "synthetic-access", expires_in: 3600 },
+    data: { access_token: "synthetic-access", refresh_token: "synthetic-refresh", expires_in: 3600, user: { id: "test-user" } },
     status: 200,
   };
   r = await request({ action: "exchange", code: "synthetic-code" });
   data = await r.json();
   check(
     data.next === "/" &&
-      jar.get("hq_access").value === "synthetic-access" &&
+      /^[A-Za-z0-9_-]{43}$/.test(jar.get("hq_session")?.value || "") &&
+      jar.get("hq_session").options.httpOnly &&
+      jar.get("hq_session").options.secure &&
+      jar.get("hq_session").options.maxAge === 30 * 86400 &&
+      !jar.has("hq_access") &&
       !jar.has("hq_email_flow"),
     "confirmed signup establishes session and consumes verifier",
   );
   check(
-    calls.at(-1).body.code_verifier === flow.verifier &&
+    calls.findLast(call => call.url.includes("grant_type=pkce")).body.code_verifier === flow.verifier &&
       !JSON.stringify(data).includes("synthetic-access"),
     "verifier exchanged server-side, tokens never returned",
   );
@@ -163,7 +173,7 @@ function check(condition, message) {
   check(
     data.next === "/reset-password" &&
       jar.has("hq_recovery") &&
-      !jar.has("hq_access"),
+      !jar.has("hq_access") && !jar.has("hq_session"),
     "recovery does not authenticate workspace",
   );
   reply = { data: { id: "test-user" }, status: 200 };
@@ -207,4 +217,4 @@ function check(condition, message) {
 })().catch((e) => {
   console.error(e);
   process.exitCode = 1;
-});
+}).finally(() => fs.rmSync(testDirectory, { recursive: true, force: true }));
