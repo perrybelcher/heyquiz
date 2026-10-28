@@ -186,6 +186,13 @@
       if (!eligible(frame, state) || event.source !== frame.contentWindow) return;
       if (data.type === "pippi:embed:ready") { initialize(frame, state); return; }
       if (data.channel !== state.channel) return;
+      if (data.type === "pippi:meta:context" && data.consent === true && typeof data.nonce === "string" && /^[a-f0-9-]{36}$/.test(data.nonce)) {
+        var page = new URL(window.location.href);
+        function metaCookie(name) { return document.cookie.split(";").map(function (value) { return value.trim(); }).find(function (value) { return value.indexOf(name + "=") === 0; }); }
+        var fbp = metaCookie("_fbp"), fbc = metaCookie("_fbc");
+        frame.contentWindow.postMessage({ type: "pippi:meta:context-result", version: version, channel: state.channel, nonce: data.nonce, context: { url: page.origin + page.pathname, fbclid: page.searchParams.get("fbclid") || undefined, fbp: fbp ? fbp.slice(5) : undefined, fbc: fbc ? fbc.slice(5) : undefined, screen_width: window.screen.width, screen_height: window.screen.height, viewport_width: window.innerWidth, viewport_height: window.innerHeight, pixel_ratio: window.devicePixelRatio, language: window.navigator.language } }, origin);
+        return;
+      }
       var popup = state.popup;
       if (popup && (!popup.open || !popup.dialog.open || window.__pippiOpenPopup !== popup)) return;
       if (data.type === "pippi:embed:escape") { if (popup && document.activeElement === frame) closePopup(popup); return; }

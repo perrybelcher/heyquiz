@@ -1,4 +1,5 @@
 import { readJsonRequest } from "@/lib/errors";
+import { registerMetaAttempt } from "@/lib/meta/service";
 import { verifiedLandingVisit } from "@/lib/landing-visits";
 import { resolveExperiment } from "@/lib/experiments";
 import { rateLimit } from "@/lib/rate-limit";
@@ -50,6 +51,10 @@ export async function POST(
         .map((x) => x.q);
     const visitId = preview ? undefined : await verifiedLandingVisit(body.visitToken, id, owner, experiment?.assignment);
     const { token, attempt } = await createAttempt(shuffled, owner, preview, experiment?.assignment, preview ? undefined : sanitizeStartAttribution(body.attribution), visitId);
+    if (!preview && shuffled.meta?.enabled) {
+      try { const row = await import("@/lib/attempts").then(m => m.getAttempt(token, id)); await registerMetaAttempt(row, body.metaToken, req); }
+      catch { console.error("Meta tracking registration will need a visitor retry."); }
+    }
     return Response.json({
       token,
       form: publicForm(shuffled),

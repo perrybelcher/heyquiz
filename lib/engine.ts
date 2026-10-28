@@ -248,6 +248,7 @@ export function formatAnswer(q: Question, value: unknown): string {
 export function publicForm(form: FormSchemaType): FormSchemaType {
   return {
     ...form,
+    meta: form.meta ? { ...form.meta, rules: [], mappings: [] } : undefined,
     // Creator email drafts stay server-side; respondents receive only the
     // requested message assembled from their frozen attempt, never its config.
     resultEmailCopy: undefined,

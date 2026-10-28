@@ -4315,7 +4315,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
       {activeNavTab === "integrate" && (
         <div className="flex-1 overflow-auto">
-          <IntegrationStudio form={form} />
+          <IntegrationStudio form={form} onChange={setForm} />
         </div>
       )}
 

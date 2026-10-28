@@ -1,4 +1,5 @@
 import { readJsonRequest } from "@/lib/errors";
+import { metaDecision, registerMetaAttempt } from "@/lib/meta/service";
 import { rateLimit } from "@/lib/rate-limit";
 import { scheduleDeliveries } from "@/lib/integrations/after-submit";
 import type { QuizSubmissionResult } from "@/lib/schema";
@@ -27,6 +28,9 @@ export async function POST(
       r = await getAttempt(b.token, id),
       a = r.payload,
       form = a.form;
+    if (!a.preview && form.meta?.enabled) {
+      try { await registerMetaAttempt(r, b.metaToken, req, b.metaContext); } catch { console.error("Meta context could not be attached; quiz submission continues."); }
+    }
     if (a.result) {
       const stored = !a.preview
         ? await readRecord<QuizSubmissionResult>("submissions", r.id)
@@ -114,6 +118,7 @@ export async function POST(
     if (!a.preview) result.contact = contact;
     result.contactCaptured = Boolean(contact);
     result.marketing = evaluateMarketing(form, clean);
+    result.metaDecision = metaDecision(form, result);
     const name = path.questions.find(
       (q) => q.type === "full_name" || q.type === "email",
     );

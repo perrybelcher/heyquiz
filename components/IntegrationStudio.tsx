@@ -18,6 +18,7 @@ import type {
   DeliveryJob,
 } from "@/lib/integrations/schema";
 import { nangoProviders, providers, isNangoProvider, type NangoProvider } from "@/lib/integrations/providers";
+import MetaStudio from "./MetaStudio";
 import Connections from "./Connections";
 import ProviderIcon from "./ProviderIcon";
 type History = Omit<DeliveryJob, "event"> & { responseId: string };
@@ -45,7 +46,7 @@ const inputClass =
   "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50";
-export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
+export default function IntegrationStudio({ form, onChange }: { form: FormSchemaType; onChange: (form: FormSchemaType) => void }) {
   const [data, setData] = useState<Data | null>(null),
     [draft, setDraft] = useState<IntegrationDraft | null>(null);
   const [busy, setBusy] = useState(false),
@@ -218,6 +219,7 @@ export default function IntegrationStudio({ form }: { form: FormSchemaType }) {
           or the production app.
         </p>
       )}
+      <MetaStudio form={form} onChange={onChange} />
       <p className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-slate-600">Setup and a successful delivery test are required before relying on a connector. Authorization alone does not verify contact delivery. <a href="/help/integrations" target="_blank" rel="noopener" className="font-semibold underline">Connection setup guide ↗</a></p>
       <div className="grid sm:grid-cols-2 gap-4">
         {[

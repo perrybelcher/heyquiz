@@ -1,9 +1,11 @@
 import { after } from "next/server";
 import { dispatch } from "./service";
+import { dispatchMeta } from "../meta/service";
 // The saved submission is the durable source of truth. The scheduled reconciler
 // can recreate missing delivery jobs if this callback is interrupted.
 export function scheduleDeliveries(owner: string, formId: string) {
   after(async () => {
+    try { await dispatchMeta(owner); } catch { console.error("Meta delivery requires a retry."); }
     try {
       await dispatch(owner, formId);
     } catch {

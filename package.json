@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node tests/regression.cjs && node tests/choice-publication.cjs && node tests/answer-branching.cjs && node tests/basic-leads.cjs && node tests/report-contact-identity.cjs",
+    "test": "node tests/regression.cjs && node tests/choice-publication.cjs && node tests/answer-branching.cjs && node tests/basic-leads.cjs && node tests/report-contact-identity.cjs && node tests/report-responses.cjs",
     "test:reliability": "node tests/save-errors.cjs && node tests/account-sessions.cjs && node tests/draft-reliability.cjs && node tests/autosave-reliability.cjs && node tests/panel-draft-reliability.cjs && node tests/session-client.cjs",
     "test:browser-reliability": "node tests/browser-reliability.cjs",
     "test:hosted-session-reliability": "node tests/hosted-session-reliability.cjs",
@@ -16,6 +16,7 @@
     "test:browser-usability": "node tests/browser-usability.cjs",
     "test:browser-basic-leads": "node tests/browser-basic-leads.cjs",
     "test:browser-contacts-navigation": "node tests/browser-contacts-navigation.cjs",
+    "test:browser-report-tabs": "node tests/browser-report-tabs.cjs",
     "test:api": "node tests/api.mjs",
     "setup:local": "node scripts/setup-local.mjs",
     "test:marketing-api": "node tests/marketing-api.cjs",
@@ -36,7 +37,9 @@
     "test:browser-tracking": "node tests/browser-tracking.cjs",
     "test:browser-sales": "node tests/browser-sales.cjs",
     "test:account-auth": "node tests/account-auth.cjs",
-    "test:browser-auth": "node tests/browser-auth.cjs"
+    "test:browser-auth": "node tests/browser-auth.cjs",
+    "test:meta": "node tests/meta.cjs",
+    "test:browser-meta": "node tests/browser-meta.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

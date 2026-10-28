@@ -37,6 +37,7 @@ import { playerPages } from "@/lib/player-pages";
 import MarketingResultCard from "./MarketingResultCard";
 import LeadCapture from "./LeadCapture";
 import QuizTracking from "./QuizTracking";
+import { metaTokenFor, freshMetaContext } from "@/lib/meta/browser";
 import SaveResultLink from "./SaveResultLink";
 import QuizLanding from "./QuizLanding";
 import EmbedResizeReporter from "./EmbedResizeReporter";
@@ -164,7 +165,7 @@ export default function QuizPlayer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: session.token,
+          token: session.token, metaToken: await metaTokenFor(form.id), metaContext: freshMetaContext(form.id),
           answers: latestAnswers.current,
           contact,
         }),
@@ -213,7 +214,7 @@ export default function QuizPlayer({
       const res = await fetch(`/api/forms/${form.id}/start`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preview, experimentToken, ...(visitToken ? { visitToken } : {}), ...(!preview ? { attribution: collectStartAttribution(window.location.href, document.referrer) } : {}) }),
+          body: JSON.stringify({ preview, experimentToken, metaToken: await metaTokenFor(form.id), ...(visitToken ? { visitToken } : {}), ...(!preview ? { attribution: collectStartAttribution(window.location.href, document.referrer) } : {}) }),
         }),
         data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -438,7 +439,7 @@ export default function QuizPlayer({
               )}
             {active.capture?.enabled && active.capture.placement === "after_results" && !contactDone && !result.contactCaptured && <div className="mt-8"><LeadCapture config={active.capture} busy={busy} error={error} onSkip={() => setContactDone(true)} onSubmit={async contact => {
               if (!session || inFlight.current) return; inFlight.current = true; setBusy(true); setError("");
-              try { const response = await fetch(`/api/forms/${form.id}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: session.token, contact }) }); const data = await response.json(); if (!response.ok) throw Error(data.error || "Could not save. Please try again."); setContactDone(true); const updated = { ...result, contactCaptured: true }; setResult(updated); try { sessionStorage.setItem(storageKey, JSON.stringify({ ...session, answers: {}, result: updated })); } catch {} } catch (e) { setError(e instanceof Error ? e.message : "Could not save. Please try again."); } finally { setBusy(false); inFlight.current = false; }
+              try { const response = await fetch(`/api/forms/${form.id}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: session.token, metaToken: await metaTokenFor(form.id), metaContext: freshMetaContext(form.id), contact }) }); const data = await response.json(); if (!response.ok) throw Error(data.error || "Could not save. Please try again."); setContactDone(true); const updated = { ...result, contactCaptured: true }; setResult(updated); try { sessionStorage.setItem(storageKey, JSON.stringify({ ...session, answers: {}, result: updated })); } catch {} } catch (e) { setError(e instanceof Error ? e.message : "Could not save. Please try again."); } finally { setBusy(false); inFlight.current = false; }
             }} /></div>}
             {contactDone && <p className="text-sm text-slate-500 mb-4">Your results are ready below.</p>}
             {!preview && session && <SaveResultLink formId={form.id} token={session.token}/>}
@@ -635,7 +636,7 @@ export default function QuizPlayer({
           </section>
         )}
       </main>
-      <QuizTracking form={active} preview={preview} sessionId={session?.token} questionId={!result ? q?.id : undefined} completed={Boolean(result)} leadCaptured={Boolean(result?.contactCaptured)} />
+      <QuizTracking experimentToken={experimentToken} form={active} preview={preview} sessionId={session?.token} questionId={!result ? q?.id : undefined} completed={Boolean(result)} leadCaptured={Boolean(result?.contactCaptured)} />
       {!active.theme.hidePippiBranding && <footer className="text-center text-xs py-7">
         Made with pippi · Designed for better conversations
       </footer>}

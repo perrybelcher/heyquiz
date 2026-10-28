@@ -1,4 +1,5 @@
 import { TrackingSchema, type TrackingConfig } from "./tracking";
+import { MetaSchema, type MetaConfig, type MetaDecision } from "./meta/schema";
 import { CaptureSchema, type CaptureConfig, type ContactRecord } from "./contacts";
 import { z } from "zod";
 import { ResultEmailCopySchema, type ResultEmailCopy } from "./result-email-copy";
@@ -428,6 +429,7 @@ export const LogicRuleSchema: z.ZodType<LogicRule> = z.object({
 });
 
 export interface FormSchemaType {
+  meta?: MetaConfig;
   reportDesign?: ReportDesign;
   resultEmailCopy?: ResultEmailCopy;
   tracking?: TrackingConfig;
@@ -452,6 +454,7 @@ export interface FormSchemaType {
 }
 
 export const FormSchema: z.ZodType<FormSchemaType> = z.object({
+  meta: MetaSchema.optional(),
   reportDesign: ReportDesignSchema.optional(),
   resultEmailCopy: ResultEmailCopySchema.optional(),
   tracking: TrackingSchema.optional(),
@@ -500,6 +503,7 @@ export interface QuestionGradingResult {
 }
 
 export interface QuizSubmissionResult {
+  metaDecision?: MetaDecision;
   contact?: ContactRecord;
   contactCaptured?: boolean;
   marketing?: MarketingResult;

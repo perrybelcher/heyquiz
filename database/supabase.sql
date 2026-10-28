@@ -16,3 +16,11 @@ insert into storage.buckets (id, name, public, file_size_limit)
 values ('heyquiz', 'heyquiz', false, 10485760)
 on conflict (id) do nothing;
 -- Keep the bucket private. The app authorizes downloads and streams authorized files.
+
+-- Bounded Meta outbox polling. Apply to an existing installation before enabling META_ENABLED.
+create index if not exists hq_records_meta_due
+on public.hq_records (kind, (payload->>'nextAt'), id)
+where kind in ('meta_jobs', 'meta_sources', 'meta_contexts');
+create index if not exists hq_records_meta_history
+on public.hq_records (owner_id, (payload->>'formId'), (payload->>'eventTime') desc, id desc)
+where kind = 'meta_jobs';

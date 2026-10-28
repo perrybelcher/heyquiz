@@ -1,4 +1,5 @@
 import { readJsonRequest } from "@/lib/errors";
+import { metaDecision, registerMetaAttempt } from "@/lib/meta/service";
 import { rateLimit } from "@/lib/rate-limit";
 import { scheduleDeliveries } from "@/lib/integrations/after-submit";
 import { apiError, checkOrigin, HttpError } from "@/lib/auth";
@@ -36,6 +37,7 @@ export async function POST(
     if (!contact)
       throw new HttpError(422, "Please enter your contact details.");
     if (a.preview) return Response.json({ success: true, preview: true });
+    try { await registerMetaAttempt(attempt, body.metaToken, req, body.metaContext || body.context); } catch { console.error("Meta context could not be attached; contact capture continues."); }
     const row = await readRecord<QuizSubmissionResult>(
       "submissions",
       attempt.id,
@@ -48,7 +50,7 @@ export async function POST(
           "submissions",
           row.id,
           row.owner_id,
-          { ...row.payload, contact, contactCaptured: true },
+          { ...row.payload, contact, contactCaptured: true, metaDecision: metaDecision(a.form, { ...row.payload, contact }) },
           row.version,
         );
       } catch (error) {

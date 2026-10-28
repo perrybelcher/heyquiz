@@ -1,4 +1,5 @@
 import { ValidationError } from "./errors";
+import { assertMetaReady } from "./meta/setup";
 import { validateMarketing } from "./marketing";
 import { validateLanding } from "./landing";
 import { resolveResultEmailCopy } from "./result-email-copy";
@@ -124,6 +125,7 @@ export async function saveForm(
   return { ...updated, revision: r.version };
 }
 export async function publishForm(form: FormSchemaType, owner: string) {
+  await assertMetaReady(owner, form);
   const choiceProblems = choiceQuestionProblems(form);
   if (choiceProblems.length) throw new ValidationError(choiceProblems.map(problem => problem.message).join(" "));
   validateMarketing(form, true);

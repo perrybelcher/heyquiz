@@ -2,19 +2,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { TrackingSchema, type TrackingEvent } from '@/lib/tracking';
 import { trackerConsent, sendTrackingEvent } from '@/lib/browser-tracking';
+import MetaQuizTracking from "./MetaQuizTracking";
 import type { FormSchemaType } from '@/lib/schema';
-export default function QuizTracking({ form, preview, sessionId, questionId, completed, leadCaptured }: {
+export default function QuizTracking({ form, preview, sessionId, questionId, completed, leadCaptured, experimentToken }: {
     form: FormSchemaType;
     preview: boolean;
     sessionId?: string;
     questionId?: string;
     completed: boolean;
     leadCaptured: boolean;
+    experimentToken?: string;
 }) {
     const [consent, setConsent] = useState<boolean | null>(null), [open, setOpen] = useState(true);
     const sent = useRef(new Set<string>()), allowed = useRef(false);
     const parsed = TrackingSchema.safeParse(form.tracking);
-    const config = parsed.success && parsed.data.enabled && !preview ? parsed.data : null;
+    const managedMeta = Boolean(form.meta?.enabled && !preview);
+    const config = parsed.success && parsed.data.enabled && !preview ? { ...parsed.data, ...(managedMeta ? { metaPixelId: "" } : {}) } : null;
     const configKey = JSON.stringify(config);
     useEffect(() => {
         const current = JSON.parse(configKey);
@@ -59,7 +62,7 @@ export default function QuizTracking({ form, preview, sessionId, questionId, com
         window.addEventListener('heyquiz-offer-click', click);
         return () => window.removeEventListener('heyquiz-offer-click', click);
     }, [configKey, consent, sessionId, questionId, completed, leadCaptured, form.id]);
-    if (!config)
+    if (!config && !managedMeta)
         return null;
-    return <div className="max-w-3xl w-full mx-auto px-5 pb-5">{open ? <section aria-label="Optional tracking preferences" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="font-semibold text-sm">Your tracking choice</h2><p className="text-xs text-slate-500 leading-relaxed mt-2">Allow {config.ga4Id && config.metaPixelId ? 'Google Analytics and Meta' : config.ga4Id ? 'Google Analytics' : 'Meta'} to measure quiz activity and support personalized advertising using cookies and browser identifiers? You can take this quiz without allowing it. {config.privacyUrl && <a className="underline" href={config.privacyUrl} target="_blank" rel="noopener noreferrer">Privacy policy</a>}</p><div className="flex flex-wrap gap-3 mt-4">{[[false, 'Decline'], [true, 'Allow tracking']].map(([value, label]) => <button key={String(label)} className="px-4 py-2 text-xs rounded-lg border border-slate-300" onClick={() => { setConsent(value === true); setOpen(false); }}>{label}</button>)}</div></section> : <button className="text-xs text-slate-500 underline" onClick={() => setOpen(true)}>Tracking preferences · {consent ? 'allowed' : 'declined'}</button>}</div>;
+    return <div className="max-w-3xl w-full mx-auto px-5 pb-5"><MetaQuizTracking formId={form.id} config={form.meta} consent={consent} preview={preview} attemptToken={sessionId} completed={completed} leadCaptured={leadCaptured} experimentToken={experimentToken} />{open ? <section aria-label="Optional tracking preferences" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="font-semibold text-sm">Your tracking choice</h2><p className="text-xs text-slate-500 leading-relaxed mt-2">Allow {config?.ga4Id && (config?.metaPixelId || managedMeta) ? 'Google Analytics and Meta' : config?.ga4Id ? 'Google Analytics' : 'Meta'} to measure quiz activity and support personalized advertising using cookies and browser identifiers? {managedMeta && "Meta can also receive your qualification outcome and use the contact details you provide to match your quiz activity to ads."} You can take this quiz without allowing it. {(form.meta?.privacyUrl || config?.privacyUrl) && <a className="underline" href={form.meta?.privacyUrl || config?.privacyUrl} target="_blank" rel="noopener noreferrer">Privacy policy</a>}</p><div className="flex flex-wrap gap-3 mt-4">{[[false, 'Decline'], [true, 'Allow tracking']].map(([value, label]) => <button key={String(label)} className="px-4 py-2 text-xs rounded-lg border border-slate-300" onClick={() => { setConsent(value === true); setOpen(false); }}>{label}</button>)}</div></section> : <button className="text-xs text-slate-500 underline" onClick={() => setOpen(true)}>Tracking preferences · {consent ? 'allowed' : 'declined'}</button>}</div>;
 }
