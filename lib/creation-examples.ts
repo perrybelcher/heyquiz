@@ -17,19 +17,19 @@ export interface CreationExample {
  */
 export const creationExamples: Record<QuizType, CreationExample> = {
   "personality": {
-    "templateId": "personality-working-style",
-    "image": "/create/environment-workspace.webp",
-    "imageAlt": "Hands writing in a notebook at a sunlit home workspace",
-    "focalPoint": "65% 50%",
-    "title": "Discover your working style",
-    "resultHeading": "The structured planner",
-    "explanation": "Your selected situations lean toward clarity, criteria and repeatable steps. This is the closest of three example profiles based on your selected answers; it is not a fixed identity.",
-    "nextStep": "For your next project, write a one-page plan with a clear finish line. Leave one checkpoint open for a new idea or colleague perspective."
+    "templateId": "personality-traveller",
+    "image": "/create/lifestyle-travel.webp",
+    "imageAlt": "Turquoise Mediterranean cove below a colourful coastal village",
+    "focalPoint": "50% 50%",
+    "title": "What kind of traveller are you?",
+    "resultHeading": "The curious explorer",
+    "explanation": "Your choices lean toward discovery, detours and trying unfamiliar experiences. This is the closest of three example profiles based on your selected answers; it is not a fixed identity.",
+    "nextStep": "Choose one walkable area to explore, then check transport and a return plan before setting off."
   },
   "product_finder": {
     "templateId": "ideal-coffee-8",
-    "image": "/templates/lifestyle/coffee.webp",
-    "imageAlt": "A freshly prepared coffee at a warm wooden table",
+    "image": "/create/lifestyle-coffee.webp",
+    "imageAlt": "Coffee and a croissant on a tiled courtyard terrace with bougainvillea",
     "focalPoint": "50% 50%",
     "title": "Find your ideal coffee",
     "resultHeading": "Fruit-forward sample",
@@ -38,9 +38,9 @@ export const creationExamples: Record<QuizType, CreationExample> = {
   },
   "diagnostic": {
     "templateId": "diagnostic-lead-generation",
-    "image": "/create/environment-workspace.webp",
-    "imageAlt": "An overhead view of a notebook and laptop on a warm wooden desk",
-    "focalPoint": "65% 50%",
+    "image": "/create/lifestyle-growth.webp",
+    "imageAlt": "Sunlit glasshouse filled with lush plants along a terracotta path",
+    "focalPoint": "50% 50%",
     "title": "What is holding back your lead generation?",
     "resultHeading": "Clarify who the offer is for",
     "explanation": "Your answers supplied evidence of gaps in audience or offer clarity. This is a place to investigate, not proof that positioning causes your sales results.",
@@ -48,9 +48,9 @@ export const creationExamples: Record<QuizType, CreationExample> = {
   },
   "qualification": {
     "templateId": "implementation-fit-30",
-    "image": "/create/environment-consultation.webp",
-    "imageAlt": "A warm consultation table with project documents and gesturing hands",
-    "focalPoint": "65% 50%",
+    "image": "/create/lifestyle-routes.webp",
+    "imageAlt": "Alpine walking trails overlooking a turquoise mountain lake",
+    "focalPoint": "50% 50%",
     "title": "Is your business ready for our implementation service?",
     "resultHeading": "Discuss a scoped implementation pilot",
     "explanation": "You supplied the core evidence for this fictional pilot offer: defined use case, authorised owner, documented workflow, safe test access, at least 4 confirmed staff hours weekly and at least 6 weeks before launch. These example thresholds are not a quote, approval or guarantee.",
@@ -58,9 +58,9 @@ export const creationExamples: Record<QuizType, CreationExample> = {
   },
   "knowledge": {
     "templateId": "knowledge-suspicious-messages",
-    "image": "/create/environment-messages.webp",
-    "imageAlt": "Hands checking a laptop message at a cozy window-side desk",
-    "focalPoint": "65% 50%",
+    "image": "/create/lifestyle-library.webp",
+    "imageAlt": "Warm walnut library with a curved staircase and a burgundy reading chair",
+    "focalPoint": "50% 50%",
     "title": "Can you spot a suspicious message?",
     "resultHeading": "Build your foundation",
     "explanation": "Review the explanations for the situations you missed or were unsure about. Choose two principles to practise, then retake the quiz. These bands are example learning feedback, not an external standard.",
@@ -68,11 +68,11 @@ export const creationExamples: Record<QuizType, CreationExample> = {
   },
   "scorecard": {
     "templateId": "scorecard-marketing-health",
-    "image": "/create/environment-workspace.webp",
-    "imageAlt": "A sunlit desk with planning notes, coffee and a laptop",
-    "focalPoint": "65% 50%",
+    "image": "/create/lifestyle-court.webp",
+    "imageAlt": "Aerial view of a red tennis court with green surroundings and long shadows",
+    "focalPoint": "50% 50%",
     "title": "Small Business Marketing Health Check",
-    "resultHeading": "Audience · Build the foundation",
+    "resultHeading": "Audience \u00b7 Build the foundation",
     "explanation": "Few of these practices are established in the situations you reported. Start with one manageable change.",
     "nextStep": "Speak with two recent customers about what prompted them to look for help."
   }

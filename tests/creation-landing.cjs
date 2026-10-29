@@ -26,8 +26,9 @@ for(const type of quizTypes){
  const html=render(type);
  for(const text of [example.title,example.resultHeading,example.explanation,example.nextStep])assert.ok(html.includes(escape(text)),`${type}: real example copy must render`);
  for(const target of [`/templates?quizType=${type}`,`/create/ai?quizType=${type}`,`/create/guided?quizType=${type}`])assert.ok(html.includes(`href="${target}"`),`${type}: ${target}`);
- assert.ok(html.includes('href="/create/blank"'),'Blank route deliberately asks for type again');
- assert.ok(!html.includes('href="/create/blank?'),'Do not implicitly pass selected type to blank builder');
+ assert.ok(html.includes(`href="/create/blank?quizType=${type}"`),'Blank creation carries the chosen outcome');
+ assert.ok(!html.includes('class="cl-selected"'),'Redundant selected/preview badge is removed');
+ assert.ok(!html.includes('class="cl-shortcuts"'),'Top strip is absent without a recoverable draft');
  assert.ok(/Example result/i.test(html));assert.ok(/View example/i.test(html));
  assert.ok(!html.includes('Continue where you left off'),'No resume action without valid draft');
  assert.equal(safeAuthReturn(`/create/ai?quizType=${type}`),`/create/ai?quizType=${type}`,'AI authentication accepts selected type');
@@ -49,7 +50,7 @@ assert.equal(readGuestDraft({getItem(){throw Error('blocked');}},store),null,'Bl
 assert.equal(readGuestDraft({getItem:key=>key==='pippi-guest-draft'?'bad':'{broken'}),null,'Corrupt draft is not resumable');
 assert.equal(readGuestDraft({getItem:()=>null}),null,'No draft stays absent');
 assert.equal(reads,0,'Presentation must not inspect browser storage during render');assert.equal(writes,0,'Preview/recovery reads never write drafts');assert.equal(selections,0,'Rendering must not trigger selection');assert.equal(JSON.stringify(creationExamples),before,'Rendering does not mutate authored example metadata');
-console.log('PASS creation landing: six truthful typed previews, navigation/auth destinations, intentional blank re-selection, feature gate, exact draft recovery, unavailable/corrupt storage and side-effect-free rendering');
+console.log('PASS creation landing: six truthful typed previews, navigation/auth destinations, typed blank creation, feature gate, exact draft recovery, unavailable/corrupt storage and side-effect-free rendering');
 
 // Execute the production controller with deterministic hooks and browser state.
 const vm=require('node:vm');
@@ -103,6 +104,7 @@ console.log('PASS creation controller: initial/default selection, URL navigation
  row(view(),'diagnostic').props.onPointerEnter({pointerType:'mouse'});
  let all=view();assert.equal(confirmed,0);assert.equal(row(all,'personality').props['aria-pressed'],true);assert.equal(row(all,'diagnostic').props['data-preview'],true);
  assert.ok(all.some(n=>n.type==='h2'&&n.props.children===creationExamples.diagnostic.title));
+ assert.ok(all.some(n=>n.props?.className==='cl-blank'&&n.props.href==='/create/blank?quizType=diagnostic'),'Blank and template actions follow the displayed outcome');
  assert.ok(all.filter(n=>n.type==='next/image').every(n=>n.props.unoptimized&&n.props.loading==='eager'),'Small static images warm before switching without transform delay');
  row(all,'diagnostic').props.onClick();all=view();assert.equal(selected,'diagnostic');assert.equal(confirmed,1);
  row(all,'knowledge').props.onPointerEnter({pointerType:'touch'});assert.equal(row(view(),'diagnostic').props['data-preview'],true,'Touch does not create a hover selection');
