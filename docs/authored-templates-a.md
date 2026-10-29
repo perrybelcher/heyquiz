@@ -47,7 +47,7 @@ Source keys:
 - S3: [FTC, QR-code scams](https://consumer.ftc.gov/consumer-alerts/2023/12/scammers-hide-harmful-links-qr-codes-steal-your-information) — QR destinations and independent verification.
 - S4: [CISA/NSA/FBI/MS-ISAC phishing guidance](https://media.defense.gov/2023/Oct/18/2003322402/-1/-1/1/CSI-PHISHING-GUIDANCE.PDF) — malware attachments and chat-based phishing.
 - S5: [CISA Counter-Phishing Recommendations](https://www.cisa.gov/sites/default/files/publications/Capacity_Enhancement_Guide-Counter-Phishing_Recommendations_for_Federal_Agencies_1_0.pdf) — macros, misleading extensions and encrypted archives.
-- S6: [FTC verification-code guidance](https://www.militaryconsumer.gov/comment/203860) — never supply a bank verification code to an unexpected caller.
+- S6: [FTC verification-code guidance](https://consumer.ftc.gov/consumer-alerts/2024/06/got-call-about-fraud-activity-your-bank-account-it-could-be-scammer) — never supply a bank verification code to an unexpected caller.
 - S7: [FTC, What to Do if You Were Scammed](https://consumer.ftc.gov/articles/what-do-if-you-were-scammed) — compromised credentials and recovery.
 - S8: [FTC, Recover a Hacked Account](https://consumer.ftc.gov/articles/how-recover-your-hacked-email-or-social-media-account) — compromised legitimate accounts, provider recovery and forwarding settings.
 - S9: [FBI, Business Email Compromise](https://www.fbi.gov/how-we-can-help-you/common-frauds-and-scams/business-email-compromise?source=govdelivery) — verifying payment changes and urgency.
@@ -98,4 +98,8 @@ General complaint-handling practices verified against [Australian Government bus
 - `node tests/authored-templates-a.cjs`: six template groups pass; 92 questions, counts 8/8/30 per type, reference validation, full literal paths, independent copies, all personality outcomes, minimum evidence, ties/order, neutral and graded correct/wrong/mixed cases.
 - `tests/fixtures/authored-templates-a.json`: literal full-path answers for every template; personality planner and knowledge 100% expected outcomes. The answers are authored independently of evaluator output.
 - TypeScript and focused lint run before commit; integrated browser and publication persistence checks are lead-owned.
-- Cross-review pending stream B; independent QA pending integrated collection.
+- Stream B reviewed question quality, mappings and all source references. Findings addressed in the editorial refinement below; independent QA remains part of integrated verification.
+
+### Editorial refinement after lead and B review
+
+Reviewed every knowledge distractor. Replaced implausible alternatives with recognizable mistakes: over-relying on branding or familiar context; relying on email-only payment confirmation; postponing an incident report; confusing cold brew with cooled hot coffee; omitting case ownership or prior actions; closing after a delivery scan; and handling complaints individually without examining patterns. Correct answers, stable IDs and source-backed principles remain unchanged. Personality equal weighting, minimum two observations and order-based tie behavior remain explicit in this creator-facing editorial specification.
