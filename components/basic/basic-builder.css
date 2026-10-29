@@ -141,3 +141,27 @@
 .basic-builder .basic-association .basic-field{flex:1;min-width:100px}
 .basic-builder .basic-question-editor{display:flex;flex-direction:column;gap:20px;min-width:0}
 @media(max-width:767px){.basic-builder .basic-association .basic-field{flex-basis:100%;min-width:0}.basic-builder .basic-card{padding:12px}}
+/* Keep the visitor's body scale separate from the preview question heading. */
+.basic-builder .basic-preview-question{font-size:var(--hq-body-size,14px);font-weight:400;letter-spacing:normal;line-height:1.6;margin:20px 0}
+.basic-builder .basic-preview-question h2{font-size:22px;font-weight:650;line-height:1.3;letter-spacing:-.5px;margin:20px 0}
+.basic-builder .basic-preview-progress{display:flex;align-items:center;gap:12px;width:100%;margin-bottom:28px;font-size:11px;color:var(--basic-muted);font-weight:400}
+.basic-builder .basic-preview-progress progress{display:block;appearance:none;-webkit-appearance:none;flex:1;width:0;min-width:0;height:4px;border:0;border-radius:8px;overflow:hidden;background:#e8e5e4;color:var(--basic-accent)}
+.basic-builder .basic-preview-progress progress::-webkit-progress-bar{background:#e8e5e4;border-radius:8px}
+.basic-builder .basic-preview-progress progress::-webkit-progress-value{background:var(--basic-accent);border-radius:8px}
+.basic-builder .basic-preview-progress progress::-moz-progress-bar{background:var(--basic-accent);border-radius:8px}
+.basic-builder .basic-preview-progress span{flex-shrink:0}
+@media(min-width:768px){
+  .basic-builder-workspace{height:calc(100dvh - 240px);min-height:480px;grid-template-rows:minmax(0,1fr) auto;overflow:hidden;flex-shrink:0}
+  .basic-builder-editor,.basic-builder-preview{min-height:0;overflow-y:auto;overscroll-behavior:contain;scroll-padding-block:24px}
+  .basic-builder-preview>div{position:static}
+  .basic-builder-outline{min-height:0;overflow:hidden}
+  .basic-question-outline{position:static;height:100%;min-height:0;max-height:none}
+  .basic-builder-footer{position:static}
+}
+@media(max-width:767px){
+  .basic-builder-footer{position:static}
+  .basic-builder .basic-preview-question h2{font-size:20px}
+}
+/* The shared support launcher must not cover the fixed editor actions. */
+body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:170px!important;right:18px!important}
+@media(max-width:767px){body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:calc(16px + env(safe-area-inset-bottom))!important;right:12px!important}body:has(.basic-builder) aside[aria-label="Pippi support"]>button{min-width:44px;max-width:44px;overflow:hidden;white-space:nowrap}}
