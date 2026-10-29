@@ -9,7 +9,7 @@ const { publicForm } = require('../lib/engine.ts');
 const { makeResultReport } = require('../lib/result-reports.ts');
 const { publicationFingerprint } = require('../lib/publication.ts');
 const { removeGuidedQuestion, removeGuidedAnswer, renameGuidedAnswer } = require('../lib/guided-editing.ts');
-const { simulateJourneys } = require('../lib/journey-testing.ts');
+const { simulateJourneys, evaluateJourneyCase } = require('../lib/journey-testing.ts');
 const tests = [], run = (name, fn) => tests.push([name, fn]);
 const outcome = id => ({ id, title: id, description: `Description ${id}`, advice: `Action ${id}`, ctaLabel: 'Next', ctaUrl: `https://example.test/${id}` });
 const choice = (id, type = 'multiple_choice') => ({ id, type, title: id, required: false, options: [{ id: 'a', label: 'Alpha' }, { id: 'b', label: 'Beta' }, { id: 'c', label: 'Gamma' }] });
@@ -76,6 +76,18 @@ run('weighted personalities/diagnostics preserve order ties and neutral fallback
     assert.equal(result.quizType,type);assert.equal(result.overallScore,undefined);assert.deepEqual(result.reasons,['Beta preference']);
     assert.ok(simulateJourneys(form).notes.some(note=>note.includes('tie')));
   }
+});
+run('observed multiselect and branched ties are disclosed without exhaustive claims', () => {
+  const multi=weighted('personality');multi.questions[0].type='multiselect';
+  const multiCase=evaluateJourneyCase(multi,{choice:['a']});
+  assert.deepEqual(multiCase.tiedOutcomeIds,['first','second']);assert.equal(multiCase.resultId,'first');
+  assert.ok(simulateJourneys(multi).notes.some(note=>note.includes('tie for first')));
+  const branched=weighted('diagnostic');
+  branched.logicRules=[{id:'hide',sourceQuestionId:'choice',operator:'equals',value:'a',action:'hide_question',targetQuestionId:'constraint'}];
+  const branchCase=evaluateJourneyCase(branched,{choice:'a',constraint:'b'});
+  assert.deepEqual(branchCase.tiedOutcomeIds,['first','second']);assert.deepEqual(branchCase.questionIds,['choice']);
+  assert.ok(simulateJourneys(branched).notes.some(note=>note.includes('tie for first')));
+  assert.equal(evaluateJourneyCase(branched,{choice:'b'}).tiedOutcomeIds,undefined);
 });
 run('product exclusions remain authoritative despite positive points', () => {
   const form=weighted('product_finder');
