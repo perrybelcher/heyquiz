@@ -25,8 +25,12 @@ const industry=items.find(t=>t.id==='ideal-coffee-8').industry;
 assert.equal(filter(items,{quizType:'product_finder',industry,query:'coffee',length:'short'}).length,1);
 assert.equal(filter(items,{quizType:'qualification',industry,query:'coffee'}).length,0);
 assert.equal(filter(items,{length:'all',industry:'all',query:'  '}).length,61);
-assert.equal(items.find(t=>t.id==='personality-working-style').image,'/templates/lifestyle/workspace.webp');
-assert.equal(items.find(t=>t.id==='personality-traveller').image,'/templates/lifestyle/travel.webp');
-assert.equal(items.find(t=>t.id==='personality-home-style').image,'/templates/lifestyle/home.webp');
-assert.equal(items.find(t=>t.id==='coffee').image,'/template-images/coffee.webp');
+assert.equal(new Set(items.map(t=>t.image)).size,items.length,'Every template has a unique image');
+const crypto=require('node:crypto'),path=require('node:path');
+const hashes=items.map(item=>{
+ const file=path.join(__dirname,'../public',item.image);
+ assert.ok(fs.existsSync(file),`Image exists for ${item.id}`);
+ return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+});
+assert.equal(new Set(hashes).size,items.length,'Different filenames must not hide duplicate image content');
 console.log('PASS unified61-template catalogue: actual counts/types, retained legacy content, imagery, independent instances and combined filters');

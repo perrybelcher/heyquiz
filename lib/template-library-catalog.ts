@@ -1,3 +1,4 @@
+import { templateImages } from "./template-images";
 import { authoredTemplates } from "./authored-templates";
 import { launchTemplates } from "./launch-templates";
 import { createQuizTemplate } from "./template-factory";
@@ -42,13 +43,10 @@ function authoredIndustry(id: string): string {
   return "Business & teams";
 }
 
-function imagery(id: string, title: string, coverImage?: string) {
-  if (coverImage) return { image: coverImage, imageAlt: `${title} template cover`, focalPoint: "50% 50%" };
-  const topic = `${id} ${title}`.toLowerCase();
-  if (/coffee|tea|meal/.test(topic)) return { image: "/templates/lifestyle/coffee.webp", imageAlt: "Coffee prepared for a relaxed daily ritual", focalPoint: "50% 50%" };
-  if (/travel|travell|hotel|event|wedding/.test(topic)) return { image: "/templates/lifestyle/travel.webp", imageAlt: "A traveller overlooking a Mediterranean coastal town", focalPoint: "64% 50%" };
-  if (/home|renovation|garden|interior|desk/.test(topic)) return { image: "/templates/lifestyle/home.webp", imageAlt: "A warm living room with natural textures and thoughtful details", focalPoint: "50% 50%" };
-  return { image: "/templates/lifestyle/workspace.webp", imageAlt: "A person reflecting and planning at a sunlit workspace", focalPoint: "70% 50%" };
+function imagery(id: string) {
+  const image = templateImages[id];
+  if (!image) throw new Error(`Missing template image: ${id}`);
+  return image;
 }
 
 /** Display metadata only: inspecting a template never rewrites or stores a form. */
@@ -59,7 +57,7 @@ export const templateLibraryItems: TemplateLibraryItem[] = [
       id: template.id, title: template.title, summary: template.summary,
       quizType: formQuizType(form), questionCount: form.questions.length,
       industry: authoredIndustry(template.id), length: template.length,
-      ...imagery(template.id, template.title, form.coverPage?.imageUrl),
+      ...imagery(template.id),
     };
   }),
   ...launchTemplates.map(template => {
@@ -68,7 +66,7 @@ export const templateLibraryItems: TemplateLibraryItem[] = [
       id: template.id, title: template.name, summary: template.summary,
       quizType: formQuizType(form), questionCount: form.questions.length,
       industry: template.industry, length: "standard" as const,
-      ...imagery(template.id, template.name, form.coverPage?.imageUrl),
+      ...imagery(template.id),
     };
   }),
 ];
