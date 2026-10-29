@@ -65,7 +65,7 @@ export default function BasicBuilderShell({ title, status, saveFailed, steps, ac
 
   return <div className={`basic-builder${hasOutline ? " basic-builder--outlined" : ""}`}>
     <header className="basic-builder-header">
-      <a className="basic-brand" href="/dashboard" aria-label="Pippi — My quizzes"><Image src="/pippi-logo.svg" width={75} height={38} alt="Pippi" priority /></a>
+      <a className="basic-brand" href="/" aria-label="Pippi overview"><Image src="/pippi-logo.svg" width={75} height={38} alt="Pippi" priority /></a>
       <div className="basic-builder-identity"><p className="basic-quiz-title" title={title}>{title || "Untitled quiz"}</p><p role="status" className={`basic-save-status${saveFailed ? " basic-save-status--error" : ""}`}>{status}</p></div>
       <div className="basic-builder-actions">
         <EditorModeSwitch basic onChange={basic => { if (!basic) onAdvanced(); }} />
