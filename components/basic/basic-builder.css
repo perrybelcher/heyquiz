@@ -130,3 +130,14 @@
 .basic-builder .basic-checklist li button{min-height:44px;text-align:left;color:var(--basic-accent)}
 .basic-builder .basic-editor-tools{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding-top:18px;margin-top:4px;border-top:1px solid var(--basic-border)}
 @media(max-width:767px){.basic-builder .basic-question-pagination,.basic-builder .basic-step-pagination{flex-wrap:wrap;gap:8px}.basic-builder .basic-question-pagination>button,.basic-builder .basic-step-pagination>button{flex:1;min-width:100px}.basic-builder .basic-step-pagination>span{order:3;width:100%;text-align:center}.basic-builder .basic-question-heading{margin-bottom:18px}.basic-builder .basic-editor-tools>.basic-button{flex:1}.basic-builder .basic-add-question label{width:100%;min-width:0}}
+.basic-builder .basic-stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.basic-builder .basic-card{border:1px solid var(--basic-border);border-radius:10px;padding:16px;background:#fff;min-width:0}
+.basic-builder .basic-inline{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0}
+.basic-builder .basic-hint{font-size:12px;color:var(--basic-muted);line-height:1.6}
+.basic-builder .basic-result-list{display:flex;flex-direction:column;gap:8px}
+.basic-builder .basic-result-list button{min-height:44px;padding:10px 12px;border:1px solid var(--basic-border);border-radius:8px;text-align:left;background:#fff}
+.basic-builder .basic-result-list button[aria-pressed="true"]{background:var(--basic-soft);border-color:var(--basic-accent);color:var(--basic-accent)}
+.basic-builder .basic-association{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:12px;border:1px solid var(--basic-border);border-radius:8px;min-width:0}
+.basic-builder .basic-association .basic-field{flex:1;min-width:100px}
+.basic-builder .basic-question-editor{display:flex;flex-direction:column;gap:20px;min-width:0}
+@media(max-width:767px){.basic-builder .basic-association .basic-field{flex-basis:100%;min-width:0}.basic-builder .basic-card{padding:12px}}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Eye, Link2, List, Plus, Search, X } from "lucide-react";
 import EditorModeSwitch from "../EditorModeSwitch";
 import "./basic-builder.css";
@@ -30,10 +31,28 @@ export type BasicBuilderShellProps = {
   outline?: ReactNode;
 };
 
+const desktopQuery = "(min-width: 1200px)";
+function subscribeDesktop(onChange: () => void) {
+  const media = window.matchMedia(desktopQuery);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+function getDesktopSnapshot() { return window.matchMedia(desktopQuery).matches; }
+function getServerDesktopSnapshot() { return false; }
+
 export default function BasicBuilderShell({ title, status, saveFailed, steps, activeStep, onStepChange, questions, selectedQuestionId, onQuestionSelect, onAddQuestion, onAdvanced, onShare, onPreview, onPublish, previewing, publicationBusy, children, preview, footer, notices, outline }: BasicBuilderShellProps) {
   const [search, setSearch] = useState("");
+  const desktop = useSyncExternalStore(subscribeDesktop, getDesktopSnapshot, getServerDesktopSnapshot);
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const outlineDialog = useRef<HTMLDialogElement>(null);
   const previewDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (desktop) {
+      previewDialog.current?.close();
+      outlineDialog.current?.close();
+    }
+  }, [desktop]);
   const searchId = useId();
   const outlineTitleId = useId();
   const previewTitleId = useId();
@@ -65,7 +84,7 @@ export default function BasicBuilderShell({ title, status, saveFailed, steps, ac
 
   return <div className={`basic-builder${hasOutline ? " basic-builder--outlined" : ""}`}>
     <header className="basic-builder-header">
-      <a className="basic-brand" href="/" aria-label="Pippi overview"><Image src="/pippi-logo.svg" width={75} height={38} alt="Pippi" priority /></a>
+      <Link prefetch={false} className="basic-brand" href="/" aria-label="Pippi overview"><Image src="/pippi-logo.svg" width={75} height={38} alt="Pippi" priority /></Link>
       <div className="basic-builder-identity"><p className="basic-quiz-title" title={title}>{title || "Untitled quiz"}</p><p role="status" className={`basic-save-status${saveFailed ? " basic-save-status--error" : ""}`}>{status}</p></div>
       <div className="basic-builder-actions">
         <EditorModeSwitch basic onChange={basic => { if (!basic) onAdvanced(); }} />
@@ -77,21 +96,21 @@ export default function BasicBuilderShell({ title, status, saveFailed, steps, ac
     <nav className="basic-steps" aria-label="Quiz setup steps">{steps.map((step, index) => <button key={step.id} type="button" aria-current={activeStep === step.id ? "step" : undefined} onClick={() => onStepChange(step.id)}><span className="basic-step-number" aria-hidden="true">{index + 1}</span><span>{step.label}</span></button>)}</nav>
     {notices && <div className="basic-builder-notices">{notices}</div>}
     <div className="basic-compact-tools">
-      {hasOutline && <button type="button" className={`basic-button basic-outline-trigger${!questionStep ? " basic-outline-trigger--other" : ""}`} onClick={() => outlineDialog.current?.showModal()}><List size={18} aria-hidden="true" />{questionStep ? `Questions · ${questions.length}` : `${currentStep?.label || "Step"} list`}</button>}
+      {hasOutline && <button type="button" className={`basic-button basic-outline-trigger${!questionStep ? " basic-outline-trigger--other" : ""}`} onClick={() => { setOutlineOpen(true); outlineDialog.current?.showModal(); }}><List size={18} aria-hidden="true" />{questionStep ? `Questions · ${questions.length}` : `${currentStep?.label || "Step"} list`}</button>}
       {questionStep && <span className="basic-current-question">{currentIndex >= 0 ? `Question ${currentIndex + 1} of ${questions.length}` : `${questions.length} questions`}</span>}
-      <button type="button" className="basic-button basic-preview-trigger" onClick={() => previewDialog.current?.showModal()}><Eye size={18} aria-hidden="true" />Visitor preview</button>
+      <button type="button" className="basic-button basic-preview-trigger" onClick={() => { setPreviewOpen(true); previewDialog.current?.showModal(); }}><Eye size={18} aria-hidden="true" />Visitor preview</button>
     </div>
     <div className="basic-builder-workspace">
       {hasOutline && <aside className="basic-builder-outline" aria-label={questionStep ? "Question outline" : "Step outline"}>{outline ?? questionOutline()}</aside>}
       <div className="basic-builder-editor">{children}</div>
-      <aside className="basic-builder-preview" aria-label="Visitor preview">{preview}</aside>
+      {desktop && <aside className="basic-builder-preview" aria-label="Visitor preview">{preview}</aside>}
       <footer className="basic-builder-footer">{footer}</footer>
     </div>
-    <dialog ref={outlineDialog} className="basic-builder-dialog" aria-labelledby={outlineTitleId} onClick={event => { if (event.target === event.currentTarget) outlineDialog.current?.close(); }}>
-      <div className="basic-dialog-content"><div className="basic-dialog-top">{!questionStep && <h2 id={outlineTitleId}>{currentStep?.label}</h2>}<button type="button" className="basic-button basic-icon-button" aria-label="Close question list" onClick={() => outlineDialog.current?.close()}><X size={20} aria-hidden="true" /></button></div>{outline ?? questionOutline(true)}</div>
+    <dialog ref={outlineDialog} onClose={() => setOutlineOpen(false)} className="basic-builder-dialog" aria-labelledby={outlineTitleId} onClick={event => { if (event.target === event.currentTarget) outlineDialog.current?.close(); }}>
+      <div className="basic-dialog-content"><div className="basic-dialog-top">{!questionStep && <h2 id={outlineTitleId}>{currentStep?.label}</h2>}<button type="button" className="basic-button basic-icon-button" aria-label="Close question list" onClick={() => outlineDialog.current?.close()}><X size={20} aria-hidden="true" /></button></div>{outlineOpen && (outline ?? questionOutline(true))}</div>
     </dialog>
-    <dialog ref={previewDialog} className="basic-builder-dialog basic-builder-dialog--preview" aria-labelledby={previewTitleId} onClick={event => { if (event.target === event.currentTarget) previewDialog.current?.close(); }}>
-      <div className="basic-dialog-content"><div className="basic-dialog-top"><h2 id={previewTitleId}>Visitor preview</h2><button type="button" className="basic-button basic-icon-button" aria-label="Close visitor preview" onClick={() => previewDialog.current?.close()}><X size={20} aria-hidden="true" /></button></div>{preview}</div>
+    <dialog ref={previewDialog} onClose={() => setPreviewOpen(false)} className="basic-builder-dialog basic-builder-dialog--preview" aria-labelledby={previewTitleId} onClick={event => { if (event.target === event.currentTarget) previewDialog.current?.close(); }}>
+      <div className="basic-dialog-content"><div className="basic-dialog-top"><h2 id={previewTitleId}>Visitor preview</h2><button type="button" className="basic-button basic-icon-button" aria-label="Close visitor preview" onClick={() => previewDialog.current?.close()}><X size={20} aria-hidden="true" /></button></div>{!desktop && previewOpen && preview}</div>
     </dialog>
   </div>;
 }
