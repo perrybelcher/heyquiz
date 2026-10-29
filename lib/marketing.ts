@@ -1,3 +1,5 @@
+import { validateQuizType, type QuizType } from "./quiz-types";
+import { QualificationRuleSchema, validateQualification, matchingQualificationRules } from "./qualification";
 import { ValidationError } from "./errors";
 import { z } from "zod";
 import { resultVideoEmbed } from "./result-video";
@@ -53,7 +55,8 @@ export const ResultPresentationSchema = z.object({
 });
 export type ResultPresentation = z.infer<typeof ResultPresentationSchema>;
 export const MarketingSchema = z.object({
-  kind: z.enum(["product_finder", "segmentation", "scorecard"]),
+  kind: z.enum(["product_finder", "segmentation", "scorecard", "qualification"]),
+  qualificationRules: z.array(QualificationRuleSchema).max(100).optional(),
   presentation: ResultPresentationSchema.optional(),
   scorecard: ScorecardPresentationSchema.optional(),
   resultSections: z.array(ResultSectionSchema).max(12).optional(),
@@ -111,6 +114,7 @@ export const MarketingSchema = z.object({
 });
 export type MarketingConfig = z.infer<typeof MarketingSchema>;
 export interface MarketingResult {
+  quizType?: QuizType;
   // Frozen alongside the computed score, rather than looked up from a later draft.
   // Older saved results omit this and retain the original stacked presentation.
   presentation?: ResultPresentation;
@@ -140,8 +144,10 @@ export interface MarketingResult {
   }[];
 }
 export function validateMarketing(form: FormSchemaType, publishing = false) {
+  validateQuizType(form, publishing);
   const m = form.marketing;
   if (!m) return;
+  validateQualification(form, publishing);
   const targets = m.kind === "scorecard" ? m.categories : m.outcomes;
   const unique = (ids: string[]) => new Set(ids).size === ids.length;
   if (!unique(targets.map((t) => t.id)) || !unique(m.rules.map((r) => r.id)))
@@ -162,7 +168,7 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
     if (section.type === "faq" && !section.title.trim()) throw new ValidationError(`${name}: add a question.`);
     if (["text", "faq", "testimonial"].includes(section.type) && !section.body.trim()) throw new ValidationError(`${name}: add content.`);
   }
-  if (publishing && (!targets.length || !m.rules.length))
+  if (publishing && m.kind !== "qualification" && (!targets.length || !m.rules.length))
     throw new ValidationError(
       "Add a result and at least one answer rule before publishing this marketing quiz.",
     );
@@ -217,7 +223,7 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
     if (pairs.has(key)) throw new ValidationError("This answer rule is duplicated.");
     pairs.add(key);
   }
-  if (publishing)
+  if (publishing && m.kind !== "qualification")
     for (const target of targets)
       if (
         !m.rules.some(
@@ -256,6 +262,7 @@ function evaluateMarketingCore(
       : answers[qid] === aid);
   const matches = m.rules.filter((r) => selected(r.questionId, r.answerId));
   const base: MarketingResult = {
+    ...(form.quizType ? { quizType: form.quizType } : {}),
     presentation: { layout: m.presentation?.layout ?? "stacked" },
     resultSections: m.resultSections,
     kind: m.kind,
@@ -265,6 +272,11 @@ function evaluateMarketingCore(
     reasons: [],
     categories: [],
   };
+  if (m.kind === "qualification") {
+    const rule = matchingQualificationRules(form, answers)[0];
+    const outcome = m.outcomes.find(o => o.id === rule?.outcomeId);
+    return outcome ? { ...base, status: "matched", outcomeId: outcome.id, title: outcome.title, message: outcome.description, advice: outcome.advice, ctaLabel: outcome.ctaLabel, ctaUrl: outcome.ctaUrl } : base;
+  }
   if (m.kind === "scorecard") {
     const categories = m.categories.map((c) => {
       const rules = m.rules.filter(

@@ -35,6 +35,8 @@ export function reviewGuidedRemoval(form: FormSchemaType, questionId: string, an
   if (answerId && !question.options?.some(o => o.id === answerId)) return { changes, blockers: ["This answer is no longer in the draft."] };
   if (answerId && (question.options?.length || 0) <= 2) blockers.push("Keep at least two answers for a choice question.");
   const scoring = (form.marketing?.rules || []).filter(r => r.questionId === questionId && (!answerId || r.answerId === answerId));
+  const routes = (form.marketing?.qualificationRules ?? []).filter(r => r.conditions.some(c => c.questionId === questionId && (!answerId || c.value === answerId)));
+  if (routes.length) changes.push(`Remove ${plural(routes.length, "qualification route rule")}. Review route eligibility before publishing.`);
   if (scoring.length) changes.push(`Remove ${plural(scoring.length, "answer scoring rule")}.`);
   const branches = answerId ? answerBranches(form, questionId, answerId) : (form.logicRules || []).filter(r => r.sourceQuestionId === questionId || r.targetQuestionId === questionId);
   if (branches.length) changes.push(`Remove ${plural(branches.length, "branch rule")}. The remaining questions will follow their remaining rules and order.`);
@@ -64,7 +66,7 @@ export function removeGuidedQuestion(form: FormSchemaType, questionId: string): 
   return {
     ...form,
     questions: form.questions.filter(q => q.id !== questionId),
-    marketing: form.marketing ? { ...form.marketing, rules: form.marketing.rules.filter(r => r.questionId !== questionId) } : undefined,
+    marketing: form.marketing ? { ...form.marketing, rules: form.marketing.rules.filter(r => r.questionId !== questionId), ...(form.marketing.qualificationRules ? { qualificationRules: form.marketing.qualificationRules.filter(r => !r.conditions.some(c => c.questionId === questionId)) } : {}) } : undefined,
     logicRules: form.logicRules?.filter(r => r.sourceQuestionId !== questionId && r.targetQuestionId !== questionId),
     pages: form.pages?.map(page => ({ ...page, questionIds: page.questionIds.filter(id => id !== questionId) })),
     tracking: tracking ? { ...tracking, questionIds: tracking.questionIds.filter(id => id !== questionId), events: lastTrackingStep ? tracking.events.filter(event => event !== "question_view") : tracking.events } : undefined,
@@ -78,7 +80,7 @@ export function removeGuidedAnswer(form: FormSchemaType, questionId: string, ans
   return {
     ...form,
     questions: form.questions.map(q => q.id === questionId ? { ...q, options: q.options?.filter(o => o.id !== answerId) } : q),
-    marketing: form.marketing ? { ...form.marketing, rules: form.marketing.rules.filter(r => r.questionId !== questionId || r.answerId !== answerId) } : undefined,
+    marketing: form.marketing ? { ...form.marketing, rules: form.marketing.rules.filter(r => r.questionId !== questionId || r.answerId !== answerId), ...(form.marketing.qualificationRules ? { qualificationRules: form.marketing.qualificationRules.filter(r => !r.conditions.some(c => c.questionId === questionId && c.value === answerId)) } : {}) } : undefined,
     logicRules: form.logicRules?.filter(rule => !branches.has(rule.id)),
   };
 }

@@ -1,3 +1,4 @@
+import { QuizTypeSchema, type QuizType } from "./quiz-types";
 import { TrackingSchema, type TrackingConfig } from "./tracking";
 import { MetaSchema, type MetaConfig, type MetaDecision } from "./meta/schema";
 import { CaptureSchema, type CaptureConfig, type ContactRecord } from "./contacts";
@@ -429,6 +430,8 @@ export const LogicRuleSchema: z.ZodType<LogicRule> = z.object({
 });
 
 export interface FormSchemaType {
+  quizType?: QuizType;
+  conversionReview?: { sourceQuizId: string; sourceRevision?: number; required: boolean };
   meta?: MetaConfig;
   reportDesign?: ReportDesign;
   resultEmailCopy?: ResultEmailCopy;
@@ -454,6 +457,8 @@ export interface FormSchemaType {
 }
 
 export const FormSchema: z.ZodType<FormSchemaType> = z.object({
+  quizType: QuizTypeSchema.optional(),
+  conversionReview: z.object({ sourceQuizId: z.string().min(1).max(128), sourceRevision: z.number().int().nonnegative().optional(), required: z.boolean() }).optional(),
   meta: MetaSchema.optional(),
   reportDesign: ReportDesignSchema.optional(),
   resultEmailCopy: ResultEmailCopySchema.optional(),

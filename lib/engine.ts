@@ -248,6 +248,7 @@ export function formatAnswer(q: Question, value: unknown): string {
 export function publicForm(form: FormSchemaType): FormSchemaType {
   return {
     ...form,
+    conversionReview: undefined,
     meta: form.meta ? { ...form.meta, rules: [], mappings: [] } : undefined,
     // Creator email drafts stay server-side; respondents receive only the
     // requested message assembled from their frozen attempt, never its config.
@@ -255,7 +256,7 @@ export function publicForm(form: FormSchemaType): FormSchemaType {
     // Report-only copy and destinations are released with the completed result.
     reportDesign: undefined,
     marketing: form.marketing
-      ? { ...form.marketing, scorecard: undefined, resultSections: undefined, rules: [], outcomes: [], categories: [] }
+      ? { ...form.marketing, qualificationRules: undefined, scorecard: undefined, resultSections: undefined, rules: [], outcomes: [], categories: [] }
       : undefined,
     questions: form.questions.map((q) => {
       const {

@@ -1,3 +1,5 @@
+import { matchingQualificationRules } from "./qualification";
+import { scoringDiagnostics } from "./scoring-diagnostics";
 import type { FormSchemaType, Question } from "./schema";
 import { displayTypes, multiTypes, singleTypes, resolvePath, validationError, validateFormReferences, type Answers } from "./engine";
 import { evaluateMarketing, validateMarketing } from "./marketing";
@@ -31,6 +33,7 @@ export interface JourneyCase {
   /** Stable IDs and saved numeric evidence, not editorial titles or advice. */
   categories?: JourneyCategoryResult[];
   resultSectionIds?: string[];
+  matchingRouteIds?: string[];
   /** Labels describe how this path was selected, not proof that a score boundary was reached. */
   targetedChecks?: string[];
   enumerated?: boolean;
@@ -61,6 +64,7 @@ export function inspectConversation(form: FormSchemaType): ConversationInspectio
     if (!form.coverPage.buttonText.trim()) add("cover-button", "error", "promise", "Add a label to the start button.");
     if (!form.coverPage.subtitle?.trim()) add("cover-context", "note", "promise", "Explain what someone will learn by completing this quiz.");
   }
+  if (form.marketing?.kind === "qualification") add("qualification-order", "note", "results", "The first matching route rule wins. Missing, invalid or skipped answers never satisfy a condition.");
   const inputs = form.questions.filter(q => !displayTypes.has(q.type));
   if (!inputs.length) add("questions-empty", "error", "questions", "Add at least one question people can answer.");
   const unscored: { questionId: string; count: number }[] = [];
@@ -72,7 +76,7 @@ export function inspectConversation(form: FormSchemaType): ConversationInspectio
         if (q.options.some(o => !o.label.trim())) add(`labels-${q.id}`, "error", "questions", `“${q.title || "Untitled question"}” has an answer without a label.`, q.id);
         const labels = q.options.map(o => o.label.trim().toLowerCase()).filter(Boolean);
         if (new Set(labels).size !== labels.length) add(`duplicate-labels-${q.id}`, "warning", "questions", `“${q.title || "Untitled question"}” has identical answer labels. Make the choices distinct.`, q.id);
-        if (form.marketing) {
+        if (form.marketing && form.marketing.kind !== "qualification") {
           const count = q.options.filter(o => !form.marketing!.rules.some(r => r.questionId === q.id && r.answerId === o.id)).length;
           if (count) unscored.push({ questionId: q.id, count });
         }
@@ -159,6 +163,7 @@ export function evaluateJourneyCase(form: FormSchemaType, answers: Answers): Jou
       ...(resultId ? { resultId } : {}),
       categories: marketing?.categories.map(({ id, score, answered, applicable, minAnswers }) => ({ id, score, answered, applicable, minAnswers })) || [],
       resultSectionIds: marketing?.resultSections?.map(section => section.id) || [],
+      ...(form.marketing?.kind === "qualification" ? { matchingRouteIds: matchingQualificationRules(form, clean).map(r => r.id) } : {}),
       status: marketing?.status || (form.mode === "quiz" && grade.totalPointsPossible > 0 ? "scored" : "completed"),
       ...(marketing ? typeof marketing.overallScore === "number" ? { score: marketing.overallScore } : {} : form.mode === "quiz" && grade.totalPointsPossible > 0 ? { score: grade.percentageScore } : {}),
     };
@@ -252,7 +257,10 @@ export function simulateJourneys(form: FormSchemaType, limit = 256): JourneySimu
   try { validateJourneyConfiguration(form); }
   catch (error) { badConfiguration = true; add(invalid({}, [], readableError(error))); }
   if (!badConfiguration) {
-    const strategies: Strategy[] = [
+    const strategies: Strategy[] = form.marketing?.kind === "qualification" ? [
+      { kind: "first", label: "First / optional skipped answers" },
+      { kind: "last", label: "Last available answers" },
+    ] : [
       { kind: "first", label: "First / optional skipped answers" },
       ...(form.marketing ? [{ kind: "unmapped" as const, label: "No-rule answers where available" }, { kind: "zero" as const, label: "Explicit zero-point answers where available" }] : []),
       { kind: "high", label: "Highest mapped points per question" },
@@ -271,7 +279,13 @@ export function simulateJourneys(form: FormSchemaType, limit = 256): JourneySimu
   const exhaustive = !truncated && !partialDomain && !unsupported.size && !badConfiguration;
   const targetedCases = cases.filter(c => c.targetedChecks?.length).length;
   const enumeratedCases = cases.filter(c => c.enumerated).length;
-  if (targetedCases) notes.push(`${targetedCases} distinct representative paths checked first (low, high, mixed, or unmapped choices where available). These selections are not proof of every score boundary or result.`);
+  if (form.marketing?.kind === "qualification") {
+    const overlap = cases.filter(c => (c.matchingRouteIds?.length ?? 0) > 1).length;
+    if (overlap) notes.push(`${overlap} checked journeys match multiple routes. The first matching route rule wins.`);
+  } else {
+    notes.push(...scoringDiagnostics(form).warnings.filter(w => w.includes("tie for first")));
+  }
+  if (targetedCases && form.marketing?.kind !== "qualification") notes.push(`${targetedCases} distinct representative paths checked first (low, high, mixed, or unmapped choices where available). These selections are not proof of every score boundary or result.`);
   if (truncated) notes.push(`Testing stopped at the ${cap}-case or complexity limit. These cases are a bounded sample, not every possible journey.`);
   if (partialDomain) notes.push("Large choice fields were sampled. Their complete answer combinations have not been tested.");
   if (unsupported.size) notes.push("Typed inputs, URL-prefilled hidden fields, matrices, rankings, files, and security challenges are not generated. Required fields stop that simulated journey; optional fields are skipped. Complete those paths manually in Preview.");
