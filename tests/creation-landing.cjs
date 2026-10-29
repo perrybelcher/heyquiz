@@ -73,10 +73,10 @@ function controller(enabled=true,initialQuizType){
   if(name==='@/lib/creation-quiz-type')return {creationQuizType:value=>quizTypes.includes(value)&&(enabled||quizTypeDefinitions[value].scored)?value:undefined};
   throw Error('Unexpected controller dependency '+name);
  };
- const module={exports:{}};
+ const compiledModule={exports:{}};
  const output=ts.transpileModule(fs.readFileSync(path.join(root,'components/CreationStart.tsx'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText;
- vm.runInNewContext(output,{module,exports:module.exports,require:mockRequire,window,localStorage:storage,sessionStorage:storage,URL,URLSearchParams,console});
- function render(){index=0;tree=module.exports.default({initialQuizType});return tree.props.children.find(node=>node.type==='landing').props;}
+ vm.runInNewContext(output,{module:compiledModule,exports:compiledModule.exports,require:mockRequire,window,localStorage:storage,sessionStorage:storage,URL,URLSearchParams,console});
+ function render(){index=0;tree=compiledModule.exports.default({initialQuizType});return tree.props.children.find(node=>node.type==='landing').props;}
  const first=render();assert.equal(storageWrites,0);for(const effect of effects)effect();mounted=true;
  return {first,render,window,listeners,history,values,states,get writes(){return storageWrites;}};
 }

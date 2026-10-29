@@ -1,17 +1,18 @@
-# Unified template library design QA
+# Creation landing design QA
 
 final result: passed
 
-Visual target: selected revised option2, generated image exec-38f35f5e-3b9b-46ba-aa28-336b414d35aa.png. Implemented inside the existing app, not a separate prototype.
+Source: /Users/cornevanwilligen/.codex/generated_images/01a17e8c-e612-7432-ae5c-558ddbaa6491/exec-bb499c21-a84a-45c7-ada0-54fa5331e158.png (1487×1058).
+Compiled preview: http://127.0.0.1:3195/create. Desktop CSS viewport1440×1024; screenshot /tmp/create-desktop.png. Full-page captures retain natural scroll height at density1. Source and implementation normalized proportionally into adjacent720px panels in /tmp/create-compare.png, inspected together. Mobile capture /tmp/create-mobile.png at390×844; responsive adaptation derived from desktop target, no separate approved mobile mock.
 
-Compared target and compiled implementation together in /tmp/pippi-library-comparison.png. Desktop captured at1440x1024; mobile390x844; narrow320x740; tablet834x1194. In-app browser used for all interaction and capture. Images /tmp/pippi-library-desktop.png and /tmp/pippi-library-mobile.png.
+## Comparison and fixes
+- Preserved warm-white/burgundy palette, existing Geist typography, selected rows, two-column layout, shortcut strip, photographic text backing and primary template action.
+- Existing workspace header intentionally retained; authentic template copy replaces illustrative mock copy. AI/guided links are required additions. No outstanding P0/P1/P2 visual findings.
+- Independent QA identified route-prop synchronization and mobile visual/DOM reading-order mismatch. Fixed before final build.
+- First320px browser check found342px document width from image aspect-ratio minimum. Added explicit mobile widths and removed minimum image height. Final rebuilt browser check320/320 passed.
+- Fonts, weights, wrapping, spacing, borders, radii, palette/contrast and photographic crops reviewed in combined full-view comparison. No focused crop needed: full-frame comparison resolved principal regions and hierarchy. Existing header and real copy differ intentionally.
 
-Typography, burgundy palette, slim sidebar, list selection, photographic preview and imagery match the selected direction. Intentional differences: real template descriptions/profile names replace mock copy; all61 records remain accessible, so personality count includes existing segmentation templates. Industry filtering adds a second toolbar row. Detailed real result text scrolls inside desktop preview; advice expands on demand. No missing controls or clipped horizontal content found.
+## Browser acceptance
+Chrome fallback used because in-app browser reports unavailable. Widths320,390,768,834,1024,1440 inspected; no overflow except corrected320 finding. View example scrolls and focuses preview; selection updates examples; Back and reload retain type; templates handoff selects Personality; blank asks type; synthetic draft resumes exact ID and survives editor reload. Browser error log empty on final landing run.
 
-Initial P2: titles on busy travel imagery lacked contrast. Fixed with warm-white readable backing; recaptured and verified. Combined final desktop comparison and focused mobile cover inspection confirm readable titles and preserved photo focal points. No unresolved P0/P1/P2 findings. Minor layout differences described above are accepted product constraints.
-
-Functional checks in compiled in-app browser: questions tab renders eight actual questions/answers; empty search state; full catalogue61; combined coffee+short filters; mobile dialog focus, safe-area actionbar and back; tablet dialog and preserved query; mobile Use creates typed draft in existing editor and reload recovers it.320px and1440px DOM scroll width equalsviewport; no browser errors recorded. Support does not cover the mobile action.
-
-Automated catalogue/render tests cover all61 IDs, actual counts, independent instances, filters, all six typed preview variants and real result content. Existing template/outcome/workspace/reliability regressions pass. TypeScript and webpack production build pass. Full lint0errors67warnings. Turbopack cannot resolve the shared external node_modules symlink in this worktree; webpack build used without project configuration changes. A normal deployment install has physical dependencies. Firefox/WebKit matrix was not rerun for this redesign; only the in-app Chromium browser was exercised interactively.
-
-No deployment performed. Local compiled preview remains available on127.0.0.1:3194.
+Remaining coverage: Firefox/WebKit, explicit200% browser zoom and comprehensive keyboard-only matrix were not executed. No production verification/deployment performed.

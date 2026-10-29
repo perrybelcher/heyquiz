@@ -28,3 +28,6 @@ Test 320, 390, 768, 834, 1024 and 1440 CSS pixels, landscape orientation, and 20
 Keyboard-only: all shortcuts, type choices, View example, secondary creation links and primary action are reachable with visible focus. Selection state is announced; moving type does not steal focus. View example moves to the relevant preview. Check reduced motion and screen-reader labels.
 
 Capture the same desktop selected state as the approved source, compare together in one visual input, and repeat after any P0/P1/P2 fix. Capture mobile separately against the specified adaptation. Record browser/viewport, screenshot paths, console errors and findings. Chromium, Firefox and WebKit must be reported individually; unavailable environments remain explicit verification gaps.
+
+## Integrated execution
+Starting revision931a5e6. Lead integrated UI, metadata/assets and independent tests sequentially. QA findings (route prop sync, mobile reading order,320px image overflow) fixed. New acceptance, outcomes, templates, workspace, reliability, V2, TypeScript and webpack production build passed. Lint:0errors/67existingwarnings. Browser evidence and remaining matrix gaps are recorded in root design-qa.md. Cloud credentials disabled through isolated local runner; synthetic draft only. Final commit identifies source tested; no production deployment.
