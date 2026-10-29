@@ -1,14 +1,14 @@
 "use client";
 import { readGuestDraft, recoverBuilderReload } from "@/lib/guest-draft";
-import QuizTypeChooser from "./QuizTypeChooser";
-import { outcomeTemplate } from "@/lib/outcome-templates";
-import { quizTypeDefinitions, type QuizType } from "@/lib/quiz-types";
+import AuthoredTemplateLibrary from "./AuthoredTemplateLibrary";
+import type { QuizType } from "@/lib/quiz-types";
 import WorkspaceHeader from "./WorkspaceHeader";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { ArrowRight, BarChart3, ShoppingBag, Users, Search, SlidersHorizontal, Check, X } from "lucide-react";
-import { launchTemplate, launchTemplates, type LaunchTemplateId } from "@/lib/launch-templates";
+import { launchTemplates, type LaunchTemplateId } from "@/lib/launch-templates";
+import { createQuizTemplate } from "@/lib/template-factory";
 import type { FormSchemaType } from "@/lib/schema";
 import { templateCampaignDetails } from "@/lib/template-campaigns";
 import EditorStudio from "./EditorStudio";
@@ -21,6 +21,7 @@ const pageSize = 12;
 export default function TemplateLibrary({initialQuizType}:{initialQuizType?:QuizType}) {
   const v2 = useInterfaceVersion() === "v2";
   const [quizType,setQuizType]=useState(initialQuizType);
+  const [legacy,setLegacy]=useState(false);
   const [selected, setSelected] = useState<LaunchTemplateId | null>(null);
   const [form, setForm] = useState<FormSchemaType | null>(null);
   useEffect(()=>{if(!recoverBuilderReload("/templates"))return;try{const id=sessionStorage.getItem("pippi-template-draft");const saved=id?readGuestDraft(localStorage,sessionStorage,id):null;
@@ -34,15 +35,12 @@ export default function TemplateLibrary({initialQuizType}:{initialQuizType?:Quiz
   const [visible,setVisible] = useState(pageSize);
   const details = useRef<HTMLElement>(null);
   const selectedButton = useRef<HTMLButtonElement | null>(null);
-  const sample = selected ? launchTemplate(selected, "template-preview") : null;
+  const sample = selected ? createQuizTemplate(selected, "template-preview") : null;
   const campaign = selected ? templateCampaignDetails(selected) : null;
   const filtered = launchTemplates.filter(t=>(!quizType || (quizType==="product_finder"?t.goal==="Product finder":t.goal==="Scorecard"))&&(!industry || t.industry===industry)&&(!goal || t.goal===goal)&&`${t.name} ${t.industry} ${t.summary} ${t.goal}`.toLowerCase().includes(query.trim().toLowerCase()));
   function clearFilters(){setQuery('');setIndustry('');setGoal('');setVisible(pageSize);}
-  function start() {
-    if(!selected) return;
-    const draft = {...launchTemplate(selected, `quiz-${nanoid(10)}`), ...(quizType?{quizType}:{})};
+  function storeDraft(draft: FormSchemaType) {
     try {
-      // Each selection creates an independent draft; existing work keeps its own ID.
       localStorage.setItem(`heyquiz-draft:${draft.id}`, JSON.stringify(draft));
       localStorage.setItem("pippi-guest-draft", draft.id);
       sessionStorage.setItem("pippi-template-draft",draft.id);
@@ -50,15 +48,18 @@ export default function TemplateLibrary({initialQuizType}:{initialQuizType?:Quiz
       setForm(draft);
     } catch { setError("Your browser could not store this draft. Enable site storage before starting so your work can be recovered."); }
   }
+  function start() {
+    if(!selected) return;
+    const draft = {...createQuizTemplate(selected, `quiz-${nanoid(10)}`), ...(quizType?{quizType}:{})};
+    storeDraft(draft);
+  }
   function closePreview(){setSelected(null);selectedButton.current?.focus();}
   if (form) return <EditorStudio initialForm={form} guest />;
-  if(!quizType || !["product_finder","scorecard"].includes(quizType)) {
-    const starter=quizType?outcomeTemplate(quizType,"template-preview"):null;
-    return <><WorkspaceHeader active="templates"/><main className={`mx-auto max-w-6xl space-y-6 p-8 ${v2 ? "v2-page v2-templates" : ""}`}><h1 className="text-3xl font-semibold">Choose the outcome for your template</h1><QuizTypeChooser selected={quizType} onSelect={setQuizType}/>{starter&&<section className="space-y-4 rounded-2xl border bg-white p-6"><h2 className="text-2xl font-semibold">{starter.title}</h2><p className="text-slate-600">An editable {quizTypeDefinitions[quizType!].outcomeLabel.toLowerCase()} template. Review its example results before editing questions.</p><TemplateVisual form={starter} large/><ul className="list-disc pl-5">{starter.marketing?.outcomes.map(o=><li key={o.id}>{o.title}: {o.advice}</li>)??<li>Correct-answer grading with editable explanations.</li>}</ul><button className="hq-primary" onClick={()=>{const draft=outcomeTemplate(quizType!,`quiz-${nanoid(10)}`);try{localStorage.setItem(`heyquiz-draft:${draft.id}`,JSON.stringify(draft));localStorage.setItem("pippi-guest-draft",draft.id);sessionStorage.setItem("pippi-template-draft",draft.id);localStorage.setItem(`pippi-editor-mode:${draft.id}`,"guided");setForm(draft);}catch{setError("Enable browser storage to keep this draft recoverable.");}}}>Use this template</button>{error&&<p role="alert">{error}</p>}</section>}</main></>;
-  }
+  if(!legacy) return <AuthoredTemplateLibrary initialQuizType={quizType} onTypeChange={setQuizType} onCreate={storeDraft} error={error} onLegacy={()=>{setQuizType(undefined);setLegacy(true);}}/>;
+
   return <><WorkspaceHeader active="templates" /><main className={`min-h-screen bg-[#faf8f4] px-5 py-10 text-slate-900 ${v2 ? "v2-page v2-templates" : ""}`}><div className="mx-auto max-w-6xl">
 
-    <button className="mb-5 text-sm underline" onClick={()=>{setQuizType(undefined);setSelected(null);}}>Choose another quiz outcome</button>
+    <button className="mb-5 text-sm underline" onClick={()=>{setQuizType(undefined);setSelected(null);setLegacy(false);}}>Choose another quiz outcome</button>
     <p className="text-sm font-semibold uppercase tracking-widest text-red-800">{v2 ? "Template library" : `${launchTemplates.length} free templates. Your next idea starts here.`}</p>
     <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">{v2 ? "Start with a template" : <>A head start for<br />your kind of business.</>}</h1>
     <p className={`mt-5 max-w-2xl text-lg leading-relaxed text-slate-600 ${v2 ? "v2-template-intro" : ""}`}>Help shoppers find their fit. Match prospects with the right service. Give people a useful scorecard. Start with real questions and results, then make every word your own.</p>
@@ -78,7 +79,7 @@ export default function TemplateLibrary({initialQuizType}:{initialQuizType?:Quiz
       <div className="mt-6 grid gap-8 lg:grid-cols-2"><div><h3 className="font-semibold">Questions your audience will answer</h3><ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-slate-600">{sample.questions.map(q=><li key={q.id}>{q.title}</li>)}</ol><h3 className="mt-6 font-semibold">Their personalized results</h3><ul className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">{sample.marketing?.kind==='scorecard'?sample.marketing.categories.map(c=><li key={c.id}><strong>{c.title}</strong> — {c.description}</li>):sample.marketing?.outcomes.map(o=><li key={o.id}><strong>{o.title}</strong> — {o.advice}</li>)}</ul></div>
       <div className="self-start rounded-xl bg-[#faf8f4] p-6"><h3 className="text-lg font-semibold">Make it yours in the editor</h3><ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-relaxed text-slate-600">{campaign ? campaign.checklist.map(item=><li key={item}>{item}</li>) : <><li>Adapt the wording, answer choices, and results to your audience.</li><li>For product quizzes, add your actual products and confirm suitability rules.</li><li>Add your logo, colors, result links, and privacy policy.</li><li>Preview every result before publishing.</li></>}</ul>{campaign && <p className="mt-4 rounded-lg border border-stone-200 bg-white p-3 text-xs leading-relaxed text-slate-600">Offers are examples. Result links start empty, and no email delivery is promised. If you change the optional contact step, update the landing FAQ to match.</p>}<p className="mt-5 text-sm text-slate-600">Edit immediately. Create a free account to save and publish. Each template starts a separate draft; your earlier drafts stay in this browser.</p><button onClick={start} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#a9232b] px-6 py-3 font-semibold text-white">Use this template<ArrowRight size={18}/></button>{error&&<p role="alert" className="mt-4 text-sm text-red-800">{error}</p>}</div></div>
     </section>}
-    <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{filtered.slice(0,visible).map(template=>{const Icon=template.goal==='Product finder'?ShoppingBag:template.goal==='Scorecard'?BarChart3:Users;return <button key={template.id} aria-pressed={selected===template.id} onClick={e=>{selectedButton.current=e.currentTarget;setSelected(template.id);setError('');requestAnimationFrame(()=>{details.current?.scrollIntoView({behavior:'instant',block:'start'});details.current?.focus({preventScroll:true});});}} className={`${v2 ? "v2-template-card" : ""} flex flex-col rounded-2xl border bg-white p-6 text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-red-800 ${selected===template.id?'border-red-800 ring-1 ring-red-800':'border-stone-200'}`}><div className="mb-5 w-full"><TemplateVisual form={launchTemplate(template.id,"visual-preview")} /></div><div className="flex w-full items-center justify-between gap-3"><span className="rounded-xl bg-red-50 p-3 text-red-800"><Icon size={22} aria-hidden="true"/></span><span className="text-xs text-slate-500">{template.industry}</span></div><h2 className="mt-5 text-xl font-semibold">{template.name}</h2><p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">{template.summary}</p><p className="mt-5 text-xs text-slate-500">{template.detail}</p>{templateCampaignDetails(template.id)&&<span className="mt-3 self-start rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-900">Landing + results included</span>}<span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-red-800">Preview template<ArrowRight size={16}/></span></button>;})}</div>
+    <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{filtered.slice(0,visible).map(template=>{const Icon=template.goal==='Product finder'?ShoppingBag:template.goal==='Scorecard'?BarChart3:Users;return <button key={template.id} aria-pressed={selected===template.id} onClick={e=>{selectedButton.current=e.currentTarget;setSelected(template.id);setError('');requestAnimationFrame(()=>{details.current?.scrollIntoView({behavior:'instant',block:'start'});details.current?.focus({preventScroll:true});});}} className={`${v2 ? "v2-template-card" : ""} flex flex-col rounded-2xl border bg-white p-6 text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-red-800 ${selected===template.id?'border-red-800 ring-1 ring-red-800':'border-stone-200'}`}><div className="mb-5 w-full"><TemplateVisual form={createQuizTemplate(template.id,"visual-preview")} /></div><div className="flex w-full items-center justify-between gap-3"><span className="rounded-xl bg-red-50 p-3 text-red-800"><Icon size={22} aria-hidden="true"/></span><span className="text-xs text-slate-500">{template.industry}</span></div><h2 className="mt-5 text-xl font-semibold">{template.name}</h2><p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">{template.summary}</p><p className="mt-5 text-xs text-slate-500">{template.detail}</p>{templateCampaignDetails(template.id)&&<span className="mt-3 self-start rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-900">Landing + results included</span>}<span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-red-800">Preview template<ArrowRight size={16}/></span></button>;})}</div>
     {!filtered.length&&<div className="py-16 text-center"><SlidersHorizontal className="mx-auto text-stone-400"/><h2 className="mt-4 text-xl font-semibold">No templates match those filters yet.</h2><p className="mt-2 text-slate-600">Try a broader term or browse a different industry.</p><button onClick={clearFilters} className="mt-5 font-semibold text-red-800 underline">Show all templates</button></div>}
     {visible<filtered.length&&<div className="mt-8 text-center"><button onClick={()=>setVisible(n=>n+pageSize)} className="rounded-xl border border-stone-300 bg-white px-6 py-3 font-semibold">Show more templates ({filtered.length-visible} remaining)</button></div>}
     <p className="mt-12 text-center text-sm text-slate-600">A useful starting point, never a locked formula. Every question, answer, score, result, and design is editable.</p>

@@ -2,6 +2,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
 (async()=>{const browser=await chromium.launch({channel:'chrome'});try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto((process.env.BASE_URL||'http://127.0.0.1:3162')+'/templates');
+    await page.getByRole('button',{name:'Browse additional existing templates',exact:true}).click();
  await page.getByRole('status').filter({hasText:'43 templates found'}).waitFor();
  assert.equal(await page.getByRole('button').filter({hasText:'Preview template'}).count(),12);
  await page.getByRole('button',{name:/Show more templates/}).click();

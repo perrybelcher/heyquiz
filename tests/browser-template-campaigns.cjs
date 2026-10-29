@@ -30,6 +30,7 @@ async function until(check, description) {
   let activePage = page;
   try {
     await page.goto(base + '/templates');
+    await page.getByRole('button',{name:'Browse additional existing templates',exact:true}).click();
     await page.getByRole('status').filter({ hasText: '43 templates found' }).waitFor();
     assert.equal(await page.getByRole('link', { name: /Prefer a blank quiz/ }).getAttribute('href'), '/create/blank');
     for (const id of campaignTemplateIds) {
