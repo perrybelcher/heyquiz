@@ -114,3 +114,14 @@ export function signOutWorkspace(): Promise<boolean> {
     return assignApproved("/login");
   });
 }
+
+/** Freeze editing, complete guards, persist preference, then reload one document. */
+export function switchWorkspaceInterface(save: () => Promise<boolean>, href: string): Promise<boolean> {
+  const destination = workspaceDestination(href);
+  if (!destination) return Promise.resolve(false);
+  return navigationAction(async () => {
+    if (!(await prepareWorkspaceNavigation()) || preparedRevision !== guardRevision) return false;
+    if (!(await save())) return false;
+    return assignApproved(destination);
+  });
+}

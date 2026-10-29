@@ -1,3 +1,4 @@
+import CreatorInterface from "@/components/CreatorInterface";
 import { publicMetadata, homeTitle, homeDescription, privateMetadata } from "@/lib/seo";
 import { getAllForms } from "@/lib/storage";
 import { currentUser } from "@/lib/auth";
@@ -12,5 +13,5 @@ export default async function HomePage() {
   const user = await currentUser();
   // The public introduction shares this URL, while existing users keep their dashboard.
   if (!user) return <SalesPage />;
-  return <Dashboard initialForms={await getAllForms(user.id)} />;
+  return <CreatorInterface><Dashboard initialForms={await getAllForms(user.id)} /></CreatorInterface>;
 }

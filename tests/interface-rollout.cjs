@@ -1,0 +1,35 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const rows = new Map(); let owner='alice', outage=false;
+class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
+const auth={HttpError,requireUser:async()=>({id:owner,accountKey:`account-${owner}`})};
+const records={readRecord:async(kind,id)=>{if(outage)throw Error('outage');return rows.get(`${kind}:${id}`)||null;},writeRecord:async(kind,id,who,payload,revision)=>{const key=`${kind}:${id}`,old=rows.get(key);if((old?.version||0)!==revision)throw new HttpError(409,'Conflict');if(old&&old.owner_id!==who)throw new HttpError(403,'Owner');rows.set(key,{owner_id:who,payload,version:revision+1});}};
+const moduleObject={exports:{}};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/interface-preferences.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,{module:moduleObject,exports:moduleObject.exports,process,console,require:name=>name==='./auth'?auth:name==='./records'?records:require(name)});
+const api=moduleObject.exports;
+(async()=>{
+ delete process.env.PIPPI_INTERFACE_ROLLOUT;delete process.env.PIPPI_INTERFACE_ALLOWLIST;
+ assert.equal(await api.resolveInterface(owner),'v1');
+ await assert.rejects(api.saveInterfacePreference({preferredVersion:'v2',revision:0},'account-alice'),e=>e.status===403);
+ process.env.PIPPI_INTERFACE_ROLLOUT='invite';process.env.PIPPI_INTERFACE_ALLOWLIST='alice';
+ assert.equal((await api.getInterfacePreference()).eligible,true);
+ await assert.rejects(api.saveInterfacePreference({preferredVersion:'v2',revision:0},'account-bob'),e=>e.status===403);
+ await assert.rejects(api.saveInterfacePreference({preferredVersion:'v2',revision:0}),e=>e.status===403);
+ await api.saveInterfacePreference({preferredVersion:'v2',revision:0},'account-alice');
+ assert.equal(await api.resolveInterface(owner),'v2');
+ await assert.rejects(api.saveInterfacePreference({preferredVersion:'v1',revision:0},'account-alice'),e=>e.status===409);
+ owner='bob';assert.equal(await api.resolveInterface(owner),'v1');assert.equal((await api.getInterfacePreference()).revision,0);
+ process.env.PIPPI_INTERFACE_ROLLOUT='opt-in';assert.equal((await api.getInterfacePreference()).eligible,true);assert.equal(await api.resolveInterface(owner),'v1');
+ process.env.PIPPI_INTERFACE_ROLLOUT='default-v2';assert.equal(await api.resolveInterface(owner),'v2');
+ await api.saveInterfacePreference({preferredVersion:'v1',revision:0},'account-bob');assert.equal(await api.resolveInterface(owner),'v1');
+ await api.saveInterfacePreference({preferredVersion:null,revision:1},'account-bob');assert.equal(await api.resolveInterface(owner),'v2');
+ outage=true;assert.equal(await api.resolveInterface(owner),'v1');await assert.rejects(api.getInterfacePreference());outage=false;
+ assert.equal((await api.getInterfacePreference()).preferredVersion,null);
+ owner='alice';process.env.PIPPI_INTERFACE_ROLLOUT='off';assert.equal(await api.resolveInterface(owner),'v1');assert.equal((await api.getInterfacePreference()).preferredVersion,'v2');
+ process.env.PIPPI_INTERFACE_ROLLOUT='typo';assert.equal(await api.resolveInterface(owner),'v1');
+ await assert.rejects(api.saveInterfacePreference({preferredVersion:'v3',revision:1},'account-alice'));
+ await assert.rejects(api.saveInterfacePreference({preferredVersion:'v1',revision:-1},'account-alice'));
+ console.log('PASS interface rollout, owner binding, revisions, rollback, defaults, outage preservation');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,6 +1,10 @@
 "use client";
 import { reportScore, reportOutcome } from "@/lib/submission-reporting";
 
+import { reportInterfaceEvent } from "@/lib/interface-telemetry";
+import { useInterfaceVersion } from "./v2/InterfaceContext";
+import V2EditorLayout from "./v2/V2EditorLayout";
+import V2EditorHeader from "./v2/V2EditorHeader";
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import {
   FormSchemaType,
@@ -193,6 +197,7 @@ function PausePublicationDialog({ busy, onClose, onConfirm }: { busy: boolean; o
 }
 
 export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "", accountKey, localSession = false, initialSection = "edit" }: EditorStudioProps) {
+  const v2 = useInterfaceVersion() === "v2";
   const navigationPending = useSyncExternalStore(subscribeWorkspaceNavigation, workspaceNavigationPending, () => false);
   const storedEditorMode = useSyncExternalStore(
     () => () => {},
@@ -200,7 +205,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     () => null,
   );
   const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(initialSection === "edit" ? null : false);
-  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true);
+  const guided = !v2 && (editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true));
   function changeEditorMode(value: boolean) {
     setEditorModeOverride(value);
     if (value) setActiveNavTab("edit");
@@ -270,6 +275,15 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     recoveries,
     dismissRecovery,
   } = useAutosave(form, guest, { accountKey, onRestore: setFormState });
+  const telemetryOpened = useRef(false);
+  const previousSaveStatus = useRef(saveStatus);
+  useEffect(() => { if (!guest && !telemetryOpened.current) { telemetryOpened.current = true; reportInterfaceEvent("editor_opened", v2 ? "v2" : "v1"); } }, [guest, v2]);
+  useEffect(() => {
+    const previous = previousSaveStatus.current; previousSaveStatus.current = saveStatus;
+    if (guest || previous === saveStatus) return;
+    if (saveStatus === "saved" && previous !== "saved") reportInterfaceEvent("save_confirmed", v2 ? "v2" : "v1");
+    if (saveStatus === "error") reportInterfaceEvent("save_failed", v2 ? "v2" : "v1");
+  }, [saveStatus, guest, v2]);
   const setForm = useCallback<React.Dispatch<React.SetStateAction<FormSchemaType>>>(next => { if (canEdit()) setFormState(next); }, [canEdit]);
   const { draft: emailCopyDraft, update: setEmailCopyDraft, restored: emailCopyRestored, storageWarning: emailCopyStorageWarning, alternatives: emailCopyAlternatives } = useResultEmailCopyDraft(initialForm.id, accountKey);
   const { draft: reportDesignDraft, update: setReportDesignDraft, restored: reportDesignRestored, storageWarning: reportDesignStorageWarning, alternatives: reportDesignAlternatives } = useReportDesignDraft(initialForm.id, accountKey);
@@ -444,6 +458,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     // Advanced editor navigation must select both the question and its page.
     changeEditorMode(false);
     if (where.target === "results") { setActiveNavTab("marketing"); return; }
+    if (v2 && (where.target === "capture" || where.target === "publish")) { setActiveNavTab(where.target === "capture" ? "contacts" : "share"); return; }
     if (where.target === "capture" || where.target === "publish") {
       changeEditorMode(true); setGuidedJump(previous => ({ ...where, requestId: (previous?.requestId || 0) + 1 })); return;
     }
@@ -1081,6 +1096,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
     setForm({ ...form, questions: updatedQuestions });
     setSelectedQuestionId(newId);
+    if (v2) requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>("[data-v2-question] textarea, [data-v2-question] input[type=text]")?.focus();
+    }));
     setCanvasView("page");
     setMobilePanel(null);
   };
@@ -1167,7 +1185,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     if (direction === "up" && idx === 0) return;
     if (direction === "down" && idx === form.questions.length - 1) return;
 
-    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    const pageQuestions = v2 ? form.questions.filter(q => (q.pageId || form.pages?.[0]?.id) === (form.questions[idx].pageId || form.pages?.[0]?.id)) : form.questions;
+    const visibleIndex = pageQuestions.findIndex(q => q.id === qId);
+    const neighbor = pageQuestions[visibleIndex + (direction === "up" ? -1 : 1)];
+    if (!neighbor) return;
+    const targetIdx = form.questions.findIndex(q => q.id === neighbor.id);
     const updated = [...form.questions];
     const [moved] = updated.splice(idx, 1);
     updated.splice(targetIdx, 0, moved);
@@ -1387,12 +1409,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       if (data.success !== true || data.url !== `/play/${form.id}`) throw new Error(PUBLICATION_CONFIRMATION_ERROR);
       const receipt = parsePublicationReceipt(data.publication, form.id);
       clarityEvent("publish_succeeded");
+      reportInterfaceEvent("publish_confirmed", v2 ? "v2" : "v1");
       setLiveFingerprint(receipt.fingerprint);
       setIsPublished(true);
       setShowReadiness(false);
       setShowPublishModal(true);
     } catch (err) {
       clarityEvent(receivedSuccessfulResponse ? "publish_unconfirmed" : "publish_failed");
+      reportInterfaceEvent("publish_failed", v2 ? "v2" : "v1");
       if (receivedSuccessfulResponse) setPublicationUncertain(true);
       closePublishReadiness();
       setActionError(receivedSuccessfulResponse ? PUBLICATION_CONFIRMATION_ERROR : err instanceof Error ? err.message : "Publishing failed.");
@@ -1797,340 +1821,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const mobileSaveStatus = saveStatusLabel({ status: saveStatus, guest: guestDraft, authRequired, persistent: backedUp, tab: tabBackedUp });
   const hasUnpublishedChanges = !publicationUncertain && isPublished && liveFingerprint !== publicationFingerprint(form);
   const publicationLabel = publicationUncertain ? "Publication status needs checking" : !isPublished ? "Draft · Not public" : hasUnpublishedChanges ? "Published · Unpublished changes" : "Published · Up to date";
-  return (
-    <div inert={navigationPending} className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white" onClickCapture={event => {
-      const control = event.target instanceof Element ? event.target.closest<HTMLElement>('button, a[href]') : null;
-      if (control && !control.closest('dialog')) setAccountPromptTrigger(control);
-    }}>
-      <WorkspaceHeader active={activeNavTab === "results" ? "reports" : "overview"} guest={guestDraft} />
-      {guestDraft && (
-        <div className="border-b border-stone-200 bg-[#faf8f5] px-4 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:px-5">
-          <span className="flex items-start gap-2.5"><BookmarkCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#882329]" /><span><strong className="font-semibold text-stone-900">Save your first draft.</strong> {draftAccountState === "signed-in" ? "You’re signed in. Save this quiz to your account to share it and see the answers." : draftAccountState === "guest" ? "Create a free account to save your quiz, share it and see the answers." : "Save your quiz to sync it with your account. Your draft stays on this device until then."}</span></span>
-          <button type="button" data-account-action="save" className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 py-2 font-semibold text-[#882329] hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#882329] disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void saveNow()}>{saveStatus === "saving" ? "Saving…" : "Save my quiz"}</button>
-        </div>
-      )}
-      {guest && claimed && <div role="status" className="bg-green-50 text-green-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
-        <span>Your quiz is now in your account. Keep editing here, or save your latest changes and open its workspace.</span>
-        <button type="button" className="font-semibold underline disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void openClaimedQuiz()}>{saveStatus === "saving" ? "Saving changes…" : "Save & open quiz"}</button>
-      </div>}
-      {!guestDraft && authRequired && accountPromptDismissed && <div className="border-b border-stone-200 bg-stone-50 px-5 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-3">
-        <span>Sign back in to sync your changes. {backedUp ? "Your latest edits are saved on this device." : "Keep this tab open to preserve your edits."}</span>
-        <button type="button" data-account-action="save" className="font-semibold underline underline-offset-4" onClick={() => void saveNow()}>Save changes</button>
-      </div>}
-      {publicationUncertain && <p ref={publicationStatusNotice} tabIndex={-1} role="status" className="bg-amber-50 px-5 py-3 text-sm text-amber-950">Publication may have completed. Keep editing and saving your draft; refresh this editor to check its live version before publishing again.</p>}
-      {publicationNotice && <div role="status" className="bg-stone-100 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><span>{publicationNotice}</span><button className="underline font-semibold" onClick={() => setPublicationNotice("")}>Dismiss notice</button></div>}
-      {storageWarning && saveStatus !== "saved" && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved to your account. <button type="button" className="underline font-semibold" onClick={exportDraft}>Export draft</button></p>}
-      {authRequired && (!accountPromptDismissed || !guestDraft) && <QuizAccountPrompt guest={guestDraft} backedUp={backedUp} tabBackedUp={tabBackedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} accountMismatch={accountMismatch} local={localSession} sessionError={saveError} onExportDraft={exportDraft} onExportReportDesign={reportDesignDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-report-design",draft:reportDesignDraft}, "pippi-unapplied-report-design") : undefined} onExportEmailCopy={emailCopyDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-email-copy",draft:emailCopyDraft}, "pippi-unapplied-email-copy") : undefined} onAuthenticated={afterSignIn} onClose={closeAccountPrompt} onRetry={() => void saveNow(form)} /> }
-      {((saveError && !authRequired) || actionError) && (
-        <div
-          role="alert"
-          className="hq-error fixed bottom-5 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-2rem)] max-w-xl shadow-lg"
-        >
-          {actionError || saveError}
-          <button
-            className="ml-4 underline"
-            onClick={() => {
-              setActionError("");
-              if (saveError && !authRequired) void saveNow(form);
-            }}
-          >
-            {saveError && !authRequired ? "Retry save" : "Dismiss"}
-          </button>
-        </div>
-      )}
-      {recovery && (
-        <div className="bg-amber-50 text-amber-900 text-sm px-6 py-3 flex gap-4">
-          A different draft saved on this device is available. Restoring replaces the current draft; its current contents will first be preserved in Draft history. {recoveries.length > 1 && `${recoveries.length} differing recovery copies are available; choose a copy below.`}
-          <span>“{recovery.title}” · {recovery.questions.length} questions · Based on revision {recovery.revision || 0}.</span>
-          {recoveries.map((copy, index) => <button key={`${copy.instance}:${copy.updatedAt}`} className="font-semibold underline" onClick={() => {
-            if (!canEdit() || !checkpoint("Before recovering a device draft")) return;
-            setForm({ ...copy.form, revision: form.revision }); dismissRecovery();
-          }}>{recoveries.length === 1 ? "Restore changes" : `Restore copy ${index + 1}: ${copy.form.title}`}</button>)}
-          <button className="underline" onClick={dismissRecovery}>
-            Dismiss
-          </button>
-        </div>
-      )}
-      <div inert={authRequired && !guestDraft} className="contents" aria-label="Quiz editor">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2">
-        <div className="flex flex-wrap gap-2"><button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={() => setShowThemeModal(true)}>Design quiz</button>{outcomeCreationEnabled && <button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={event => { event.currentTarget.focus(); setShowConversion(true); }}>Change Type</button>}</div>
-        <div role="group" aria-label="Editor mode" className="flex rounded-xl bg-stone-100 p-1">
-          {[{label:"Basic",value:true},{label:"Advanced",value:false}].map(mode=><button key={mode.label} type="button" aria-pressed={guided===mode.value} onClick={()=>changeEditorMode(mode.value)} className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-red-800 ${guided===mode.value?"bg-white text-[#681d27] shadow-sm":"text-stone-500 hover:text-stone-900"}`}>{mode.label}</button>)}
-        </div>
-      </div>
-      {showConversion && <QuizConversionDialog currentType={form.quizType} onClose={() => setShowConversion(false)} onPreview={prepareConversion} onCreate={createConversion} />}
-      {form.conversionReview?.required && (form.quizType === "knowledge" || form.quizType === "scorecard") && <section className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-label="Converted quiz review"><p>Review the copied questions, grading, results and retained branching before publishing this quiz.</p><button type="button" className="hq-secondary mt-2" onClick={() => setForm(current => ({ ...current, conversionReview: current.conversionReview ? { ...current.conversionReview, required: false } : undefined }))}>I reviewed the results and rules</button></section>}
-      <BuilderWalkthrough onShow={target => {
-        if (target === "theme") { setShowThemeModal(true); return; }
-        if (target === "preview") { void handlePreview(); return; }
-        changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page");
-        if (target === "questions") setMobilePanel("fields");
-        requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
-      }} />
-      {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
-      {!guided && <>
-      <EditorMobileHeader
-        title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
-        status={mobileSaveStatus} onSave={() => void saveNow()} saveFailed={saveStatus === "error" && !authRequired}
-        published={isPublished} publicationLabel={publicationLabel}
-        onTheme={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} previewing={previewing} previewLabel={guestDraft ? "Save to preview" : "Preview"}
-        onPublish={requestPublish} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain}
-        activeSection={activeNavTab}
-        sections={(["edit", "contacts", "marketing", "integrate", "share", "results"] as const).map(tab => ({ id: tab, label: { edit: "Edit", contacts: "Contacts", marketing: "Marketing", integrate: "Integrate", share: "Share", results: "Results" }[tab], onClick: () => { if (guestDraft && !["edit", "marketing"].includes(tab)) { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } }))}
-        actions={[
-          { label: "Fields", onClick: () => { setActiveNavTab("edit"); setMobilePanel("fields"); } },
-          { label: "Question settings", onClick: () => { setActiveNavTab("edit"); if (!selectedQuestionId) setSelectedQuestionId(form.questions[0]?.id || null); setMobilePanel("settings"); } },
-          { label: "Form settings", onClick: () => { setSelectedQuestionId(null); setActiveNavTab("edit"); setMobilePanel("settings"); } },
-          { label: "Conversation map", onClick: () => { setMobilePanel(null); setShowConversationMap(true); } },
-          { label: "Basic mode", onClick: () => { setMobilePanel(null); changeEditorMode(true); } },
-          { label: "Draft history", onClick: openDraftHistory },
-          { label: "Save draft", onClick: () => void saveNow() },
-          { label: "Declarative Schema JSON", onClick: () => { setJsonText(JSON.stringify(form, null, 2)); setShowJsonModal(true); } },
-          { label: "Back to dashboard", onClick: () => { void saveNow().then(saved => { if (saved) window.location.assign("/"); }); } },
-        ]}
-        extra={<><ScoringMode form={form} onChange={setForm}/><fieldset><legend className="mb-2 text-xs font-semibold">Canvas preview size</legend><div className="flex gap-2"><button type="button" aria-pressed={devicePreview === "desktop"} onClick={() => setDevicePreview("desktop")} className="hq-secondary !px-3 !py-2 !text-xs">Desktop View</button><button type="button" aria-pressed={devicePreview === "mobile"} onClick={() => setDevicePreview("mobile")} className="hq-secondary !px-3 !py-2 !text-xs">Mobile Mockup</button></div></fieldset></>}
-      />
-      {/* Full-width studio controls stay available on larger screens. */}
-      <header className="studio-toolbar hidden lg:flex min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 items-center justify-between shrink-0 z-30 shadow-xs">
-        <div className="flex items-center gap-2.5">
-
-
-          <div className="flex items-center gap-1 group cursor-pointer">
-            <input
-              aria-label="Quiz name"
-              type="text"
-              value={form.title ?? ""}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="bg-transparent hover:bg-gray-100/70 focus:bg-white font-semibold text-sm text-gray-900 px-2 py-1 rounded-md border border-transparent hover:border-gray-200 focus:border-indigo-500 outline-none transition max-w-[200px] sm:max-w-xs truncate"
-            />
-            <ChevronDownIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-600" />
-          </div>
-
-          <span role="status" className="text-xs text-gray-600 flex items-center gap-1 ml-2 font-mono">
-            {saveStatus === "error" && !authRequired ? <button className="text-rose-700 underline" onClick={() => void saveNow()}>{mobileSaveStatus} Retry save</button> : <span className={saveStatus === "saved" && !guestDraft ? "text-emerald-700" : "text-stone-700"}>{mobileSaveStatus}</span>}
-          </span>
-        </div>
-
-        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Basic mode</button>
-        {/* Center Fillout Tabs Capsule */}
-        <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
-          <button
-            onClick={() => setActiveNavTab("edit")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "edit"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Pencil size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Edit
-          </button>
-
-          <button onClick={() => guestDraft ? void saveNow() : setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
-          <button
-            onClick={() => setActiveNavTab("marketing")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}
-          >
-            <Sparkles size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Marketing
-          </button>
-          <button
-            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("integrate")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "integrate"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Plug size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Integrate
-          </button>
-
-          <button
-            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("share")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "share"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Share2 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Share
-          </button>
-
-          <button
-            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("results")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "results"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <BarChart3 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Results
-          </button>
-        </div>
-
-        <button
-          className="hq-secondary !px-3 !py-2 text-xs"
-          onClick={() => {
-            setSelectedQuestionId(null);
-            setActiveNavTab("edit");
-            setMobilePanel("settings");
-          }}
-        >
-          <Settings size={15} /> Form settings
-        </button>
-        {/* Right Fillout Action Buttons */}
-        <div className="studio-actions flex items-center gap-2">
-          {/* Keep theme controls outside the scrolling canvas in every editor view. */}
-          <button
-            onClick={() => setShowThemeModal(true)}
-            className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
-          >
-            <Paintbrush className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Theme</span>
-          </button>
-          <span data-tour="scoring"><ScoringMode form={form} onChange={setForm} /></span>
-          <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Basic mode</button>
-          <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
-          {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
-          {/* Device Mockup Toggle */}
-          <div className="hidden sm:flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
-            <button
-              onClick={() => setDevicePreview("desktop")}
-              className={`p-1.5 rounded-md text-xs transition ${
-                devicePreview === "desktop"
-                  ? "bg-white text-gray-900 shadow-xs"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-              title="Desktop View"
-            >
-              <Monitor className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setDevicePreview("mobile")}
-              className={`p-1.5 rounded-md text-xs transition ${
-                devicePreview === "mobile"
-                  ? "bg-white text-gray-900 shadow-xs"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-              title="Mobile Mockup"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <button onClick={openDraftHistory} className="hq-secondary !px-3 !py-1.5 !text-xs" title="Restore a safety checkpoint saved on this device">
-            <History className="w-3.5 h-3.5" aria-hidden="true" /> Draft history
-          </button>
-
-          {/* JSON Schema Button */}
-          <button
-            onClick={() => {
-              setJsonText(JSON.stringify(form, null, 2));
-              setShowJsonModal(true);
-            }}
-            className="p-1.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition border border-gray-200"
-            title="Declarative Schema JSON"
-          >
-            <Code2 className="w-4 h-4" />
-          </button>
-
-          {/* Preview Button */}
-          <button
-            type="button"
-            onClick={() => void handlePreview()}
-            disabled={previewing}
-            className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
-          >
-            <Play className="w-3 h-3 fill-gray-600 text-gray-600" />
-            <span>{previewing ? "Saving preview…" : guestDraft ? "Save to preview" : "Preview"}</span>
-          </button>
-
-          {/* Publish Button */}
-          <button
-            data-publication-action="publish"
-            onClick={requestPublish}
-            disabled={publishing || pausing || publicationUncertain}
-            className="px-4 py-1.5 rounded-lg bg-[#18181b] hover:bg-black text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-            <span>Publish</span>
-          </button>
-        </div>
-      </header>
-
-      {/* 2. MAIN 3-COLUMN STUDIO LAYOUT */}
-      {activeNavTab === "edit" && (
-        <div className="flex-1 flex overflow-hidden">
-          {/* LEFT COLUMN: FILLOUT FIELD PALETTE */}
-          <aside
-            data-tour="questions"
-            className={`hq-field-palette w-64 border-r border-gray-200 bg-white flex flex-col shrink-0 ${mobilePanel === "fields" ? "mobile-open" : ""}`}
-          >
-            <button
-              className="hq-secondary m-3 lg:hidden"
-              onClick={() => setMobilePanel(null)}
-            >
-              Close fields
-            </button>
-            {/* Search Fields Input */}
-            <div className="p-4 border-b border-gray-100">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="Search fields"
-                  value={searchFieldQuery}
-                  onChange={(e) => setSearchFieldQuery(e.target.value)}
-                  className="w-full bg-gray-50/80 border border-gray-200 focus:border-indigo-500 focus:bg-white rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-900 outline-none transition"
-                />
-              </div>
-            </div>
-
-            {/* Categorized Field Grid */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-5">
-              {PALETTE_SECTIONS.map((section) => {
-                const filteredItems = section.items.filter((item) =>
-                  item.label
-                    .toLowerCase()
-                    .includes(searchFieldQuery.toLowerCase()),
-                );
-                if (filteredItems.length === 0) return null;
-
-                return (
-                  <div key={section.category} className="space-y-2">
-                    <span className="text-[11px] font-semibold text-gray-600 block px-1">
-                      {section.category}
-                    </span>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      {filteredItems.map((item) => {
-                        const IconComp = item.icon;
-                        return (
-                          <button
-                            key={item.type}
-                            onClick={() => addQuestion(item.type)}
-                            className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/80 hover:border-gray-300 bg-white hover:bg-gray-50/80 transition-all group text-center cursor-pointer shadow-xs active:scale-95"
-                          >
-                            <div
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1.5 border transition ${item.color}`}
-                            >
-                              <IconComp className="w-4 h-4" />
-                            </div>
-                            <span className="text-[11px] font-medium text-gray-700 leading-tight line-clamp-2">
-                              {item.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-
-          {/* CENTER COLUMN: FILLOUT CANVAS (WYSIWYG DOCUMENT) */}
+  const editorCanvas = (
           <main
-            className="flex-1 min-w-0 overflow-y-auto p-4 lg:p-6 flex flex-col items-center justify-between relative transition-colors duration-200"
+            className={`${v2 ? "v2-shared-canvas" : ""} flex-1 min-w-0 overflow-y-auto p-4 lg:p-6 flex flex-col items-center justify-between relative transition-colors duration-200`}
             style={{
               backgroundColor: form.theme?.backgroundColor || "#f4f5f7",
             }}
@@ -2142,7 +1835,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   : "max-w-2xl space-y-4"
               }`}
             >
-              <section data-tour="pages" className="rounded-2xl border border-stone-200 bg-white p-4" aria-label="Quiz presentation">
+              <section data-v2-secondary="presentation" data-tour="pages" className="rounded-2xl border border-stone-200 bg-white p-4" aria-label="Quiz presentation">
                 <label className="flex flex-wrap items-center justify-between gap-3 text-sm font-semibold">How visitors see your questions
                   <select aria-label="Quiz presentation" className="rounded-xl border border-stone-300 p-2" value={form.settings.presentation || "question"} onChange={e => setForm(current => ({ ...current, settings: { ...current.settings, presentation: e.target.value as "question" | "page" } }))}>
                     <option value="question">Cards · One question at a time</option><option value="page">Form · Fields together by page</option>
@@ -2361,6 +2054,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                     ) : !mounted ? (
                       <div className="space-y-5">
                         {displayedQuestions.map((q, idx) => {
+                          if (v2 && q.id !== (selectedQuestionId || displayedQuestions[0]?.id)) return null;
                           const isSelected = q.id === selectedQuestionId;
                           const hasLogic = Boolean(
                             form.logicRules?.some(
@@ -2407,7 +2101,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                         >
                           <div className="space-y-5">
                             {displayedQuestions.map((q, idx) => {
-                              const isSelected = q.id === selectedQuestionId;
+                              if (v2 && q.id !== (selectedQuestionId || displayedQuestions[0]?.id)) return null;
+                          const isSelected = q.id === selectedQuestionId;
                               const hasLogic = Boolean(
                                 form.logicRules?.some(
                                   (r) =>
@@ -2539,7 +2234,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             </div>
 
             {/* 3. BOTTOM FLOATING BAR (MATCHING FILLOUT 1:1) */}
-            <div className="py-4 flex items-center justify-between w-full max-w-2xl px-2">
+            <div data-v2-secondary="footer" className="py-4 flex items-center justify-between w-full max-w-2xl px-2">
               <button
                 onClick={() => addQuestion("multiple_choice")}
                 className="px-3.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
@@ -2604,8 +2299,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
               </button>
             </div>
           </main>
-
-          {/* RIGHT COLUMN: FILLOUT PROPERTY INSPECTOR */}
+  );
+  const editorInspector = (
           <aside
             className={`hq-properties w-64 border-l border-gray-200 bg-white flex flex-col shrink-0 overflow-y-auto p-5 space-y-6 ${mobilePanel === "settings" ? "mobile-open" : ""}`}
           >
@@ -3898,8 +3593,378 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
               </div>
             )}
           </aside>
+  );
+  const focusedQuestion = displayedQuestions.find(q => q.id === selectedQuestionId) || displayedQuestions[0];
+  const focusedCanvas = canvasView !== "page" ? editorCanvas : <div className="v2-focused-canvas">
+    <details className="v2-page-options"><summary>Page and presentation settings</summary><div className="space-y-4 p-4">
+      <label className="block">Quiz description<textarea className="hq-input mt-2" value={form.description || ""} onChange={e=>setForm({...form,description:e.target.value})}/></label>
+      <label className="block">Presentation<select aria-label="Quiz presentation" className="hq-input mt-2" value={form.settings.presentation || "question"} onChange={e=>setForm({...form,settings:{...form.settings,presentation:e.target.value as "question"|"page"}})}><option value="question">One question at a time</option><option value="page">Fields together by page</option></select></label>
+      <label className="block">Page name<input className="hq-input mt-2" value={formPages.find(p=>p.id===activePageId)?.title || ""} onChange={e=>renamePage(activePageId,e.target.value)}/></label>
+      {formPages.length>1 && <button type="button" className="hq-secondary" onClick={()=>deletePage(activePageId)}>Delete page and move its questions</button>}
+      <button type="button" className="hq-secondary" onClick={()=>setShowAgentModal(true)}>Generate questions with AI</button>
+    </div></details>
+    {focusedQuestion ? <div data-v2-question className={devicePreview==="mobile"?"v2-focused-question is-mobile":"v2-focused-question"}>
+      <DndContext id="v2-focused-question" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={[focusedQuestion.id]} strategy={verticalListSortingStrategy}>
+          <SortableQuestionCard key={focusedQuestion.id} q={focusedQuestion} idx={form.questions.findIndex(q=>q.id===focusedQuestion.id)} totalQuestions={form.questions.length} isSelected mode={form.marketing?"survey":form.mode}
+            scoring={form.marketing?<AnswerScoring form={form} q={focusedQuestion} onLabelChange={(id,label)=>updateOption(focusedQuestion.id,id,{label})} marketing={form.marketing} onChange={marketing=>setForm(current=>({...current,marketing}))}/>:undefined}
+            hasLogic={Boolean(form.logicRules?.some(rule=>rule.sourceQuestionId===focusedQuestion.id || rule.targetQuestionId===focusedQuestion.id))}
+            onSelect={()=>setSelectedQuestionId(focusedQuestion.id)} onMoveQuestion={moveQuestion} onDuplicateQuestion={duplicateQuestion} onDeleteQuestion={deleteQuestion} onUpdateQuestion={updateQuestion} onUpdateOption={updateOption} onDeleteOption={deleteOption} onAddOption={addOption} onMoveOption={moveOption}/>
+        </SortableContext>
+      </DndContext>
+    </div> : <div className="v2-editor-empty"><h2>Add your first element</h2><p>Choose Add element in the quiz flow to start this page.</p></div>}
+    <p className="v2-canvas-hint">Click text to edit. Use Preview to test the visitor experience.</p>
+  </div>;
+  return (
+    <div inert={navigationPending} className="hq-editor h-screen flex flex-col bg-[#f4f5f7] text-gray-900 overflow-hidden font-sans selection:bg-indigo-500 selection:text-white" onClickCapture={event => {
+      const control = event.target instanceof Element ? event.target.closest<HTMLElement>('button, a[href]') : null;
+      if (control && !control.closest('dialog')) setAccountPromptTrigger(control);
+    }}>
+      <WorkspaceHeader active={activeNavTab === "results" ? "reports" : "overview"} guest={guestDraft} />
+      {guestDraft && (
+        <div className="border-b border-stone-200 bg-[#faf8f5] px-4 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:px-5">
+          <span className="flex items-start gap-2.5"><BookmarkCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#882329]" /><span><strong className="font-semibold text-stone-900">Save your first draft.</strong> {draftAccountState === "signed-in" ? "You’re signed in. Save this quiz to your account to share it and see the answers." : draftAccountState === "guest" ? "Create a free account to save your quiz, share it and see the answers." : "Save your quiz to sync it with your account. Your draft stays on this device until then."}</span></span>
+          <button type="button" data-account-action="save" className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 py-2 font-semibold text-[#882329] hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#882329] disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void saveNow()}>{saveStatus === "saving" ? "Saving…" : "Save my quiz"}</button>
         </div>
       )}
+      {guest && claimed && <div role="status" className="bg-green-50 text-green-950 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
+        <span>Your quiz is now in your account. Keep editing here, or save your latest changes and open its workspace.</span>
+        <button type="button" className="font-semibold underline disabled:opacity-60" disabled={saveStatus === "saving"} onClick={() => void openClaimedQuiz()}>{saveStatus === "saving" ? "Saving changes…" : "Save & open quiz"}</button>
+      </div>}
+      {!guestDraft && authRequired && accountPromptDismissed && <div className="border-b border-stone-200 bg-stone-50 px-5 py-3 text-sm text-stone-700 flex flex-wrap items-center justify-between gap-3">
+        <span>Sign back in to sync your changes. {backedUp ? "Your latest edits are saved on this device." : "Keep this tab open to preserve your edits."}</span>
+        <button type="button" data-account-action="save" className="font-semibold underline underline-offset-4" onClick={() => void saveNow()}>Save changes</button>
+      </div>}
+      {publicationUncertain && <p ref={publicationStatusNotice} tabIndex={-1} role="status" className="bg-amber-50 px-5 py-3 text-sm text-amber-950">Publication may have completed. Keep editing and saving your draft; refresh this editor to check its live version before publishing again.</p>}
+      {publicationNotice && <div role="status" className="bg-stone-100 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><span>{publicationNotice}</span><button className="underline font-semibold" onClick={() => setPublicationNotice("")}>Dismiss notice</button></div>}
+      {storageWarning && saveStatus !== "saved" && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved to your account. <button type="button" className="underline font-semibold" onClick={exportDraft}>Export draft</button></p>}
+      {authRequired && (!accountPromptDismissed || !guestDraft) && <QuizAccountPrompt guest={guestDraft} backedUp={backedUp} tabBackedUp={tabBackedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} accountMismatch={accountMismatch} local={localSession} sessionError={saveError} onExportDraft={exportDraft} onExportReportDesign={reportDesignDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-report-design",draft:reportDesignDraft}, "pippi-unapplied-report-design") : undefined} onExportEmailCopy={emailCopyDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-email-copy",draft:emailCopyDraft}, "pippi-unapplied-email-copy") : undefined} onAuthenticated={afterSignIn} onClose={closeAccountPrompt} onRetry={() => void saveNow(form)} /> }
+      {((saveError && !authRequired) || actionError) && (
+        <div
+          role="alert"
+          className="hq-error fixed bottom-5 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-2rem)] max-w-xl shadow-lg"
+        >
+          {actionError || saveError}
+          <button
+            className="ml-4 underline"
+            onClick={() => {
+              setActionError("");
+              if (saveError && !authRequired) void saveNow(form);
+            }}
+          >
+            {saveError && !authRequired ? "Retry save" : "Dismiss"}
+          </button>
+        </div>
+      )}
+      {recovery && (
+        <div className="bg-amber-50 text-amber-900 text-sm px-6 py-3 flex gap-4">
+          A different draft saved on this device is available. Restoring replaces the current draft; its current contents will first be preserved in Draft history. {recoveries.length > 1 && `${recoveries.length} differing recovery copies are available; choose a copy below.`}
+          <span>“{recovery.title}” · {recovery.questions.length} questions · Based on revision {recovery.revision || 0}.</span>
+          {recoveries.map((copy, index) => <button key={`${copy.instance}:${copy.updatedAt}`} className="font-semibold underline" onClick={() => {
+            if (!canEdit() || !checkpoint("Before recovering a device draft")) return;
+            setForm({ ...copy.form, revision: form.revision }); dismissRecovery();
+          }}>{recoveries.length === 1 ? "Restore changes" : `Restore copy ${index + 1}: ${copy.form.title}`}</button>)}
+          <button className="underline" onClick={dismissRecovery}>
+            Dismiss
+          </button>
+        </div>
+      )}
+      <div inert={authRequired && !guestDraft} className="contents" aria-label="Quiz editor">
+      <div hidden={v2} className={v2 ? "hidden" : "flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2"}>
+        <div className="flex flex-wrap gap-2"><button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={() => setShowThemeModal(true)}>Design quiz</button>{outcomeCreationEnabled && <button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={event => { event.currentTarget.focus(); setShowConversion(true); }}>Change Type</button>}</div>
+        <div role="group" aria-label="Editor mode" className="flex rounded-xl bg-stone-100 p-1">
+          {[{label:"Basic",value:true},{label:"Advanced",value:false}].map(mode=><button key={mode.label} type="button" aria-pressed={guided===mode.value} onClick={()=>changeEditorMode(mode.value)} className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-red-800 ${guided===mode.value?"bg-white text-[#681d27] shadow-sm":"text-stone-500 hover:text-stone-900"}`}>{mode.label}</button>)}
+        </div>
+      </div>
+      {showConversion && <QuizConversionDialog currentType={form.quizType} onClose={() => setShowConversion(false)} onPreview={prepareConversion} onCreate={createConversion} />}
+      {form.conversionReview?.required && (form.quizType === "knowledge" || form.quizType === "scorecard") && <section className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-label="Converted quiz review"><p>Review the copied questions, grading, results and retained branching before publishing this quiz.</p><button type="button" className="hq-secondary mt-2" onClick={() => setForm(current => ({ ...current, conversionReview: current.conversionReview ? { ...current.conversionReview, required: false } : undefined }))}>I reviewed the results and rules</button></section>}
+      {!v2 && <BuilderWalkthrough onShow={target => {
+        if (target === "theme") { setShowThemeModal(true); return; }
+        if (target === "preview") { void handlePreview(); return; }
+        changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page");
+        if (target === "questions") setMobilePanel("fields");
+        requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      }} />}
+      {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
+      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
+      {!guided && <>
+      {v2 ? <V2EditorHeader title={form.title || "Untitled quiz"} onTitleChange={title => setForm({...form,title})} saveLabel={mobileSaveStatus} publicationLabel={publicationLabel} activeSection={activeNavTab} onSectionChange={setActiveNavTab} onDesign={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} onPublish={requestPublish} previewing={previewing} publishing={publishing || pausing || publicationUncertain} actions={<>
+        <button type="button" onClick={() => void saveNow()}>Save draft</button><button type="button" onClick={openDraftHistory}>Draft history</button><button type="button" onClick={() => setShowConversationMap(true)}>Conversation map</button><button type="button" onClick={() => {setSelectedQuestionId(null);setActiveNavTab("edit");}}>Form settings</button><button type="button" onClick={() => {setJsonText(JSON.stringify(form,null,2));setShowJsonModal(true);}}>Schema JSON</button>{outcomeCreationEnabled && <button type="button" onClick={() => setShowConversion(true)}>Change type</button>}{isPublished && <button type="button" disabled={pausing || publishing || publicationUncertain} onClick={openPausePublication}>Pause publication</button>}
+      </>} /> : <>
+      <EditorMobileHeader
+        title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
+        status={mobileSaveStatus} onSave={() => void saveNow()} saveFailed={saveStatus === "error" && !authRequired}
+        published={isPublished} publicationLabel={publicationLabel}
+        onTheme={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} previewing={previewing} previewLabel={guestDraft ? "Save to preview" : "Preview"}
+        onPublish={requestPublish} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain}
+        activeSection={activeNavTab}
+        sections={(["edit", "contacts", "marketing", "integrate", "share", "results"] as const).map(tab => ({ id: tab, label: { edit: "Edit", contacts: "Contacts", marketing: "Marketing", integrate: "Integrate", share: "Share", results: "Results" }[tab], onClick: () => { if (guestDraft && !["edit", "marketing"].includes(tab)) { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } }))}
+        actions={[
+          { label: "Fields", onClick: () => { setActiveNavTab("edit"); setMobilePanel("fields"); } },
+          { label: "Question settings", onClick: () => { setActiveNavTab("edit"); if (!selectedQuestionId) setSelectedQuestionId(form.questions[0]?.id || null); setMobilePanel("settings"); } },
+          { label: "Form settings", onClick: () => { setSelectedQuestionId(null); setActiveNavTab("edit"); setMobilePanel("settings"); } },
+          { label: "Conversation map", onClick: () => { setMobilePanel(null); setShowConversationMap(true); } },
+          { label: "Basic mode", onClick: () => { setMobilePanel(null); changeEditorMode(true); } },
+          { label: "Draft history", onClick: openDraftHistory },
+          { label: "Save draft", onClick: () => void saveNow() },
+          { label: "Declarative Schema JSON", onClick: () => { setJsonText(JSON.stringify(form, null, 2)); setShowJsonModal(true); } },
+          { label: "Back to dashboard", onClick: () => { void saveNow().then(saved => { if (saved) window.location.assign("/"); }); } },
+        ]}
+        extra={<><ScoringMode form={form} onChange={setForm}/><fieldset><legend className="mb-2 text-xs font-semibold">Canvas preview size</legend><div className="flex gap-2"><button type="button" aria-pressed={devicePreview === "desktop"} onClick={() => setDevicePreview("desktop")} className="hq-secondary !px-3 !py-2 !text-xs">Desktop View</button><button type="button" aria-pressed={devicePreview === "mobile"} onClick={() => setDevicePreview("mobile")} className="hq-secondary !px-3 !py-2 !text-xs">Mobile Mockup</button></div></fieldset></>}
+      />
+      {/* Full-width studio controls stay available on larger screens. */}
+      <header className="studio-toolbar hidden lg:flex min-h-14 py-2 gap-2 flex-wrap border-b border-gray-200 bg-white px-4 items-center justify-between shrink-0 z-30 shadow-xs">
+        <div className="flex items-center gap-2.5">
+
+
+          <div className="flex items-center gap-1 group cursor-pointer">
+            <input
+              aria-label="Quiz name"
+              type="text"
+              value={form.title ?? ""}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="bg-transparent hover:bg-gray-100/70 focus:bg-white font-semibold text-sm text-gray-900 px-2 py-1 rounded-md border border-transparent hover:border-gray-200 focus:border-indigo-500 outline-none transition max-w-[200px] sm:max-w-xs truncate"
+            />
+            <ChevronDownIcon className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-600" />
+          </div>
+
+          <span role="status" className="text-xs text-gray-600 flex items-center gap-1 ml-2 font-mono">
+            {saveStatus === "error" && !authRequired ? <button className="text-rose-700 underline" onClick={() => void saveNow()}>{mobileSaveStatus} Retry save</button> : <span className={saveStatus === "saved" && !guestDraft ? "text-emerald-700" : "text-stone-700"}>{mobileSaveStatus}</span>}
+          </span>
+        </div>
+
+        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Basic mode</button>
+        {/* Center Fillout Tabs Capsule */}
+        <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
+          <button
+            onClick={() => setActiveNavTab("edit")}
+            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
+              activeNavTab === "edit"
+                ? "bg-white text-gray-900 shadow-xs font-semibold"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Pencil size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Edit
+          </button>
+
+          <button onClick={() => guestDraft ? void saveNow() : setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
+          <button
+            onClick={() => setActiveNavTab("marketing")}
+            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}
+          >
+            <Sparkles size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Marketing
+          </button>
+          <button
+            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("integrate")}
+            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
+              activeNavTab === "integrate"
+                ? "bg-white text-gray-900 shadow-xs font-semibold"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Plug size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Integrate
+          </button>
+
+          <button
+            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("share")}
+            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
+              activeNavTab === "share"
+                ? "bg-white text-gray-900 shadow-xs font-semibold"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Share2 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Share
+          </button>
+
+          <button
+            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("results")}
+            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
+              activeNavTab === "results"
+                ? "bg-white text-gray-900 shadow-xs font-semibold"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <BarChart3 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Results
+          </button>
+        </div>
+
+        <button
+          className="hq-secondary !px-3 !py-2 text-xs"
+          onClick={() => {
+            setSelectedQuestionId(null);
+            setActiveNavTab("edit");
+            setMobilePanel("settings");
+          }}
+        >
+          <Settings size={15} /> Form settings
+        </button>
+        {/* Right Fillout Action Buttons */}
+        <div className="studio-actions flex items-center gap-2">
+          {/* Keep theme controls outside the scrolling canvas in every editor view. */}
+          <button
+            onClick={() => setShowThemeModal(true)}
+            className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
+          >
+            <Paintbrush className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Theme</span>
+          </button>
+          <span data-tour="scoring"><ScoringMode form={form} onChange={setForm} /></span>
+          <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Basic mode</button>
+          <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
+          {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
+          {/* Device Mockup Toggle */}
+          <div className="hidden sm:flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
+            <button
+              onClick={() => setDevicePreview("desktop")}
+              className={`p-1.5 rounded-md text-xs transition ${
+                devicePreview === "desktop"
+                  ? "bg-white text-gray-900 shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              title="Desktop View"
+            >
+              <Monitor className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setDevicePreview("mobile")}
+              className={`p-1.5 rounded-md text-xs transition ${
+                devicePreview === "mobile"
+                  ? "bg-white text-gray-900 shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              title="Mobile Mockup"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <button onClick={openDraftHistory} className="hq-secondary !px-3 !py-1.5 !text-xs" title="Restore a safety checkpoint saved on this device">
+            <History className="w-3.5 h-3.5" aria-hidden="true" /> Draft history
+          </button>
+
+          {/* JSON Schema Button */}
+          <button
+            onClick={() => {
+              setJsonText(JSON.stringify(form, null, 2));
+              setShowJsonModal(true);
+            }}
+            className="p-1.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition border border-gray-200"
+            title="Declarative Schema JSON"
+          >
+            <Code2 className="w-4 h-4" />
+          </button>
+
+          {/* Preview Button */}
+          <button
+            type="button"
+            onClick={() => void handlePreview()}
+            disabled={previewing}
+            className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-300 shadow-xs transition flex items-center gap-1.5"
+          >
+            <Play className="w-3 h-3 fill-gray-600 text-gray-600" />
+            <span>{previewing ? "Saving preview…" : guestDraft ? "Save to preview" : "Preview"}</span>
+          </button>
+
+          {/* Publish Button */}
+          <button
+            data-publication-action="publish"
+            onClick={requestPublish}
+            disabled={publishing || pausing || publicationUncertain}
+            className="px-4 py-1.5 rounded-lg bg-[#18181b] hover:bg-black text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+            <span>Publish</span>
+          </button>
+        </div>
+      </header>
+
+      </>}
+      {/* 2. MAIN 3-COLUMN STUDIO LAYOUT */}
+      {activeNavTab === "edit" && (v2 ? <V2EditorLayout form={form} selectedQuestionId={selectedQuestionId} activePageId={activePageId} canvasView={canvasView}
+        onSelectQuestion={id => {const q=form.questions.find(q=>q.id===id);if(q){setSelectedQuestionId(id);setActivePageId(q.pageId || formPages[0].id);setCanvasView("page");}}}
+        onSelectPage={id => {setActivePageId(id);setCanvasView("page");setSelectedQuestionId(form.questions.find(q=>(q.pageId || formPages[0].id)===id)?.id || null);}}
+        onSelectView={setCanvasView} onAddElement={(type,index)=>{const pageIndices=form.questions.map((q,i)=>(q.pageId || formPages[0].id)===activePageId?i:-1).filter(i=>i>=0);addQuestion(type,index ?? (pageIndices.length?pageIndices[pageIndices.length-1]+1:form.questions.length));}}
+        onMoveQuestion={(id,direction)=>moveQuestion(id,direction===-1?"up":"down")}
+        onReorderQuestion={(id,beforeId,targetPageId)=>{setActivePageId(targetPageId);setSelectedQuestionId(id);setCanvasView("page");setForm(current=>{const moved=current.questions.find(q=>q.id===id);if(!moved || id===beforeId)return current;const questions=current.questions.filter(q=>q.id!==id);const target=beforeId?questions.findIndex(q=>q.id===beforeId):questions.length;if(target<0)return current;questions.splice(target,0,{...moved,pageId:targetPageId});return {...current,questions};});}} paletteSections={PALETTE_SECTIONS} canvas={focusedCanvas} inspector={editorInspector}
+        onLogic={()=>setShowLogicModal(true)} onLeadCapture={()=>setActiveNavTab("contacts")} onAddPage={addPage}
+        toolbar={<><ScoringMode form={form} onChange={setForm}/><button type="button" className="hq-secondary" onClick={()=>setDevicePreview(devicePreview==="desktop"?"mobile":"desktop")}>{devicePreview==="desktop"?"Mobile view":"Desktop view"}</button></>}
+      /> : (
+        <div className="flex-1 flex overflow-hidden">
+          {/* LEFT COLUMN: FILLOUT FIELD PALETTE */}
+          <aside
+            data-tour="questions"
+            className={`hq-field-palette w-64 border-r border-gray-200 bg-white flex flex-col shrink-0 ${mobilePanel === "fields" ? "mobile-open" : ""}`}
+          >
+            <button
+              className="hq-secondary m-3 lg:hidden"
+              onClick={() => setMobilePanel(null)}
+            >
+              Close fields
+            </button>
+            {/* Search Fields Input */}
+            <div className="p-4 border-b border-gray-100">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search fields"
+                  value={searchFieldQuery}
+                  onChange={(e) => setSearchFieldQuery(e.target.value)}
+                  className="w-full bg-gray-50/80 border border-gray-200 focus:border-indigo-500 focus:bg-white rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-900 outline-none transition"
+                />
+              </div>
+            </div>
+
+            {/* Categorized Field Grid */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {PALETTE_SECTIONS.map((section) => {
+                const filteredItems = section.items.filter((item) =>
+                  item.label
+                    .toLowerCase()
+                    .includes(searchFieldQuery.toLowerCase()),
+                );
+                if (filteredItems.length === 0) return null;
+
+                return (
+                  <div key={section.category} className="space-y-2">
+                    <span className="text-[11px] font-semibold text-gray-600 block px-1">
+                      {section.category}
+                    </span>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {filteredItems.map((item) => {
+                        const IconComp = item.icon;
+                        return (
+                          <button
+                            key={item.type}
+                            onClick={() => addQuestion(item.type)}
+                            className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/80 hover:border-gray-300 bg-white hover:bg-gray-50/80 transition-all group text-center cursor-pointer shadow-xs active:scale-95"
+                          >
+                            <div
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1.5 border transition ${item.color}`}
+                            >
+                              <IconComp className="w-4 h-4" />
+                            </div>
+                            <span className="text-[11px] font-medium text-gray-700 leading-tight line-clamp-2">
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+
+          {/* CENTER COLUMN: FILLOUT CANVAS (WYSIWYG DOCUMENT) */}
+          {editorCanvas}
+
+          {/* RIGHT COLUMN: FILLOUT PROPERTY INSPECTOR */}
+          {editorInspector}
+        </div>
+      ))}
 
       {/* RESULTS & ANALYTICS TAB */}
       {activeNavTab === "contacts" && <ContactsStudio form={form} onChange={setForm} />}

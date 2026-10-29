@@ -5,6 +5,8 @@ import { ArrowUpRight, FilePlus2, LayoutTemplate, ListChecks, Sparkles } from "l
 import { creationTypeHref } from "@/lib/creation-quiz-type";
 import type { QuizType } from "@/lib/quiz-types";
 import { clarityEvent } from "@/lib/clarity";
+import { useInterfaceVersion } from "./v2/InterfaceContext";
+import "./v2/creation.css";
 
 const paths = [
   { id: "blank", title: "Start blank", description: "Write your own questions on an empty canvas. You decide what goes in.", href: "/create/blank", icon: FilePlus2 },
@@ -19,8 +21,9 @@ export default function CreationPaths({ busy = false, onBlank, onAI, quizType }:
   onBlank?: () => void;
   onAI?: () => void;
 }) {
+  const v2 = useInterfaceVersion() === "v2";
   const cardClass = "group min-w-0 rounded-2xl border border-stone-200 bg-white p-4 text-left text-slate-900 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.12)] transition-[border-color,background-color,box-shadow] hover:shadow-md hover:border-[#a92335] hover:bg-[#fffaf8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#a92335] disabled:cursor-wait disabled:opacity-60 sm:p-6";
-  return <div role="group" aria-label="Ways to create a quiz" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  return <div role="group" aria-label="Ways to create a quiz" className={`${v2 ? "v2-creation-paths " : ""}grid gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
     {paths.map(({ id, title, description, href, icon: Icon }) => {
       const action = id === "blank" ? onBlank : id === "ai" ? onAI : undefined;
       const content = <>

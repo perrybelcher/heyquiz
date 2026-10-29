@@ -1,12 +1,15 @@
 "use client";
 
 import { useId, useRef, useState, type ReactNode } from "react";
+import { useInterfaceVersion } from "./v2/InterfaceContext";
+import "./v2/data.css";
 
 export default function ReportTabs({ analytics, responses }: { analytics: ReactNode; responses: ReactNode }) {
+  const v2 = useInterfaceVersion() === "v2";
   const [active, setActive] = useState(0);
   const id = useId();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
-  return <div className="mt-7">
+  return <div className={v2 ? "v2-report-tabs mt-7" : "mt-7"}>
     <div role="tablist" aria-label="Quiz report views" className="flex w-fit gap-1 rounded-xl bg-stone-100 p-1" onKeyDown={event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();

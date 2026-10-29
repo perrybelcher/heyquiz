@@ -1,5 +1,7 @@
 "use client";
 import WorkspaceHeader from "./WorkspaceHeader";
+import { useInterfaceVersion } from "./v2/InterfaceContext";
+import "./v2/data.css";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FlaskConical, ArrowLeft, RefreshCw, Copy, Pause, Play, ClipboardCheck } from "lucide-react";
@@ -25,6 +27,7 @@ function PlanSummary({ plan }: { plan: ExperimentPlan }) {
 }
 
 export default function Experiments({ handoff = null, handoffError = "" }: { handoff?: ExperimentEvidenceHandoff | null; handoffError?: string }) {
+  const v2 = useInterfaceVersion() === "v2";
   const handoffKey = JSON.stringify(handoff);
   const [removedHandoff, setRemovedHandoff] = useState<string | null>(null);
   const attached = handoff && removedHandoff !== handoffKey ? handoff : null;
@@ -176,9 +179,9 @@ export default function Experiments({ handoff = null, handoffError = "" }: { han
     window.history.replaceState(window.history.state, "", "/experiments");
     requestAnimationFrame(() => versionAControl.current?.focus());
   }
-  return <><WorkspaceHeader active="more" /><main className="mx-auto w-full min-w-0 max-w-6xl px-5 py-10 text-slate-900">
+  return <><WorkspaceHeader active="more" /><main className={v2 ? "v2-data-page v2-experiments-page" : "mx-auto w-full min-w-0 max-w-6xl px-5 py-10 text-slate-900"}>
     <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-600"><ArrowLeft size={16} aria-hidden="true"/>Workspace</Link>
-    <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div><p className="flex items-center gap-2 text-sm font-semibold text-red-800"><FlaskConical size={18} aria-hidden="true"/>Conversion experiments</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">Find the words that work.</h1><p className="mt-3 max-w-2xl text-slate-600">Compare two published quiz versions with an approximately 50/50 random split. Change one thing at a time for a clearer comparison.</p></div><button className="hq-secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={16} aria-hidden="true"/>Refresh results</button></div>
+    <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div><p className="flex items-center gap-2 text-sm font-semibold text-red-800"><FlaskConical size={18} aria-hidden="true"/>Conversion experiments</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">{v2 ? "Experiments" : "Find the words that work."}</h1><p className="mt-3 max-w-2xl text-slate-600">Compare two published quiz versions with an approximately 50/50 random split. Change one thing at a time for a clearer comparison.</p></div><button className="hq-secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={16} aria-hidden="true"/>Refresh results</button></div>
     {handoffError && <p role="alert" className="my-5 rounded-xl bg-amber-50 p-4 text-amber-900">{handoffError}</p>}
     {error && <p ref={errorBox} tabIndex={-1} role="alert" className="my-5 rounded-xl bg-red-50 p-4 text-red-800">{error}</p>}
     {notice && <p role="status" className="my-5 rounded-xl bg-green-50 p-4 text-green-800">{notice}</p>}

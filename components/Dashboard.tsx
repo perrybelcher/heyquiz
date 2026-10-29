@@ -14,17 +14,21 @@ import {
   Layers,
   FileText,
   X,
+  Plus,
+  ArrowRight,
 } from "lucide-react";
 import type { FormSchemaType } from "@/lib/schema";
 import { blankQuiz } from "@/lib/blank-quiz";
 import { marketingTemplate } from "@/lib/marketing-templates";
 import type { MarketingConfig } from "@/lib/marketing";
 import WorkspaceHeader from "./WorkspaceHeader";
+import { useInterfaceVersion } from "./v2/InterfaceContext";
 export default function Dashboard({
   initialForms,
 }: {
   initialForms: FormSchemaType[];
 }) {
+  const v2 = useInterfaceVersion() === "v2";
   const [forms, setForms] = useState(initialForms),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -126,16 +130,20 @@ export default function Dashboard({
     }
   }
   return (
-    <div className="pippi-app min-h-screen bg-[#f8f9f5] text-slate-900">
+    <div className={v2 ? "v2-page min-h-screen" : "pippi-app min-h-screen bg-[#f8f9f5] text-slate-900"}>
       <WorkspaceHeader active="overview" />
-      <main className="max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10">
-        <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} recentQuiz={forms[0]} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />
+      <main className={v2 ? "v2-page-inner" : "max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10"}>
+        {v2 ? <>
+          <header className="v2-page-heading"><div><h1>Your quizzes <span className="v2-beta">Beta</span></h1><p>Create, refine, and share your next conversation.</p></div><div className="v2-heading-actions"><Link href="/templates" className="v2-button">Browse templates</Link><Link href="/create" className="v2-button v2-button-primary"><Plus size={16} aria-hidden="true" />Create quiz</Link></div></header>
+          <div className="v2-quiz-summary"><dl aria-label="Workspace overview"><div><dt>Total quizzes</dt><dd>{forms.length}</dd></div><div><dt>Published</dt><dd>{forms.filter(form => form.publishedAt).length}</dd></div><div><dt>In progress</dt><dd>{forms.filter(form => !form.publishedAt).length}</dd></div></dl>{forms[0] && <Link className="v2-recent-link" href={`/editor/${forms[0].id}`}><span>Continue: {forms[0].title}</span><ArrowRight size={15} aria-hidden="true" /></Link>}</div>
+          {!forms.length && <section className="mb-8" aria-label="Create your first quiz"><CreationPaths busy={busy} onBlank={() => void create()} onAI={() => { setError(""); setAIGoal("choose"); setAgent(true); }} /></section>}
+        </> : <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} recentQuiz={forms[0]} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />}
         {error && !agent && (
           <p role="alert" className="hq-error mb-6">
             {error}
           </p>
         )}
-        <div className="flex flex-col sm:flex-row justify-between gap-5 mb-6">
+        <div className={`flex flex-col sm:flex-row justify-between gap-5 mb-6 ${v2 ? "v2-quiz-toolbar" : ""}`}>
           <nav
             aria-label="Filter quizzes"
             className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit max-w-full overflow-x-auto"
@@ -170,7 +178,18 @@ export default function Dashboard({
             />
           </label>
         </div>
-        {filtered.length ? (
+        {filtered.length && v2 ? <div className="v2-quiz-list" aria-label="Your quizzes">
+          <div className="v2-quiz-list-head" aria-hidden="true"><span>Quiz</span><span>Status</span><span>Questions</span><span className="v2-quiz-updated">Last updated</span><span>Preview</span><span /></div>
+          {filtered.map(form => <article key={form.id} className="v2-quiz-row">
+            <Link className="v2-quiz-title" href={`/editor/${form.id}`}><span className="v2-quiz-icon">{form.mode === "quiz" ? <Layers size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}</span><div><h2>{form.title}</h2><p>{form.description || "Ready for your next question."}</p></div></Link>
+            <span className={`v2-quiz-status ${form.publishedAt ? "is-published" : ""}`}>{form.publishedAt ? "Published" : "Draft"}</span>
+            <span className="v2-quiz-meta">{form.questions.length} {form.questions.length === 1 ? "question" : "questions"}</span>
+            <span className="v2-quiz-meta v2-quiz-updated">{form.updatedAt && Number.isFinite(Date.parse(form.updatedAt)) ? new Date(form.updatedAt).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }) : "Not yet saved"}</span>
+            <Link className="v2-quiz-link" href={`/play/${form.id}${form.publishedAt ? "" : "?preview=1"}`} target="_blank" rel="noopener noreferrer">{form.publishedAt ? "View live" : "Preview"}<ArrowUpRight size={13} aria-hidden="true" /></Link>
+            <button type="button" className="hq-icon" data-quiz-menu aria-label={`Actions for ${form.title}`} aria-expanded={menu === form.id} onClick={event => { menuTrigger.current = event.currentTarget; setMenu(menu === form.id ? null : form.id); }}><MoreHorizontal size={18} aria-hidden="true" /></button>
+            {menu === form.id && <div data-quiz-menu className="v2-quiz-menu"><button type="button" disabled={busy} onClick={() => void create(form)}><Copy size={15} aria-hidden="true" />Duplicate</button><button type="button" className="text-rose-700" onClick={() => void remove(form.id)}><Trash2 size={15} aria-hidden="true" />Delete quiz</button></div>}
+          </article>)}
+        </div> : filtered.length ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((f) => (
               <article

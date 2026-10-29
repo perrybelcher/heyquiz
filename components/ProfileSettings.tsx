@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import type { FormEvent } from "react";
 import Link from "next/link";
 import type { ProfileView } from "@/lib/profile-contract";
+import InterfacePreference from "./v2/InterfacePreference";
+import { useInterfaceVersion } from "./v2/InterfaceContext";
 import { registerWorkspaceNavigationGuard, workspaceNavigationApproved, subscribeWorkspaceNavigation, workspaceNavigationPending } from "@/lib/workspace-navigation";
 
 const sectionClass = "rounded-2xl border border-[#e4e5de] bg-white p-5 sm:p-7";
@@ -11,6 +13,7 @@ type Section = "details" | "email" | "password";
 type Feedback = { text: string; error?: boolean };
 
 export default function ProfileSettings({ accountKey }: { accountKey?: string } = {}) {
+  const v2 = useInterfaceVersion() === "v2";
   const navigationPending = useSyncExternalStore(subscribeWorkspaceNavigation, workspaceNavigationPending, () => false);
   const [profile, setProfile] = useState<ProfileView | null>(null);
   const [name, setName] = useState("");
@@ -106,13 +109,14 @@ export default function ProfileSettings({ accountKey }: { accountKey?: string } 
   }
   const message = (section: Section) => feedback[section] && <p role={feedback[section]?.error ? "alert" : "status"} className={feedback[section]?.error ? "hq-error mt-4" : "mt-4 text-sm text-emerald-800"}>{feedback[section]?.text}</p>;
 
-  return <main inert={navigationPending} className="max-w-3xl mx-auto px-5 py-7 sm:px-10 sm:py-10">
+  return <main inert={navigationPending} className={`max-w-3xl mx-auto px-5 py-7 sm:px-10 sm:py-10 ${v2 ? "v2-page v2-profile" : ""}`}>
     <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
-    <p className="mt-2 mb-7 text-sm text-slate-500">Manage your details and account security.</p>
+    <p className="mt-2 mb-7 text-sm text-slate-500">Manage your details, workspace interface, and account security.</p>
     {needsSignIn && <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Sign into the original account in a new tab, then return here and retry. Your entries stay in this tab. <Link href="/login?next=%2Fprofile" prefetch={false} target="_blank" rel="noopener noreferrer" className="font-semibold underline">Sign in again</Link></p>}
     {loading && <p role="status" className="text-sm text-slate-500">Loading your profile…</p>}
     {loadError && <div className="hq-error" role="alert"><p>{loadError}</p><button type="button" className="hq-secondary mt-3" onClick={() => void reloadLatestDetails()}>Retry loading profile</button></div>}
     {profile && <div className="space-y-5">
+      <InterfacePreference key={accountKey} accountKey={accountKey} disabled={!!busy || loading} />
       <section className={sectionClass}><h2 className="text-lg font-semibold">Your details</h2><form className="mt-5" onChange={() => setFeedback(value => ({ ...value, details: undefined }))} onSubmit={event => void submit(event, "details")}><fieldset disabled={!!busy || loading} className="space-y-4"><label className="block text-sm font-medium">Name<input className="hq-input mt-2" autoComplete="name" value={name} onChange={event => setName(event.target.value)} /></label><label className="block text-sm font-medium">Company<input className="hq-input mt-2" autoComplete="organization" value={company} onChange={event => setCompany(event.target.value)} /></label><button className="hq-primary" disabled={name === profile.name && company === profile.company}>{busy === "details" ? "Saving…" : "Save details"}</button></fieldset>{message("details")}{detailsConflict && <div className="mt-4"><p className="mb-3 text-sm text-slate-500">Your profile changed elsewhere. Reload the latest details before saving again.</p><button type="button" className="hq-secondary" disabled={!!busy || loading} onClick={() => void reloadLatestDetails()}>Reload latest details</button></div>}</form></section>
       <section className={sectionClass}><h2 className="text-lg font-semibold">Email address</h2><p className="mt-2 text-sm text-slate-500">Current sign-in email: <span className="text-slate-800 break-all">{profile.email || "Not available in local mode"}</span></p>{profile.pendingEmail && <p role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Pending confirmation: {profile.pendingEmail}. This is not your confirmed sign-in email yet.</p>}{profile.local && <p className="mt-3 text-sm text-slate-500">Email and password changes are unavailable in local mode.</p>}<form className="mt-5" onChange={() => setFeedback(value => ({ ...value, email: undefined }))} onSubmit={event => void submit(event, "email")}><fieldset disabled={!!busy || loading || profile.local} className="space-y-4"><label className="block text-sm font-medium">New email address<input className="hq-input mt-2" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} /></label><label className="block text-sm font-medium">Current password to confirm email change<input className="hq-input mt-2" type="password" autoComplete="current-password" required value={emailPassword} onChange={event => setEmailPassword(event.target.value)} /></label><button className="hq-primary">{busy === "email" ? "Requesting change…" : "Request email change"}</button></fieldset>{message("email")}</form></section>
       <section className={sectionClass}><h2 className="text-lg font-semibold">Password</h2><p className="mt-2 text-sm text-slate-500">Confirm your current password before choosing a new one.</p><form className="mt-5" onChange={() => setFeedback(value => ({ ...value, password: undefined }))} onSubmit={event => void submit(event, "password")}><fieldset disabled={!!busy || loading || profile.local} className="space-y-4"><label className="block text-sm font-medium">Current password<input className="hq-input mt-2" type="password" autoComplete="current-password" required value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} /></label><label className="block text-sm font-medium">New password<input className="hq-input mt-2" type="password" autoComplete="new-password" required value={password} onChange={event => setPassword(event.target.value)} /></label><label className="block text-sm font-medium">Confirm new password<input className="hq-input mt-2" type="password" autoComplete="new-password" required value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} /></label><button className="hq-primary">{busy === "password" ? "Updating password…" : "Update password"}</button></fieldset>{message("password")}</form></section>

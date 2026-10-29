@@ -1,5 +1,6 @@
 "use client";
 
+import { useInterfaceVersion } from "./v2/InterfaceContext";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -31,6 +32,7 @@ export function usesNativeWorkspaceLink(event: Pick<MouseEvent<HTMLAnchorElement
 }
 
 export default function WorkspaceHeader({ active, guest = false }: { active?: Section; guest?: boolean }) {
+  const interfaceVersion = useInterfaceVersion();
   const id = useId(), root = useRef<HTMLElement>(null), moreTrigger = useRef<HTMLButtonElement>(null), profileTrigger = useRef<HTMLButtonElement>(null), mobileTrigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState<"more" | "profile" | "mobile" | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null), [profileState, setProfileState] = useState<ProfileState>("loading");
@@ -89,6 +91,7 @@ export default function WorkspaceHeader({ active, guest = false }: { active?: Se
   const link = (label: string, href: string, current = false, className = "") => <Link prefetch={false} key={label} href={href} aria-current={current ? "page" : undefined} className={`workspace-header-link ${current ? "is-current" : ""} ${className}`} onClick={event => void follow(event, href)}>{label}</Link>;
   const accountLinks = () => signedOut ? <>{link("Sign in", signInHref)}{link("Create account", signupHref)}</> : <>{link("My profile", "/profile", section === "profile")}<button type="button" className="workspace-header-link" disabled={busy} onClick={() => void signOut()}>Sign out</button></>;
 
+  if (interfaceVersion === "v2") return null;
   return <header ref={root} className="workspace-header" data-guest-draft={guest || undefined}>
     <div className="workspace-header-bar">
       <Link prefetch={false} href="/" className="workspace-header-logo" aria-label="Pippi overview" onClick={event => void follow(event, "/")}><Image src="/pippi-logo.svg" alt="Pippi" width="100" height="32" /></Link>

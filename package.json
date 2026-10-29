@@ -42,7 +42,8 @@
     "test:browser-meta": "node tests/browser-meta.cjs",
     "test:outcomes": "node tests/quiz-types.cjs && node tests/outcome-creation.cjs && node tests/outcome-creation-gate.cjs && node tests/outcome-ai.cjs && node tests/quiz-conversion.cjs && node tests/outcome-consumers.cjs && node tests/outcome-independent-qa.cjs && node tests/quiz-json-type.cjs",
     "test:browser-outcomes": "node tests/browser-outcome-quizzes.cjs",
-    "test:browser-outcome-creation": "node tests/browser-outcome-creation.cjs"
+    "test:browser-outcome-creation": "node tests/browser-outcome-creation.cjs",
+    "test:v2": "node tests/interface-rollout.cjs && node tests/interface-telemetry.cjs && node tests/v2-field-compatibility.cjs && node tests/v2-element-picker.cjs && node tests/v2-editor-order.cjs && node tests/v2-data-screens.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
