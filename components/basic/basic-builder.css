@@ -180,3 +180,8 @@ body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:170px!importan
 .basic-builder .basic-answer-actions{display:flex;align-items:center;gap:4px}
 .basic-builder .basic-answer-actions button{width:44px;min-width:44px;height:44px;padding:10px;display:inline-flex;align-items:center;justify-content:center}
 @media(max-width:767px){.basic-builder .basic-association>.basic-field{min-width:0;flex-basis:auto}.basic-builder .basic-association-details>summary{min-height:44px}}
+.basic-builder .basic-association-main{display:grid;grid-template-columns:minmax(0,1fr) 96px;grid-column:1 / -1;align-items:center;gap:12px;min-width:0}
+.basic-builder .basic-association-main>.basic-field{min-width:0;gap:3px;font-size:11px}
+.basic-builder .basic-association-main>.basic-field input{width:100%;min-height:44px;padding:7px 9px}
+.basic-builder .basic-association-details>summary,.basic-builder .basic-add-association>summary{min-height:44px}
+.basic-builder .basic-preview-frame>.basic-help{padding:14px 16px;border-bottom:1px solid var(--basic-border);background:var(--basic-canvas);font-size:12px;line-height:1.5}
