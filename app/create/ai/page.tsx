@@ -1,3 +1,4 @@
+import AIQuizTypeStart from "@/components/AIQuizTypeStart";
 import { redirect } from "next/navigation";
 import { creationQuizType, creationTypeHref } from "@/lib/creation-quiz-type";
 import AIQuizBuilder from "@/components/AIQuizBuilder";
@@ -9,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AICreatePage({searchParams}:{searchParams:Promise<{quizType?:string}>}) {
   const quizType=creationQuizType((await searchParams).quizType);
-  if(quizType && quizType!=="knowledge")redirect(creationTypeHref("/create/marketing",quizType));
+  if (!quizType) return <AIQuizTypeStart />;
+  if(quizType!=="knowledge")redirect(creationTypeHref("/create/marketing",quizType));
   const user = await currentUser();
   return <AIQuizBuilder initialQuizType={quizType} signedIn={Boolean(user)} aiAvailable={Boolean(process.env.GEMINI_API_KEY)} />;
 }

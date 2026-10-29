@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import AIQuizTypeStart from "@/components/AIQuizTypeStart";
 import { creationQuizType, creationTypeHref } from "@/lib/creation-quiz-type";
 import Link from "next/link";
 import WorkspaceHeader from "@/components/WorkspaceHeader";
@@ -11,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function MarketingCreatePage({searchParams}:{searchParams:Promise<{quizType?:string}>}) {
   const initialQuizType=creationQuizType((await searchParams).quizType);
+  if (!initialQuizType) return <AIQuizTypeStart />;
+  if (initialQuizType === "knowledge") redirect(creationTypeHref("/create/ai", initialQuizType));
   const user = await currentUser();
   if (!user) return (
     <><WorkspaceHeader guest />
