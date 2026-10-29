@@ -38,7 +38,7 @@
     "test:browser-sales": "node tests/browser-sales.cjs",
     "test:account-auth": "node tests/account-auth.cjs",
     "test:browser-auth": "node tests/browser-auth.cjs",
-    "test:meta": "node tests/meta.cjs",
+    "test:meta": "node tests/meta.cjs && node tests/meta-qualification-types.cjs",
     "test:browser-meta": "node tests/browser-meta.cjs",
     "test:outcomes": "node tests/quiz-types.cjs && node tests/outcome-creation.cjs && node tests/outcome-creation-gate.cjs && node tests/outcome-ai.cjs && node tests/quiz-conversion.cjs && node tests/outcome-consumers.cjs && node tests/outcome-independent-qa.cjs && node tests/quiz-json-type.cjs",
     "test:browser-outcomes": "node tests/browser-outcome-quizzes.cjs",

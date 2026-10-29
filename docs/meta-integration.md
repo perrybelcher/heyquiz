@@ -25,7 +25,8 @@ Select **Qualified — Quiz name** in the website ad set, using the connected da
 
 - No Pixel script, contact matching or CAPI event is sent before advertising tracking consent. Email marketing consent is separate.
 - `PageView` happens after consent, before Start. An abandoned quiz adds no other Meta event.
-- Qualification uses the frozen server-side attempt, actual answer IDs, outcome IDs and valid knowledge/scorecard scores. All conditions must match. Missing information is unclassified. Empty rules cannot be published as enabled.
+- Qualification uses the frozen server-side attempt, actual answer IDs, outcome IDs and valid knowledge/scorecard scores. All conditions must match. Missing answers, missing scores and fallback results without a known outcome remain unclassified. A known result that differs from the selected result can be Disqualified. Empty rules cannot be published as enabled.
+- Scorecards support named overall result bands and percentage thresholds for either the overall score or a specific category. Category thresholds can be used even when the overall score is unavailable. Removed categories or bands must be reviewed before publishing.
 - A completed submission with saved contact details produces exactly one `Qualified` or `Disqualified` event. After-results capture waits for contact details. No standard `Lead` event is emitted.
 - Browser and server events share `event_name` and `event_id`. Jobs and their original timestamps survive retries. There is no historical backfill.
 - `user_data` includes available normalized, SHA-256-hashed email, valid international phone and an owner-scoped lead identifier. Optional mappings use existing explicit contact/location answers. Pippi does not guess names, phone countries or demographics.
@@ -43,8 +44,9 @@ Accepted API requests are labeled **Accepted by Meta**, never attributed or matc
 
 ## Verification
 
-- `npm run test:meta`: qualification, missing scores, strict payloads, hashing, tenant isolation, durable delivery, retries, expiry, withdrawal, conversion recovery and capacity.
+- `npm run test:meta`: all 18 authored templates across six quiz types, missing qualification requirements, overall bands, category score boundaries and unavailable scores, plus qualification, missing scores, strict payloads, hashing, tenant isolation, durable delivery, retries, expiry, withdrawal, conversion recovery and capacity.
 - `npm run test:browser-meta`: isolated local server, mocked Meta Graph transport and intercepted Pixel script; exercises creator setup and consented visitor flow. Never sends live Meta traffic.
+- To run browser checks alongside an existing dev server, build locally first, then use `META_TEST_SERVER_MODE=production npm run test:browser-meta`; it starts a separate loopback server with mocked Meta traffic.
 - Existing `test:tracking` and `test:integrations` cover compatibility with GA4/legacy tracking and CRM delivery.
 
 Live launch still requires a real authorized tenant to verify Facebook Login, assigned assets, custom-conversion rules, received events and deduplication in Meta Events Manager. Automated mocked checks do not establish live Meta acceptance or attribution.

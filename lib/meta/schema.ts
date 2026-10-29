@@ -3,7 +3,7 @@ const identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/);
 export const metaFields = ["fn", "ln", "ct", "st", "zp", "country"] as const;
 export const QualificationRuleSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("answer"), questionId: identifier, optionId: identifier }),
-  z.object({ kind: z.literal("score"), min: z.number().min(0).max(100), max: z.number().min(0).max(100) }).refine(v => v.min <= v.max, "Minimum score must not exceed maximum."),
+  z.object({ kind: z.literal("score"), categoryId: identifier.optional(), min: z.number().min(0).max(100), max: z.number().min(0).max(100) }).refine(v => v.min <= v.max, "Minimum score must not exceed maximum."),
   z.object({ kind: z.literal("outcome"), outcomeId: identifier }),
 ]);
 export const MetaSchema = z.object({

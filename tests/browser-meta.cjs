@@ -1,7 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn}=require('node:child_process'),{chromium}=require('playwright');
+const ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const {authoredTemplate}=require('../lib/authored-templates.ts');
+const {evaluateMarketing}=require('../lib/marketing.ts');
 const root=path.resolve(__dirname,'..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'pippi-meta-browser-')),port=Number(process.env.META_TEST_PORT||3137),base=`http://localhost:${port}`,capture=path.join(dir,'events.jsonl');
 const env={...process.env,NODE_OPTIONS:`--require ${path.join(__dirname,'meta-graph-mock.cjs')}`,HEYQUIZ_LOCAL_MODE:'1',HEYQUIZ_DATA_DIR:dir,SESSION_SECRET:'test-meta-browser-secret-at-least-32-characters',SUPABASE_URL:'',SUPABASE_SECRET_KEY:'',SUPABASE_SERVICE_ROLE_KEY:'',SUPABASE_PUBLISHABLE_KEY:'',SUPABASE_ANON_KEY:'',VERCEL:'',META_ENABLED:'1',META_APP_ID:'123456',META_APP_SECRET:'synthetic-app-secret',META_LOGIN_CONFIG_ID:'987654',META_GRAPH_VERSION:'v24.0',META_REDIRECT_URI:`${base}/api/meta/callback`,META_TEST_TRANSPORT:'1',META_TEST_CAPTURE:capture,META_TRUST_PROXY:'0'};
-const server=spawn(process.execPath,[path.join(root,'node_modules/next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port',String(port)],{cwd:root,env,stdio:['ignore','pipe','pipe']});
+const server=spawn(process.execPath,[path.join(root,'node_modules/next/dist/bin/next'),process.env.META_TEST_SERVER_MODE==='production'?'start':'dev','--hostname','127.0.0.1','--port',String(port)],{cwd:root,env,stdio:['ignore','pipe','pipe']});
 let log='';server.stdout.on('data',d=>log+=d);server.stderr.on('data',d=>log+=d);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const events=()=>{try{return fs.readFileSync(capture,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);}catch{return[];}};
@@ -43,6 +47,41 @@ async function until(fn,timeout=30000){const start=Date.now();while(Date.now()-s
  const embedded=await browser.newContext(),host=await embedded.newPage();let hostLoads=0;await embedded.route('https://connect.facebook.net/**',r=>{hostLoads++;return r.fulfill({contentType:'text/javascript',body:'/* intercepted */'});});
  hostServer=require('node:http').createServer((_req,res)=>{res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><body><iframe data-pippi-embed src="${base}/play/${form.id}?embed=1" width="100%" height="1400"></iframe><script src="${base}/pippi-embed.js"></script></body></html>`);});await new Promise(resolve=>hostServer.listen(0,'127.0.0.1',resolve));const hostOrigin=`http://localhost:${hostServer.address().port}`;
  const beforeEmbed=events().filter(r=>!r.testCode&&r.event.event_name==='PageView').length;await host.goto(`${hostOrigin}/landing?fbclid=HOST_TEST_CLICK_123`);const frame=host.frameLocator('iframe');await frame.getByRole('button',{name:'Allow tracking',exact:true}).waitFor();assert.equal(hostLoads,0);await frame.getByRole('button',{name:'Allow tracking',exact:true}).click();await until(()=>events().filter(r=>!r.testCode&&r.event.event_name==='PageView').length>beforeEmbed);const lastView=events().filter(r=>!r.testCode&&r.event.event_name==='PageView').at(-1).event;assert.equal(lastView.event_source_url,`${hostOrigin}/landing`);assert.ok(lastView.user_data.fbc.endsWith('.HOST_TEST_CLICK_123'));checks++;
+ // Scorecard rule controls persist and publish both category thresholds and named overall bands.
+ const sharedMeta=(await(await owner.request.get(base+'/api/forms/'+form.id)).json()).meta;
+ const scoreForm=authoredTemplate('scorecard-onboarding','meta-scorecard-quiz');scoreForm.capture={...captureConfig};scoreForm.meta={...sharedMeta,enabled:false,rules:[]};
+ response=await owner.request.post(base+'/api/forms',{headers,data:scoreForm});assert.equal(response.status(),201,await response.text());
+ const scorePage=await owner.newPage();scorePage.on('pageerror',e=>errors.push(e.message));await scorePage.goto(base+'/editor/'+scoreForm.id+'?section=integrate');
+ await scorePage.getByRole('button',{name:'Add condition',exact:true}).click();await scorePage.getByRole('combobox',{name:/^Condition/}).selectOption('score');
+ const category=scoreForm.marketing.categories[0];await scorePage.getByRole('combobox',{name:/^Score source/}).selectOption(category.id);await scorePage.getByLabel('Minimum %',{exact:true}).fill('0');
+ await until(async()=>{const saved=await(await owner.request.get(base+'/api/forms/'+scoreForm.id)).json();return saved.meta?.rules[0]?.categoryId===category.id&&saved.meta.rules[0].min===0;});
+ await scorePage.getByRole('button',{name:'Prepare custom conversions',exact:true}).click();await scorePage.getByLabel('Meta Test Events code',{exact:true}).fill('TEST12345');await scorePage.getByRole('button',{name:'Send test event',exact:true}).click();await scorePage.getByText('Meta accepted the test request.',{exact:false}).waitFor();await scorePage.getByLabel('Enable Meta tracking for this quiz',{exact:true}).check();
+ await until(async()=>(await(await owner.request.get(base+'/api/forms/'+scoreForm.id)).json()).meta?.enabled);
+ response=await owner.request.post(base+'/api/forms/'+scoreForm.id+'/publish',{headers,data:{}});assert.equal(response.status(),200,await response.text());
+ const scoreAnswers=require('./fixtures/authored-templates-c.json')['scorecard-onboarding'].answers;
+ const scoreVisit=await(await owner.request.post(base+'/api/forms/'+scoreForm.id+'/meta/events',{headers,data:{action:'visit',consent:true,viewKey:require('crypto').randomUUID(),context:{url:base+'/play/'+scoreForm.id}}})).json();
+ const scoreStart=await(await owner.request.post(base+'/api/forms/'+scoreForm.id+'/start',{headers,data:{metaToken:scoreVisit.token}})).json();
+ response=await owner.request.post(base+'/api/forms/'+scoreForm.id+'/submit',{headers,data:{token:scoreStart.token,metaToken:scoreVisit.token,answers:scoreAnswers,contact:{email:'category@example.com',marketingConsent:false}}});assert.equal(response.status(),200,await response.text());assert.equal((await response.json()).metaDecision.status,'qualified');
+ await until(()=>events().some(r=>!r.testCode&&r.event.event_name==='Qualified'&&r.event.custom_data.quiz_id===scoreForm.id));checks++;
+ await scorePage.getByRole('combobox',{name:/^Condition/}).selectOption('outcome');
+ const band=evaluateMarketing(scoreForm,scoreAnswers).outcomeId;await scorePage.getByRole('combobox',{name:/^Result/}).selectOption(band);
+ await until(async()=>(await(await owner.request.get(base+'/api/forms/'+scoreForm.id)).json()).meta?.rules[0]?.outcomeId===band);
+ await scorePage.getByLabel('Enable Meta tracking for this quiz',{exact:true}).check();await until(async()=>(await(await owner.request.get(base+'/api/forms/'+scoreForm.id)).json()).meta?.enabled);
+ response=await owner.request.post(base+'/api/forms/'+scoreForm.id+'/publish',{headers,data:{}});assert.equal(response.status(),200,await response.text());checks++;
+ // A genuine incomplete qualification route must retain only its PageView in the outbox.
+ const missingForm=authoredTemplate('training-route-8','meta-incomplete-route');missingForm.capture={...captureConfig};missingForm.marketing.outcomes.forEach(o=>o.ctaUrl='https://example.com/next');
+ const fullAnswers=require('./fixtures/authored-templates-b.json')['training-route-8'].answers;
+ missingForm.meta={...sharedMeta,enabled:false,rules:[{kind:'outcome',outcomeId:evaluateMarketing(missingForm,fullAnswers).outcomeId}]};
+ response=await owner.request.post(base+'/api/forms',{headers,data:missingForm});assert.equal(response.status(),201,await response.text());
+ response=await owner.request.post(base+'/api/forms/'+missingForm.id+'/meta',{headers,data:{action:'prepare',config:missingForm.meta}});assert.equal(response.status(),200,await response.text());
+ response=await owner.request.post(base+'/api/forms/'+missingForm.id+'/meta',{headers,data:{action:'test',testCode:'TEST12345'}});assert.equal(response.status(),200,await response.text());
+ const missingSaved=await(await owner.request.get(base+'/api/forms/'+missingForm.id)).json();missingSaved.meta.enabled=true;
+ response=await owner.request.put(base+'/api/forms/'+missingForm.id,{headers,data:missingSaved});assert.equal(response.status(),200,await response.text());response=await owner.request.post(base+'/api/forms/'+missingForm.id+'/publish',{headers,data:{}});assert.equal(response.status(),200,await response.text());
+ const missingVisit=await(await owner.request.post(base+'/api/forms/'+missingForm.id+'/meta/events',{headers,data:{action:'visit',consent:true,viewKey:require('crypto').randomUUID(),context:{url:base+'/play/'+missingForm.id}}})).json();
+ const missingStart=await(await owner.request.post(base+'/api/forms/'+missingForm.id+'/start',{headers,data:{metaToken:missingVisit.token}})).json();const missingAnswers={...fullAnswers};delete missingAnswers.t02;
+ response=await owner.request.post(base+'/api/forms/'+missingForm.id+'/submit',{headers,data:{token:missingStart.token,metaToken:missingVisit.token,answers:missingAnswers,contact:{email:'missing-info@example.com',marketingConsent:false}}});assert.equal(response.status(),200,await response.text());assert.equal((await response.json()).metaDecision.status,'unclassified');
+ const synced=await(await owner.request.post(base+'/api/forms/'+missingForm.id+'/meta/events',{headers,data:{action:'sync',metaToken:missingVisit.token,attemptToken:missingStart.token}})).json();assert.equal(synced.event,undefined);assert.equal(synced.decision.status,'unclassified');
+ const history=await(await owner.request.get(base+'/api/forms/'+missingForm.id+'/meta')).json();assert.ok(history.deliveries.every(d=>d.eventName==='PageView'));checks++;
  for(const file of ['browser-tracking.cjs','owner-isolation.cjs']){await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[path.join(__dirname,file)],{cwd:root,env:{...env,TEST_BASE_URL:base},stdio:['ignore','pipe','pipe']});let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);child.on('exit',code=>{if(code===0){console.log(output.trim());resolve();}else reject(Error(`${file} failed: ${output}`));});});}
  assert.deepEqual(errors,[]);console.log(`${checks} Meta browser checks passed: OAuth, assets, rules, setup, consent, PageView before Start, matching and Pixel/CAPI deduplication. All Meta requests mocked.`);
 } catch(error){console.error(error);console.error(log.slice(-9000));process.exitCode=1;}finally{if(browser)await browser.close();if(hostServer)await new Promise(resolve=>hostServer.close(resolve));server.kill('SIGTERM');await sleep(500);if(server.exitCode===null)server.kill('SIGKILL');fs.rmSync(dir,{recursive:true,force:true});}})();
