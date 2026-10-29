@@ -17,8 +17,11 @@ function fixture(type,id) {
   for (const name of (process.env.BROWSER_ENGINES || 'chromium,firefox,webkit').split(',')) {
     const browser = await engines[name].launch({headless:true});
     const context = await browser.newContext({viewport:{width:1440,height:1000}});
-    const page = await context.newPage(), errors=[];
-    const watch = p => p.on('pageerror', e => errors.push(new URL(p.url()).pathname.replace(/\/result\/.+/, '/result/[token]') + ': ' + e.message));
+    const page = await context.newPage(), errors=[], cancelledPrefetches=new Set();
+    const watch = p => {
+      p.on('requestfailed', request => { if (request.failure()?.errorText === 'cancelled' && new URL(request.url()).searchParams.has('_rsc')) cancelledPrefetches.add(request.url()); });
+      p.on('pageerror', e => errors.push({route:new URL(p.url()).pathname.replace(/\/result\/.+/, '/result/[token]'), name:e.name, message:e.message, fetchUrl:e.stack?.match(/https?:\/\/[^\s]+/)?.[0]}));
+    };
     context.on('page',watch);watch(page);
     page.setDefaultTimeout(15000);
     await context.route('**/*',route=>new URL(route.request().url()).origin!==base?route.abort():route.continue());
@@ -26,7 +29,7 @@ function fixture(type,id) {
     try {
       // Every direct path starts with type selection, including AI.
       for (const route of ['/create','/create/ai','/create/marketing']) {
-        await page.goto(base+route); await page.waitForLoadState('networkidle'); await page.getByRole('button',{name:/Discover your type/}).waitFor();
+        await page.goto(base+route); await page.getByRole('button',{name:/Discover your type/}).waitFor();
         assert.equal(await page.getByRole('region',{name:'Choose quiz outcome'}).getByRole('button').count(),6);
       }
       // Guest blank creation, reload, and authentication retain identity.
@@ -41,7 +44,7 @@ function fixture(type,id) {
       await page.waitForURL(base+'/editor/'+guestId);
       await page.waitForFunction(before=>performance.timeOrigin!==before,beforeClaim);
       await page.getByRole('heading',{name:'Possible profile results'}).waitFor();
-      await page.waitForLoadState('networkidle');
+     
       assert.equal((await json(await context.request.get(base+'/api/forms/'+guestId))).quizType,'personality');
       for (const type of Object.keys(kinds)) {
         const form=fixture(type,`qa-outcome-${name}-${type}-${Date.now()}`);
@@ -101,7 +104,10 @@ function fixture(type,id) {
         }
         console.log(`PASS ${name}: ${type} editor → publish → complete → saved report/PDF`);
       }
-      assert.deepEqual(errors,[],'No uncaught browser errors');
+      // WebKit reports canceled Next prefetches as page errors. Exclude only a
+      // matching requestfailed cancellation; retain every application/session error.
+      const unexpected=errors.filter(error=>!(error.name.startsWith('Fetch API cannot load')&&cancelledPrefetches.has(error.fetchUrl)));
+      assert.deepEqual(unexpected,[],'No uncaught browser errors');
     } catch(error) { await page.screenshot({path:path.join(artifacts,`${name}-failure.png`),fullPage:true}).catch(()=>{});throw error; }
     finally {await browser.close();}
   }

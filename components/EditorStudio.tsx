@@ -1328,6 +1328,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       const parsed = FormSchema.parse(JSON.parse(jsonText));
       validateFormReferences(parsed);
       if (parsed.id !== form.id) throw new Error("Keep this quiz's ID unchanged when importing JSON.");
+      if (parsed.quizType !== form.quizType) throw new Error("Use Change Type to create a converted copy before importing a different quiz type.");
       if (!checkpoint("Before importing JSON", setJsonError)) return;
       setForm({ ...parsed, revision: form.revision });
       setActivePageId(parsed.pages?.[0]?.id || "page-1");
