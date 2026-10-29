@@ -48,6 +48,8 @@ function PreviewContent({ form, step, questionId, resultId }: { form: FormSchema
   const index = question ? questions.findIndex(item => item.id === question.id) : -1;
   const result = appearanceResult(form, resultId);
   const tier = form.outcomeTiers.find(item => item.id === resultId) || form.outcomeTiers[0];
+  const tierCtaUrl = tier?.ctaUrl || form.endingPage?.redirectUrl || "";
+  const tierCtaLabel = tier?.ctaText || form.endingPage?.buttonText || "Continue";
   const theme = quizThemeStyle(form.theme);
   const resultPreview = step === 2;
   const welcomePreview = step === 0 || step === 3 || step === 4;
@@ -56,7 +58,7 @@ function PreviewContent({ form, step, questionId, resultId }: { form: FormSchema
     <p className="basic-help">{resultPreview ? "Appearance preview · this does not demonstrate a matching answer path." : "Visitor preview · answers stay in this panel and are not saved."}</p>
     <div className="hq-player basic-preview-content" style={theme} onClickCapture={event => { if ((event.target as Element).closest("a")) { event.preventDefault(); event.stopPropagation(); quietAction(); } }}>
       <div className="basic-preview-brand">{form.theme.logoUrl ? <img src={form.theme.logoUrl} alt={form.theme.logoAlt || form.theme.brandName || "Quiz logo"} style={{ maxWidth: "100%", height: form.theme.logoHeight || 40, objectFit: "contain" }}/> : form.theme.brandName ? <strong>{form.theme.brandName}</strong> : !form.theme.hidePippiBranding ? <img src="/pippi-logo.svg" alt="Pippi" width={78} height={34}/> : null}</div>
-      {resultPreview ? result ? <MarketingResultCard result={result}/> : <section className="basic-preview-question"><p className="basic-help">{form.mode === "quiz" ? `Feedback for ${tier?.minScorePercent ?? 0}–${tier?.maxScorePercent ?? 100}%` : "Completion message"}</p><h2>{tier?.title || form.endingPage?.title || "Thank you!"}</h2><p>{tier?.message || form.endingPage?.message || "Your answers have been received."}</p></section> : welcomePreview ? <QuizLanding form={form} busy={false} onStart={quietAction}/> : question ? <section className="basic-preview-question">
+      {resultPreview ? result ? <MarketingResultCard result={result}/> : <section className="basic-preview-question"><p className="basic-help">{form.mode === "quiz" ? `Feedback for ${tier?.minScorePercent ?? 0}–${tier?.maxScorePercent ?? 100}%` : "Completion message"}</p><h2>{tier?.badge && <span className="basic-result-badge">{tier.badge} </span>}{tier?.title || form.endingPage?.title || "Thank you!"}</h2><p>{tier?.message || form.endingPage?.message || "Your answers have been received."}</p>{/^https?:\/\//.test(tierCtaUrl) && <a className="hq-primary" href={tierCtaUrl}>{tierCtaLabel}</a>}</section> : welcomePreview ? <QuizLanding form={form} busy={false} onStart={quietAction}/> : question ? <section className="basic-preview-question">
         {form.settings.showProgressBar !== false && form.settings.progressBarMode !== "none" && <div className="basic-preview-progress"><progress aria-label="Preview progress" max={questions.length} value={index + 1}/><span>{index + 1} of {questions.length}</span></div>}
         <p className="basic-help">Question {index + 1} of {questions.length}{question.required ? " · Required" : ""}</p>
         <h2>{question.title || "Your question"}</h2>{question.description && <p>{question.description}</p>}
