@@ -246,12 +246,7 @@ export function evaluateMarketing(form: FormSchemaType, answers: Answers): Marke
   }).map(({ condition: _condition, ...section }) => section);
   return result;
 }
-function evaluateMarketingCore(
-  form: FormSchemaType,
-  answers: Answers,
-): MarketingResult | undefined {
-  const m = form.marketing;
-  if (!m) return;
+function selectedMarketingRules(form: FormSchemaType, answers: Answers) {
   const visible = new Set(
     resolvePath(form, answers).questions.map((q) => q.id),
   );
@@ -260,7 +255,36 @@ function evaluateMarketingCore(
     (Array.isArray(answers[qid])
       ? (answers[qid] as unknown[]).includes(aid)
       : answers[qid] === aid);
-  const matches = m.rules.filter((r) => selected(r.questionId, r.answerId));
+  return { visible, selected, matches: form.marketing?.rules.filter((r) => selected(r.questionId, r.answerId)) ?? [] };
+}
+
+/** Shared weighted ordering for evaluation and observed journey diagnostics. */
+export function rankMarketingOutcomes(form: FormSchemaType, answers: Answers) {
+  const { matches } = selectedMarketingRules(form, answers);
+  return (form.marketing?.outcomes ?? [])
+    .map((o, index) => ({
+      o,
+      index,
+      points: matches
+        .filter((r) => r.targetId === o.id && r.effect === "add")
+        .reduce((n, r) => n + r.points, 0),
+    }))
+    .filter(
+      ({ o, points }) =>
+        points > 0 &&
+        points >= o.minPoints &&
+        !matches.some((r) => r.targetId === o.id && r.effect === "exclude"),
+    )
+    .sort((a, b) => b.points - a.points || a.index - b.index);
+}
+
+function evaluateMarketingCore(
+  form: FormSchemaType,
+  answers: Answers,
+): MarketingResult | undefined {
+  const m = form.marketing;
+  if (!m) return;
+  const { matches, visible, selected } = selectedMarketingRules(form, answers);
   const base: MarketingResult = {
     ...(form.quizType ? { quizType: form.quizType } : {}),
     presentation: { layout: m.presentation?.layout ?? "stacked" },
@@ -344,21 +368,7 @@ function evaluateMarketingCore(
       categories,
     };
   }
-  const ranked = m.outcomes
-    .map((o, index) => ({
-      o,
-      index,
-      points: matches
-        .filter((r) => r.targetId === o.id && r.effect === "add")
-        .reduce((n, r) => n + r.points, 0),
-    }))
-    .filter(
-      ({ o, points }) =>
-        points > 0 &&
-        points >= o.minPoints &&
-        !matches.some((r) => r.targetId === o.id && r.effect === "exclude"),
-    )
-    .sort((a, b) => b.points - a.points || a.index - b.index);
+  const ranked = rankMarketingOutcomes(form, answers);
   const best = ranked[0];
   if (!best) return base;
   return {

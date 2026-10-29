@@ -57,7 +57,7 @@ export function responsesCsv(rows: QuizSubmissionResult[]) {
       score ?? "", score === null ? "" : row.totalPointsEarned, score === null ? "" : row.totalPointsPossible,
       score === null ? "Recorded" : row.passed ? "Passed" : "Needs Review", reportOutcome(row),
       row.marketing?.categories?.map(category => `${category.title}: ${category.score === null ? "Not enough information" : `${category.score}%`}`).join("; "),
-      row.marketing?.quizType || "", row.marketing?.outcomeId || "",
+      row.quizType || row.marketing?.quizType || "", row.marketing?.outcomeId || "",
       ...questions.map(question => question.title === undefined
         ? (row.grading || []).some(answer => answer.questionId === question.id) ? "" : row.answers?.[question.id]
         : (row.grading || []).find(answer => answer.questionId === question.id && answer.questionTitle === question.title)?.userAnswer)];

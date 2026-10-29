@@ -149,7 +149,7 @@ export function makeEvent(
     formId: result.formId,
     submittedAt: result.submittedAt,
     score: result.percentageScore,
-    ...(result.marketing?.quizType ? { quizType: result.marketing.quizType } : {}),
+    ...(result.quizType || result.marketing?.quizType ? { quizType: result.quizType || result.marketing?.quizType } : {}),
     applicableScore: contactScore(result).value,
     contact: {
       email: result.contact.email,

@@ -53,7 +53,7 @@ export interface ResultReport {
         label: string;
         url: string;
     };
-    result: Pick<QuizSubmissionResult, "marketing" | "totalPointsEarned" | "totalPointsPossible" | "percentageScore">;
+    result: Pick<QuizSubmissionResult, "quizType" | "marketing" | "totalPointsEarned" | "totalPointsPossible" | "percentageScore">;
 }
 /** Explicit allowlist: a portable report never contains contact details, raw answers or grading transcripts. */
 export function makeResultReport(form: FormSchemaType, result: QuizSubmissionResult, submissionId: string): ResultReport {
@@ -73,6 +73,7 @@ export function makeResultReport(form: FormSchemaType, result: QuizSubmissionRes
         message: result.matchedTier?.message || form.endingPage?.message || "Thank you for completing this quiz.",
         cta: url && /^https?:\/\//i.test(url) ? { label: result.matchedTier?.ctaText || form.endingPage?.buttonText || "Continue", url } : undefined,
         result: {
+            ...(result.quizType ? { quizType: result.quizType } : {}),
             marketing: result.marketing,
             totalPointsEarned: result.totalPointsEarned,
             totalPointsPossible: result.totalPointsPossible,

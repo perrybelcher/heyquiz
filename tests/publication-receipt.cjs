@@ -15,7 +15,7 @@ records.writeRecord = async (kind, key, who, payload, expected) => {
 auth.requireUser = async () => { if (!actor) throw new auth.HttpError(401, 'Sign in.'); return { id: actor }; };
 const route = require('../app/api/forms/[id]/publish/route.ts');
 const context = { params: Promise.resolve({ id }) }, request = () => new Request(`http://127.0.0.1:3164/api/forms/${id}/publish`, { method: 'POST', headers: { Origin: 'http://127.0.0.1:3164' } });
-const form = title => FormSchema.parse({ id, title, mode: 'form', questions: [{ id: 'q', type: 'multiple_choice', title: 'Synthetic question', options: [{ id: 'a', label: 'First' }] }] });
+const form = title => FormSchema.parse({ id, title, mode: 'form', questions: [{ id: 'q', type: 'multiple_choice', title: 'Synthetic question', options: [{ id: 'a', label: 'First' }, { id: 'b', label: 'Second' }] }] });
 const a = form('Rendered draft A'), b = form('Newer saved draft B'), baseline = process.env.PUBLICATION_RECEIPT_BASELINE === '1';
 const sourceText = fs.readFileSync(path.join(app, 'components/EditorStudio.tsx'), 'utf8'), ast = ts.createSourceFile('EditorStudio.tsx', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let initializer; (function find(node) { if (ts.isVariableDeclaration(node) && node.name.getText(ast) === 'handlePublish') initializer = node.initializer.getText(ast); ts.forEachChild(node, find); })(ast);
@@ -69,7 +69,7 @@ async function exercise(name, latestAtSave, latestAtPublish, editAfterCommit, re
     const receipt = { version: 1, formId: id, fingerprint: publication.publicationFingerprint(a) };
     assert.deepEqual(publication.parsePublicationReceipt(receipt, id), receipt);
     for (const value of [null, [], {}, { ...receipt, version: 2 }, { ...receipt, formId: 'other' }, { ...receipt, extra: true }, { ...receipt, fingerprint: '' }, { ...receipt, fingerprint: 'not json' }, { ...receipt, fingerprint: JSON.stringify({ id, title: 'Missing fields' }) }, { ...receipt, fingerprint: JSON.stringify(JSON.parse(receipt.fingerprint), null, 2) }, { ...receipt, fingerprint: publication.publicationFingerprint({ ...a, id: 'other' }) }]) assert.throws(() => publication.parsePublicationReceipt(value, id), error => error.message === publication.PUBLICATION_CONFIRMATION_ERROR);
-    const legacy = { id, title: 'Legacy without parser defaults', mode: 'form', questions: [{ id: 'q', title: 'Choose', type: 'multiple_choice', options: [{ id: 'a', label: 'First' }] }] };
+    const legacy = { id, title: 'Legacy without parser defaults', mode: 'form', questions: [{ id: 'q', title: 'Choose', type: 'multiple_choice', options: [{ id: 'a', label: 'First' }, { id: 'b', label: 'Second' }] }] };
     const legacyReceipt = { version: 1, formId: id, fingerprint: publication.publicationFingerprint(legacy) };
     assert.deepEqual(publication.parsePublicationReceipt(legacyReceipt, id), legacyReceipt);
     const large = { ...a, title: 'x'.repeat(2 * 1024 * 1024 + 1) }, largeReceipt = { version: 1, formId: id, fingerprint: publication.publicationFingerprint(large) };

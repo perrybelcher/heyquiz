@@ -131,9 +131,14 @@ import EditorMobileHeader from "./EditorMobileHeader";
 import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
-import { renameGuidedAnswer, reviewGuidedRemoval } from "@/lib/guided-editing";
+import { renameGuidedAnswer, reviewGuidedRemoval, removeGuidedQuestion, removeGuidedAnswer } from "@/lib/guided-editing";
+import QuizConversionDialog, { type ConversionPreview } from "./QuizConversionDialog";
+import { previewQuizConversion } from "@/lib/quiz-conversion";
+import { type QuizType } from "@/lib/quiz-types";
+import { outcomeCreationEnabled } from "@/lib/outcome-availability";
+import { draftFingerprint } from "@/lib/draft-recovery";
 import WorkspaceHeader from "./WorkspaceHeader";
-import { registerWorkspaceNavigationGuard, workspaceNavigationApproved, subscribeWorkspaceNavigation, workspaceNavigationPending } from "@/lib/workspace-navigation";
+import { registerWorkspaceNavigationGuard, workspaceNavigationApproved, subscribeWorkspaceNavigation, workspaceNavigationPending, navigateWorkspace } from "@/lib/workspace-navigation";
 import { editorSection, type EditorSection } from "@/lib/editor-navigation";
 import { saveStatusLabel } from "@/lib/draft-recovery";
 import { FormSchema } from "@/lib/schema";
@@ -550,6 +555,62 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   // Modals
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showConversion, setShowConversion] = useState(false);
+  async function prepareConversion(targetType: QuizType): Promise<ConversionPreview> {
+    if (!canEdit()) throw new Error("Sign in to the account that owns this quiz before converting it.");
+    if (guestDraft) {
+      const raw = JSON.stringify(form), key = `heyquiz-draft:${form.id}`;
+      localStorage.setItem(key, raw);
+      if (localStorage.getItem(key) !== raw) throw new Error("Your source draft could not be saved on this device. Export or save it before converting.");
+      try { sessionStorage.setItem(key, raw); } catch { /* Persistent recovery was verified above. */ }
+      return { source: form, changes: previewQuizConversion(form, targetType).changes };
+    }
+    if (!(await saveNow(form))) throw new Error("Save the original draft successfully before converting it.");
+    const response = await fetch(`/api/forms/${form.id}`, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new Error("Could not verify the saved source. Please retry.");
+    const source = FormSchema.parse(await response.json());
+    if (source.id !== form.id || draftFingerprint(source) !== draftFingerprint(form)) throw new Error("The source changed while saving. Reload and review it before converting.");
+    const impact = await fetch(`/api/forms/${form.id}/convert`, { method: "POST", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "preview", targetType, sourceRevision: source.revision }) });
+    const data = await impact.json();
+    if (!impact.ok) throw new Error(data.error || "Could not preview the conversion.");
+    return { source, changes: data.changes };
+  }
+  async function createConversion(targetType: QuizType, preview: ConversionPreview, idempotencyKey: string) {
+    if (draftFingerprint(form) !== draftFingerprint(preview.source)) throw new Error("Your draft changed. Refresh the conversion preview first.");
+    if (guestDraft) {
+      const copyId = `converted-${idempotencyKey}`, key = `heyquiz-draft:${copyId}`;
+      const existing = localStorage.getItem(key);
+      const copy = existing ? FormSchema.parse(JSON.parse(existing)) : { ...previewQuizConversion(preview.source, targetType).form, id: copyId };
+      if (copy.id !== copyId || copy.quizType !== targetType || copy.conversionReview?.sourceQuizId !== preview.source.id) throw new Error("This conversion request already belongs to another saved copy. Refresh the preview.");
+      if (!existing) {
+        const raw = JSON.stringify(copy);
+        localStorage.setItem(key, raw);
+        if (localStorage.getItem(key) !== raw) throw new Error("Could not save the converted copy on this device. Your original is still available.");
+        try { sessionStorage.setItem(key, raw); } catch { /* Persistent recovery is enough to resume. */ }
+      } else {
+        // Recovery prefers this tab. Do not let an older tab copy replace edits
+        // made to the already-created converted quiz during a retry.
+        try { sessionStorage.setItem(key, JSON.stringify(copy)); }
+        catch {
+          try { sessionStorage.removeItem(key); }
+          catch { throw new Error("Could not refresh this tab’s saved copy. Reopen the converted draft in a new tab."); }
+        }
+      }
+      const previousPointer = localStorage.getItem("pippi-guest-draft");
+      localStorage.setItem("pippi-guest-draft", copy.id);
+      if (!(await navigateWorkspace(`/create/draft?draft=${encodeURIComponent(copy.id)}`))) {
+        if (previousPointer) localStorage.setItem("pippi-guest-draft", previousPointer); else localStorage.removeItem("pippi-guest-draft");
+        throw new Error("The converted copy is saved on this device. Finish or close pending editor changes, then retry to open it.");
+      }
+      return;
+    }
+    const response = await fetch(`/api/forms/${form.id}/convert`, { method: "POST", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", targetType, sourceRevision: preview.source.revision, idempotencyKey }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not create the converted copy.");
+    const copy = FormSchema.parse(data.form);
+    if (copy.id === form.id || copy.quizType !== targetType) throw new Error("The conversion response could not be verified. Retry with the same request.");
+    if (!(await navigateWorkspace(`/editor/${copy.id}`))) throw new Error("Your converted copy is saved. Finish or close pending editor changes, then retry to open it.");
+  }
   const [showLogicModal, setShowLogicModal] = useState(false);
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [showReadiness, setShowReadiness] = useState(false);
@@ -1025,6 +1086,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   };
 
   const updateQuestion = (qId: string, updates: Partial<Question>) => {
+    const routes = form.marketing?.qualificationRules?.filter(rule => rule.conditions.some(condition => condition.questionId === qId)) ?? [];
+    if (routes.length && updates.type && updates.type !== form.questions.find(question => question.id === qId)?.type) {
+      setActionError("Remove or update this question’s qualification conditions in Results before changing its field type.");
+      return;
+    }
     const updated = form.questions.map((q) =>
       q.id === qId ? { ...q, ...updates } : q,
     );
@@ -1053,6 +1119,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       return;
     }
     setActionError("");
+    if (form.marketing?.qualificationRules?.some(rule => rule.conditions.some(condition => condition.questionId === qId))) {
+      if (!window.confirm(["Remove this question?", ...review.changes].join("\n"))) return;
+      const next = removeGuidedQuestion(form, qId);
+      setForm(next);
+      if (selectedQuestionId === qId) setSelectedQuestionId(next.questions[0]?.id || null);
+      return;
+    }
     const updated = form.questions.filter((q) => q.id !== qId);
     setForm({
       ...form,
@@ -1169,6 +1242,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     if (!q || !q.options) return;
     if (q.options.length <= 2) {
       setActionError("Keep at least two answers for a choice question.");
+      return;
+    }
+    if (form.marketing?.qualificationRules?.some(rule => rule.conditions.some(condition => condition.questionId === qId && condition.value === optId))) {
+      const review = reviewGuidedRemoval(form, qId, optId);
+      if (review.blockers.length) { setActionError(review.blockers.join(" ")); return; }
+      if (!window.confirm(["Remove this answer?", ...review.changes].join("\n"))) return;
+      setForm(removeGuidedAnswer(form, qId, optId));
       return;
     }
     const newOptions = q.options.filter((opt) => opt.id !== optId);
@@ -1771,12 +1851,14 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
       <div inert={authRequired && !guestDraft} className="contents" aria-label="Quiz editor">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2">
-        <span className="text-xs font-medium text-stone-500">Editor mode</span>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2">
+        <div className="flex flex-wrap gap-2"><button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={() => setShowThemeModal(true)}>Design quiz</button>{outcomeCreationEnabled && <button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={() => setShowConversion(true)}>Change Type</button>}</div>
         <div role="group" aria-label="Editor mode" className="flex rounded-xl bg-stone-100 p-1">
           {[{label:"Basic",value:true},{label:"Advanced",value:false}].map(mode=><button key={mode.label} type="button" aria-pressed={guided===mode.value} onClick={()=>changeEditorMode(mode.value)} className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-red-800 ${guided===mode.value?"bg-white text-[#681d27] shadow-sm":"text-stone-500 hover:text-stone-900"}`}>{mode.label}</button>)}
         </div>
       </div>
+      {showConversion && <QuizConversionDialog currentType={form.quizType} onClose={() => setShowConversion(false)} onPreview={prepareConversion} onCreate={createConversion} />}
+      {form.conversionReview?.required && (form.quizType === "knowledge" || form.quizType === "scorecard") && <section className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-label="Converted quiz review"><p>Review the copied questions, grading, results and retained branching before publishing this quiz.</p><button type="button" className="hq-secondary mt-2" onClick={() => setForm(current => ({ ...current, conversionReview: current.conversionReview ? { ...current.conversionReview, required: false } : undefined }))}>I reviewed the results and rules</button></section>}
       <BuilderWalkthrough onShow={target => {
         if (target === "theme") { setShowThemeModal(true); return; }
         if (target === "preview") { void handlePreview(); return; }

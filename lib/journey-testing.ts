@@ -1,8 +1,7 @@
 import { matchingQualificationRules } from "./qualification";
-import { scoringDiagnostics } from "./scoring-diagnostics";
 import type { FormSchemaType, Question } from "./schema";
 import { displayTypes, multiTypes, singleTypes, resolvePath, validationError, validateFormReferences, type Answers } from "./engine";
-import { evaluateMarketing, validateMarketing } from "./marketing";
+import { evaluateMarketing, validateMarketing, rankMarketingOutcomes } from "./marketing";
 import { gradeQuizSubmission } from "./scoring";
 
 export type ConversationTarget = "promise" | "questions" | "results" | "capture" | "design" | "publish";
@@ -34,6 +33,7 @@ export interface JourneyCase {
   categories?: JourneyCategoryResult[];
   resultSectionIds?: string[];
   matchingRouteIds?: string[];
+  tiedOutcomeIds?: string[];
   /** Labels describe how this path was selected, not proof that a score boundary was reached. */
   targetedChecks?: string[];
   enumerated?: boolean;
@@ -156,6 +156,8 @@ export function evaluateJourneyCase(form: FormSchemaType, answers: Answers): Jou
   try {
     const marketing = evaluateMarketing(form, clean);
     const grade = gradeQuizSubmission(form, clean);
+    const ranked = form.marketing && ["segmentation", "product_finder"].includes(form.marketing.kind) ? rankMarketingOutcomes(form, clean) : [];
+    const tiedOutcomeIds = ranked.filter(item => item.points === ranked[0]?.points).map(item => item.o.id);
     const resultId = marketing ? marketing.outcomeId : grade.matchedTier?.id;
     return {
       id: "explicit", answers: clean, questionIds: path.questions.map(q => q.id),
@@ -163,6 +165,7 @@ export function evaluateJourneyCase(form: FormSchemaType, answers: Answers): Jou
       ...(resultId ? { resultId } : {}),
       categories: marketing?.categories.map(({ id, score, answered, applicable, minAnswers }) => ({ id, score, answered, applicable, minAnswers })) || [],
       resultSectionIds: marketing?.resultSections?.map(section => section.id) || [],
+      ...(tiedOutcomeIds.length > 1 ? { tiedOutcomeIds } : {}),
       ...(form.marketing?.kind === "qualification" ? { matchingRouteIds: matchingQualificationRules(form, clean).map(r => r.id) } : {}),
       status: marketing?.status || (form.mode === "quiz" && grade.totalPointsPossible > 0 ? "scored" : "completed"),
       ...(marketing ? typeof marketing.overallScore === "number" ? { score: marketing.overallScore } : {} : form.mode === "quiz" && grade.totalPointsPossible > 0 ? { score: grade.percentageScore } : {}),
@@ -283,7 +286,8 @@ export function simulateJourneys(form: FormSchemaType, limit = 256): JourneySimu
     const overlap = cases.filter(c => (c.matchingRouteIds?.length ?? 0) > 1).length;
     if (overlap) notes.push(`${overlap} checked journeys match multiple routes. The first matching route rule wins.`);
   } else {
-    notes.push(...scoringDiagnostics(form).warnings.filter(w => w.includes("tie for first")));
+    const ties = cases.filter(c => (c.tiedOutcomeIds?.length ?? 0) > 1).length;
+    if (ties) notes.push(`${ties} checked journeys tie for first place. The first result in your list wins.`);
   }
   if (targetedCases && form.marketing?.kind !== "qualification") notes.push(`${targetedCases} distinct representative paths checked first (low, high, mixed, or unmapped choices where available). These selections are not proof of every score boundary or result.`);
   if (truncated) notes.push(`Testing stopped at the ${cap}-case or complexity limit. These cases are a bounded sample, not every possible journey.`);
