@@ -6,3 +6,5 @@
 
 @media(min-width:768px){.cl-other-starts{grid-column:1;margin-top:-25px}}
 @media(max-width:767px){.cl-preview,.cl-photo{width:100%}.cl-photo{min-height:0}}
+
+.cl-type[data-preview=true]:not([aria-pressed=true]){background:#fcf4f5;box-shadow:inset 3px 0 #922c3b}.cl-photo img{transition:opacity .12s ease-out}@media(prefers-reduced-motion:reduce){.cl-photo img{transition:none}}

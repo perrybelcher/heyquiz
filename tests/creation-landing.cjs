@@ -88,3 +88,25 @@ c.values.set('pippi-guest-draft','missing');c.listeners.get('storage')();assert.
 assert.equal(controller(true,'qualification').first.selectedType,'qualification','Initial validated route type survives reload');
 const disabled=controller(false,'personality');assert.equal(disabled.first.selectedType,'knowledge');assert.deepEqual(Array.from(disabled.first.enabledTypes),['knowledge','scorecard']);disabled.render().onSelect('personality');assert.equal(disabled.history.length,0,'Disabled type cannot be selected');
 console.log('PASS creation controller: initial/default selection, URL navigation and Back, safe invalid/fenced type fallback, storage synchronization, no draft writes');
+
+// Exercise actual hover/focus handlers without changing committed selection or URL.
+{
+ const state=[];let cursor=0,selected='personality',confirmed=0;
+ const jsx=(type,props)=>({type,props});
+ const compiled={exports:{}};
+ const source=ts.transpileModule(fs.readFileSync(path.join(root,'components/CreationLanding.tsx'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText;
+ const load=name=>name==='react'?{useRef:()=>({current:null}),useState:value=>{const i=cursor++;if(!(i in state))state[i]=value;return[state[i],v=>state[i]=v];}}:name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='next/link'||name==='next/image'?{__esModule:true,default:name}:name.endsWith('.css')?{}:require(name);
+ vm.runInNewContext(source,{module:compiled,exports:compiled.exports,require:load});
+ function nodes(node){if(!node||typeof node!=='object')return[];return[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];}
+ function view(){cursor=0;return nodes(compiled.exports.default({selectedType:selected,enabledTypes:quizTypes,example:creationExamples[selected],onSelect:type=>{selected=type;confirmed++;}}));}
+ const row=(all,type)=>all.filter(n=>n.type==='button'&&n.props.className==='cl-type')[quizTypes.indexOf(type)];
+ row(view(),'diagnostic').props.onPointerEnter({pointerType:'mouse'});
+ let all=view();assert.equal(confirmed,0);assert.equal(row(all,'personality').props['aria-pressed'],true);assert.equal(row(all,'diagnostic').props['data-preview'],true);
+ assert.ok(all.some(n=>n.type==='h2'&&n.props.children===creationExamples.diagnostic.title));
+ assert.ok(all.filter(n=>n.type==='next/image').every(n=>n.props.unoptimized&&n.props.loading==='eager'),'Small static images warm before switching without transform delay');
+ row(all,'diagnostic').props.onClick();all=view();assert.equal(selected,'diagnostic');assert.equal(confirmed,1);
+ row(all,'knowledge').props.onPointerEnter({pointerType:'touch'});assert.equal(row(view(),'diagnostic').props['data-preview'],true,'Touch does not create a hover selection');
+ row(view(),'knowledge').props.onFocus();assert.equal(row(view(),'knowledge').props['data-preview'],true,'Keyboard focus previews');
+ view()[0].props.onPointerLeave();assert.equal(row(view(),'diagnostic').props['data-preview'],true,'Leaving restores confirmed choice');
+ console.log('PASS hover previews: mouse/focus preview, click confirmation, touch behavior, restore and warmed static images');
+}
