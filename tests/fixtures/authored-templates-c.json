@@ -1,0 +1,127 @@
+{
+  "diagnostic-lead-generation": {
+    "answers": {
+      "audience-situation": "gap",
+      "audience-evidence": "gap",
+      "audience-fit": "gap",
+      "audience-language": "gap",
+      "audience-change": "gap",
+      "offer-scope": "gap",
+      "offer-difference": "gap",
+      "offer-evidence": "gap",
+      "offer-cost": "gap",
+      "offer-next": "gap",
+      "visibility-location": "established",
+      "visibility-info": "established",
+      "visibility-intent": "established",
+      "visibility-route": "established",
+      "visibility-maintenance": "established",
+      "enquiry-mobile": "established",
+      "enquiry-fields": "established",
+      "enquiry-error": "established",
+      "enquiry-confirm": "established",
+      "enquiry-alternative": "established",
+      "followup-hours": "established",
+      "followup-owner": "established",
+      "followup-context": "established",
+      "followup-stalled": "established",
+      "followup-stop": "established",
+      "measurement-source": "established",
+      "measurement-stage": "established",
+      "measurement-period": "established",
+      "measurement-reasons": "established",
+      "measurement-review": "established"
+    },
+    "outcomeId": "clarity"
+  },
+  "diagnostic-team": {
+    "answers": {
+      "team-priority": "gap",
+      "team-done": "gap",
+      "team-change": "gap",
+      "team-handoff": "established",
+      "team-owner": "established",
+      "team-decision": "established",
+      "team-load": "established",
+      "team-interrupt": "established"
+    },
+    "outcomeId": "direction"
+  },
+  "diagnostic-retention": {
+    "answers": {
+      "return-purpose": "gap",
+      "return-fit": "gap",
+      "return-progress": "gap",
+      "return-support": "established",
+      "return-resolution": "established",
+      "return-friction": "established",
+      "return-timing": "established",
+      "return-choice": "established"
+    },
+    "outcomeId": "value"
+  },
+  "scorecard-marketing-health": {
+    "answers": {
+      "mh-audience-trigger": "usually",
+      "mh-audience-language": "usually",
+      "mh-audience-segment": "usually",
+      "mh-audience-interview": "usually",
+      "mh-audience-limits": "usually",
+      "mh-positioning-scope": "usually",
+      "mh-positioning-tradeoff": "usually",
+      "mh-positioning-proof": "usually",
+      "mh-positioning-price": "usually",
+      "mh-positioning-promise": "usually",
+      "mh-visibility-route": "usually",
+      "mh-visibility-listings": "usually",
+      "mh-visibility-content": "usually",
+      "mh-visibility-links": "usually",
+      "mh-visibility-owner": "usually",
+      "mh-conversion-mobile": "usually",
+      "mh-conversion-action": "usually",
+      "mh-conversion-fields": "usually",
+      "mh-conversion-errors": "usually",
+      "mh-conversion-confirm": "usually",
+      "mh-followup-owner": "usually",
+      "mh-followup-hours": "usually",
+      "mh-followup-context": "usually",
+      "mh-followup-next": "usually",
+      "mh-followup-preference": "usually",
+      "mh-measurement-source": "usually",
+      "mh-measurement-stage": "usually",
+      "mh-measurement-period": "usually",
+      "mh-measurement-loss": "usually",
+      "mh-measurement-action": "usually"
+    },
+    "overallScore": 67,
+    "outcomeId": "overall-maintain"
+  },
+  "scorecard-onboarding": {
+    "answers": {
+      "onboarding-scope": "usually",
+      "onboarding-milestone": "usually",
+      "onboarding-promises": "usually",
+      "onboarding-contact": "usually",
+      "onboarding-access": "usually",
+      "onboarding-task": "usually",
+      "onboarding-friction": "usually",
+      "onboarding-next": "usually"
+    },
+    "overallScore": 67,
+    "outcomeId": "overall-maintain"
+  },
+  "scorecard-team-operations": {
+    "answers": {
+      "ops-priorities": "usually",
+      "ops-scope": "usually",
+      "ops-owner": "usually",
+      "ops-handoff": "usually",
+      "ops-load": "usually",
+      "ops-interruptions": "usually",
+      "ops-done": "usually",
+      "ops-review": "usually"
+    },
+    "overallScore": 67,
+    "outcomeId": "overall-maintain"
+  }
+}
