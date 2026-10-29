@@ -98,7 +98,7 @@ General complaint-handling practices verified against [Australian Government bus
 - `node tests/authored-templates-a.cjs`: six template groups pass; 92 questions, counts 8/8/30 per type, reference validation, full literal paths, independent copies, all personality outcomes, minimum evidence, ties/order, neutral and graded correct/wrong/mixed cases.
 - `tests/fixtures/authored-templates-a.json`: literal full-path answers for every template; personality planner and knowledge 100% expected outcomes. The answers are authored independently of evaluator output.
 - TypeScript and focused lint run before commit; integrated browser and publication persistence checks are lead-owned.
-- Stream B reviewed question quality, mappings and all source references. Findings addressed in the editorial refinement below; independent QA remains part of integrated verification.
+- Stream B reviewed question quality, mappings and all source references. Findings addressed in the editorial refinement below. Stream B re-reviewed commit1aa2651 and cleared the revised distractors and source URL; all six test groups passed. Fresh integrated QA passed its12 independent groups; see authored-templates-independent-qa.md.
 
 ### Editorial refinement after lead and B review
 

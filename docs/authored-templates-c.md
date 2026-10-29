@@ -1,6 +1,6 @@
 # Diagnostic and scorecard editorial specification
 
-Status: author review and rotated review by Agent A complete. A read both content modules and this rationale, reran the focused tests, and found no blocking editorial issues. Independent integrated QA remains pending.
+Status: author review and rotated review by Agent A complete. A read both content modules and this rationale, reran the focused tests, and found no blocking editorial issues. Fresh independent integrated QA passed12 groups; see authored-templates-independent-qa.md.
 
 ## Outcome blueprints (defined before questions)
 
