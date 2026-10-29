@@ -60,7 +60,7 @@ async function stored(page){return page.evaluate(()=>{const id=localStorage.getI
    const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export CSV',exact:true}).click();const file=await (await download).path();const csv=fs.readFileSync(file,'utf8');assert.ok(csv.includes(t.quizType));if(fixture.outcomeId)assert.ok(csv.includes(fixture.outcomeId));
    console.log(`PASS ${name}: ${t.title} (${t.questionCount}) preview → draft/reload → publish → all questions → result/PDF/CSV`);
   }
-  await page.goto(base+'/templates');await page.getByRole('button',{name:'Browse additional existing templates',exact:true}).click();await page.getByLabel('Industry',{exact:true}).waitFor();
+  await page.goto(base+'/templates');await page.getByRole('button',{name:'Browse additional existing templates',exact:true}).click();await page.getByRole('combobox',{name:'Industry',exact:true}).waitFor();
   const navigationDiagnostic=e=>{if(name!=='webkit'||!e.name.startsWith('Fetch API cannot load')||!e.url)return false;const url=new URL(e.url);return url.origin===base&&url.searchParams.has('_rsc');};
   const unexpected=errors.filter(e=>!navigationDiagnostic(e));if(errors.length!==unexpected.length)console.log(`NOTE ${name}: ${errors.length-unexpected.length} background RSC prefetch diagnostics; all page readiness checks passed.`);assert.deepEqual(unexpected,[]);
  }catch(e){await page.screenshot({path:path.join(artifacts,name+'-failure.png'),fullPage:true}).catch(()=>{});throw e;}finally{await browser.close();}
