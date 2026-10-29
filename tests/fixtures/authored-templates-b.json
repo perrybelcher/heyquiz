@@ -1,0 +1,8 @@
+{
+  "website-package-30": {"answers":{"w01":"w01-c","w02":"w02-c","w03":"w03-c","w04":"w04-c","w05":"w05-c","w06":"w06-c","w07":"w07-c","w08":"w08-c","w09":"w09-c","w10":"w10-c","w11":"w11-c","w12":"w12-c","w13":"w13-c","w14":"w14-c","w15":"w15-c","w16":"w16-c","w17":"w17-c","w18":"w18-c","w19":"w19-c","w20":"w20-c","w21":"w21-c","w22":"w22-c","w23":"w23-c","w24":"w24-c","w25":"w25-c","w26":"w26-c","w27":"w27-c","w28":"w28-c","w29":"w29-c","w30":"w30-c"},"outcomeId":"shop"},
+  "ideal-coffee-8": {"answers":{"c01":"c01-c","c02":"c02-c","c03":"c03-c","c04":"c04-c","c05":"c05-c","c06":"c06-c","c07":"c07-c","c08":"c08-c"},"outcomeId":"decaf"},
+  "best-workspace-8": {"answers":{"s01":"s01-b","s02":"s02-b","s03":"s03-b","s04":"s04-b","s05":"s05-b","s06":"s06-b","s07":"s07-b","s08":"s08-b"},"outcomeId":"dedicated-desk"},
+  "implementation-fit-30": {"answers":{"i01":"i01-a","i02":"i02-a","i03":"i03-a","i04":"i04-a","i05":"i05-a","i06":"i06-a","i07":"i07-a","i08":"i08-a","i09":"i09-a","i10":"i10-a","i11":"i11-a","i12":"i12-a","i13":"i13-a","i14":"i14-a","i15":"i15-a","i16":"i16-a","i17":"i17-a","i18":"i18-a","i19":"i19-a","i20":"i20-a","i21":4,"i22":"i22-a","i23":"i23-a","i24":"i24-a","i25":"i25-a","i26":6,"i27":"i27-a","i28":"i28-a","i29":"i29-a","i30":"i30-a"},"outcomeId":"pilot"},
+  "renovation-next-step-8": {"answers":{"r01":"r01-b","r02":"r02-a","r03":2,"r04":"r04-a","r05":"r05-a","r06":"r06-a","r07":"r07-a","r08":"r08-a"},"outcomeId":"assessment"},
+  "training-route-8": {"answers":{"t01":"t01-b","t02":1,"t03":"t03-a","t04":"t04-a","t05":"t05-a","t06":"t06-a","t07":"t07-a","t08":"t08-a"},"outcomeId":"foundations"}
+}
