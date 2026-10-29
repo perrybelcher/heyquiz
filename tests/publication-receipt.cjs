@@ -26,7 +26,7 @@ async function exercise(name, latestAtSave, latestAtPublish, editAfterCommit, re
   memory.clear(); await records.writeRecord('forms', id, owner, a, 0);
   const state = { liveFingerprint: '', published: false, success: false, error: '', readiness: true, unverified: false, local: clone(a), response: null };
   const env = {
-    ...publication, form: clone(a), guestDraft: false, clarityEvent: () => {}, publicationPending: { current: false }, publicationUncertain: false,
+    ...publication, form: clone(a), guestDraft: false, v2: false, reportInterfaceEvent: () => {}, clarityEvent: () => {}, publicationPending: { current: false }, publicationUncertain: false,
     setActionError: value => state.error = value, setPublishing: () => {}, setPublicationNotice: () => {}, setShowReadiness: value => state.readiness = value,
     setLiveFingerprint: value => state.liveFingerprint = value, setIsPublished: value => state.published = value, setShowPublishModal: value => state.success = value,
     closePublishReadiness: () => state.readiness = false,

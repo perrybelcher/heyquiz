@@ -130,7 +130,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import PublishReadiness from "./PublishReadiness";
 import PublicationConfirmation from "./PublicationConfirmation";
 import QuizAccountPrompt from "./QuizAccountPrompt";
-import GuidedQuizEditor from "./GuidedQuizEditor";
+import GuidedQuizEditor, { type BasicEditorState } from "./GuidedQuizEditor";
 import EditorMobileHeader from "./EditorMobileHeader";
 import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
@@ -209,6 +209,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true);
   function changeEditorMode(value: boolean) {
     setEditorModeOverride(value);
+    setGuidedJump(undefined);
     if (value) setActiveNavTab("edit");
     try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {}
   }
@@ -333,6 +334,33 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
     initialForm.questions[0]?.id || null,
   );
+  const [basicUiState, setBasicUiState] = useState<BasicEditorState>(() => {
+    const outcomesFirst = Boolean(initialForm.quizType && initialForm.marketing && initialForm.marketing.kind !== "scorecard");
+    return { step: outcomesFirst ? 2 : 0, resultsReviewed: !outcomesFirst, resultId: null };
+  });
+  // UI navigation is separate from the saved quiz model and survives mode switches.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(`pippi-basic-navigation:${initialForm.id}`) || "null");
+      if (!saved || !Number.isInteger(saved.step) || saved.step < 0 || saved.step > 4) return;
+      // Restore this quiz's browser navigation after hydration, never participant answers.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBasicUiState({ step: saved.step, resultsReviewed: saved.resultsReviewed === true, resultId: typeof saved.resultId === "string" ? saved.resultId : null });
+      if (initialForm.questions.some(question => question.id === saved.questionId)) setSelectedQuestionId(saved.questionId);
+    } catch { /* Browser storage is optional. */ }
+  }, [initialForm.id, initialForm.questions]);
+  function updateBasicUi(state: BasicEditorState, questionId = selectedQuestionId) {
+    setBasicUiState(state);
+    try { sessionStorage.setItem(`pippi-basic-navigation:${initialForm.id}`, JSON.stringify({ ...state, questionId })); } catch {}
+  }
+  function selectBasicQuestion(id: string | null) {
+    setSelectedQuestionId(id);
+    try {
+      const key = `pippi-basic-navigation:${initialForm.id}`;
+      const latest = JSON.parse(sessionStorage.getItem(key) || "null") || basicUiState;
+      sessionStorage.setItem(key, JSON.stringify({ ...latest, questionId: id }));
+    } catch {}
+  }
   const [searchFieldQuery, setSearchFieldQuery] = useState("");
   const [devicePreview, setDevicePreview] = useState<"desktop" | "mobile">(
     "desktop",
@@ -3671,15 +3699,13 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         </div>
       )}
       <div inert={authRequired && !guestDraft} className="contents" aria-label="Quiz editor">
-      <div hidden={v2} className={v2 ? "hidden" : "flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2"}>
+      <div hidden={v2 || guided} className={v2 || guided ? "hidden" : "flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2"}>
         <div className="flex flex-wrap gap-2"><button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={() => setShowThemeModal(true)}>Design quiz</button>{outcomeCreationEnabled && <button type="button" className="hq-secondary !px-3 !py-2 !text-xs" onClick={event => { event.currentTarget.focus(); setShowConversion(true); }}>Change Type</button>}</div>
-        <div role="group" aria-label="Editor mode" className="flex rounded-xl bg-stone-100 p-1">
-          {[{label:"Basic",value:true},{label:"Advanced",value:false}].map(mode=><button key={mode.label} type="button" aria-pressed={guided===mode.value} onClick={()=>changeEditorMode(mode.value)} className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-red-800 ${guided===mode.value?"bg-white text-[#681d27] shadow-sm":"text-stone-500 hover:text-stone-900"}`}>{mode.label}</button>)}
-        </div>
+
       </div>
       {showConversion && <QuizConversionDialog currentType={form.quizType} onClose={() => setShowConversion(false)} onPreview={prepareConversion} onCreate={createConversion} />}
       {form.conversionReview?.required && (form.quizType === "knowledge" || form.quizType === "scorecard") && <section className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-label="Converted quiz review"><p>Review the copied questions, grading, results and retained branching before publishing this quiz.</p><button type="button" className="hq-secondary mt-2" onClick={() => setForm(current => ({ ...current, conversionReview: current.conversionReview ? { ...current.conversionReview, required: false } : undefined }))}>I reviewed the results and rules</button></section>}
-      {!v2 && <BuilderWalkthrough onShow={target => {
+      {!v2 && !guided && <BuilderWalkthrough onShow={target => {
         if (target === "theme") { setShowThemeModal(true); return; }
         if (target === "preview") { void handlePreview(); return; }
         changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page");
@@ -3687,12 +3713,12 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
       }} />}
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
+      {guided && <GuidedQuizEditor uiState={basicUiState} onUiStateChange={state => updateBasicUi(state)} selectedQuestionId={selectedQuestionId} onQuestionSelect={selectBasicQuestion} onChooseImage={() => setIsCoverMediaPickerOpen(true)} onChangeType={outcomeCreationEnabled ? () => setShowConversion(true) : undefined} reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => { updateBasicUi(basicUiState); changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page"); const selected = form.questions.find(question => question.id === selectedQuestionId); setActivePageId(selected?.pageId || form.pages?.[0]?.id || "page-1"); setMobilePanel(selected ? "settings" : "fields"); }} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
       {v2 ? <V2EditorHeader title={form.title || "Untitled quiz"} onTitleChange={title => setForm({...form,title})} saveLabel={mobileSaveStatus} publicationLabel={publicationLabel} activeSection={activeNavTab} onSectionChange={setActiveNavTab} onBasicMode={() => changeEditorMode(true)} onDesign={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} onPublish={requestPublish} previewing={previewing} publishing={publishing || pausing || publicationUncertain} actions={<>
         <button type="button" onClick={() => void saveNow()}>Save draft</button><button type="button" onClick={openDraftHistory}>Draft history</button><button type="button" onClick={() => setShowConversationMap(true)}>Conversation map</button><button type="button" onClick={() => {setSelectedQuestionId(null);setActiveNavTab("edit");}}>Form settings</button><button type="button" onClick={() => {setJsonText(JSON.stringify(form,null,2));setShowJsonModal(true);}}>Schema JSON</button>{outcomeCreationEnabled && <button type="button" onClick={() => setShowConversion(true)}>Change type</button>}{isPublished && <button type="button" disabled={pausing || publishing || publicationUncertain} onClick={openPausePublication}>Pause publication</button>}
       </>} /> : <>
-      <EditorMobileHeader
+      <EditorMobileHeader modeSwitch={<EditorModeSwitch basic={false} onChange={changeEditorMode}/>} onShare={openShare}
         title={form.title || ""} onTitleChange={title => setForm({ ...form, title })}
         status={mobileSaveStatus} onSave={() => void saveNow()} saveFailed={saveStatus === "error" && !authRequired}
         published={isPublished} publicationLabel={publicationLabel}
@@ -3705,7 +3731,6 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           { label: "Question settings", onClick: () => { setActiveNavTab("edit"); if (!selectedQuestionId) setSelectedQuestionId(form.questions[0]?.id || null); setMobilePanel("settings"); } },
           { label: "Form settings", onClick: () => { setSelectedQuestionId(null); setActiveNavTab("edit"); setMobilePanel("settings"); } },
           { label: "Conversation map", onClick: () => { setMobilePanel(null); setShowConversationMap(true); } },
-          { label: "Basic mode", onClick: () => { setMobilePanel(null); changeEditorMode(true); } },
           { label: "Draft history", onClick: openDraftHistory },
           { label: "Save draft", onClick: () => void saveNow() },
           { label: "Declarative Schema JSON", onClick: () => { setJsonText(JSON.stringify(form, null, 2)); setShowJsonModal(true); } },
@@ -3734,7 +3759,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           </span>
         </div>
 
-        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button><button className="hq-secondary" onClick={() => changeEditorMode(true)}>Basic mode</button>
+        <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button>
         {/* Center Fillout Tabs Capsule */}
         <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
           <button
@@ -3800,7 +3825,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           <Settings size={15} /> Form settings
         </button>
         {/* Right Fillout Action Buttons */}
-        <div className="studio-actions flex flex-wrap items-center gap-2"><EditorModeSwitch basic={false} onChange={changeEditorMode} />
+        <div className="studio-actions flex flex-wrap items-center gap-2">
           {/* Keep theme controls outside the scrolling canvas in every editor view. */}
           <button
             onClick={() => setShowThemeModal(true)}
@@ -3855,6 +3880,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <Code2 className="w-4 h-4" />
           </button>
 
+          <EditorModeSwitch basic={false} onChange={changeEditorMode} />
+          <button type="button" className="hq-secondary" onClick={openShare}>Share</button>
           {/* Preview Button */}
           <button
             type="button"

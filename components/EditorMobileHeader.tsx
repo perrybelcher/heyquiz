@@ -9,10 +9,11 @@ function subscribeMobile(change: () => void) {
   media.addEventListener("change", change);
   return () => media.removeEventListener("change", change);
 }
-export default function EditorMobileHeader({ title, onTitleChange, status, onSave, saveFailed, published, publicationLabel, onTheme, onPreview, previewing, previewLabel = "Preview", onPublish, onPause, publicationBusy, actions, extra, sections, activeSection, steps = false }: {
+export default function EditorMobileHeader({ title, onTitleChange, status, onSave, saveFailed, published, publicationLabel, onTheme, onPreview, previewing, previewLabel = "Preview", onPublish, onPause, publicationBusy, actions, extra, sections, activeSection, steps = false, modeSwitch, onShare }: {
   title: string; onTitleChange: (title: string) => void; status: string; onSave: () => void; saveFailed?: boolean;
   published: boolean; publicationLabel: string; onTheme: () => void; onPreview: () => void; previewing?: boolean; previewLabel?: string;
   onPublish: () => void; onPause: () => void; publicationBusy: boolean; actions: Action[]; extra?: ReactNode;
+  modeSwitch?: ReactNode; onShare?: () => void;
   sections: Section[]; activeSection: string; steps?: boolean;
 }) {
   // Mount only the visible toolbar: hidden duplicate inputs must not intercept
@@ -68,6 +69,7 @@ export default function EditorMobileHeader({ title, onTitleChange, status, onSav
       </div>
       <button ref={trigger} type="button" aria-haspopup="dialog" aria-controls={open ? id : undefined} aria-expanded={open} onClick={() => setOpen(true)} className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-stone-200 px-2 text-xs font-semibold"><Ellipsis size={17} aria-hidden="true"/>More</button>
     </div>
+    {modeSwitch && <div className="flex flex-wrap items-center gap-2 px-3 pb-2">{modeSwitch}{onShare && <button type="button" className="hq-secondary" onClick={onShare}>Share</button>}</div>}
     <div className="flex gap-1.5 px-3 pb-2">
       <button type="button" onClick={onTheme} className="flex min-h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-stone-200 px-2 text-xs font-semibold"><Paintbrush size={14} aria-hidden="true"/>Theme</button>
       <button type="button" disabled={previewing} onClick={onPreview} className="flex min-h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-stone-200 px-2 text-xs font-semibold disabled:opacity-50"><Play size={13} aria-hidden="true"/>{previewing ? "Saving…" : previewLabel}</button>
