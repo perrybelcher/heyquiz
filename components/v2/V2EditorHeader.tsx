@@ -5,6 +5,7 @@ import { ArrowLeft, BarChart3, Eye, FileText, MoreHorizontal, Paintbrush, Plug, 
 import { navigateWorkspace } from "@/lib/workspace-navigation";
 import type { EditorSection } from "@/lib/editor-navigation";
 import "./editor.css";
+import EditorModeSwitch from "../EditorModeSwitch";
 
 export interface V2EditorHeaderProps {
   title: string;
@@ -33,6 +34,7 @@ export default function V2EditorHeader(props: V2EditorHeaderProps) {
         <div className="v2-editor-status" role="status"><span>{props.saveLabel}</span><span aria-hidden="true">·</span><span>{props.publicationLabel}</span></div>
       </div>
       <div className="v2-editor-header-actions">
+        <EditorModeSwitch basic={false} onChange={basic => { if (basic) props.onBasicMode(); }} />
         <button type="button" className="v2-editor-button v2-editor-share" aria-pressed={props.activeSection === "share"} onClick={() => props.onSectionChange("share")}><Share2 size={16} />Share</button>
         <button type="button" className="v2-editor-button" disabled={props.previewing} onClick={props.onPreview}><Eye size={16} />{props.previewing ? "Preparing…" : "Preview"}</button>
         <button type="button" className="v2-editor-button is-primary" data-publication-action="publish" disabled={props.publishing} onClick={props.onPublish}><Upload size={16} />Publish</button>
@@ -43,7 +45,6 @@ export default function V2EditorHeader(props: V2EditorHeaderProps) {
       <button type="button" onClick={props.onDesign}><Paintbrush size={16} />Design</button>
       <button type="button" aria-current={connect ? "page" : undefined} onClick={() => props.onSectionChange("integrate")}><Plug size={16} />Connect</button>
       <button type="button" aria-current={results ? "page" : undefined} onClick={() => props.onSectionChange("results")}><BarChart3 size={16} />Results</button>
-      <button type="button" onClick={props.onBasicMode}>Basic mode</button>
       <details className="v2-editor-tools"><summary aria-label="More editor tools"><MoreHorizontal size={19} /><span>More</span></summary><div className="v2-editor-tools-menu" onClick={event => { if (event.target instanceof Element && event.target.closest("button")) event.currentTarget.closest("details")?.removeAttribute("open"); }}><button type="button" onClick={() => props.onSectionChange("share")}>Share & embed</button>{props.actions}</div></details>
     </nav>
     {connect && <nav className="v2-editor-subnav" aria-label="Connection tools"><button type="button" aria-current={props.activeSection === "integrate" ? "page" : undefined} onClick={() => props.onSectionChange("integrate")}>Integrations & tracking</button><button type="button" aria-current={props.activeSection === "marketing" ? "page" : undefined} onClick={() => props.onSectionChange("marketing")}>Marketing</button></nav>}

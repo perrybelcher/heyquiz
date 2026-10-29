@@ -24,3 +24,5 @@
  .pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help>div{right:0;width:min(320px,calc(100vw - 40px))}
 }
 @media(max-width:767px){.pippi-v2 .v2-editor-workflow{flex-wrap:wrap}}
+
+.pippi-v2 .v2-editor-header-actions{flex-wrap:wrap}.pippi-v2 .v2-editor-header-actions [aria-label="Editor mode"] button{min-height:44px;font-size:14px;padding:8px 14px}

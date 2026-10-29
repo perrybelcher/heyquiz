@@ -136,6 +136,7 @@ import QuizEmbedCode from "./QuizEmbedCode";
 import ConversationMap, { type ConversationEdit } from "./ConversationMap";
 import { useAutosave } from "@/hooks/useAutosave";
 import { renameGuidedAnswer, reviewGuidedRemoval, removeGuidedQuestion, removeGuidedAnswer } from "@/lib/guided-editing";
+import EditorModeSwitch from "./EditorModeSwitch";
 import QuizConversionDialog, { type ConversionPreview } from "./QuizConversionDialog";
 import { previewQuizConversion } from "@/lib/quiz-conversion";
 import { type QuizType } from "@/lib/quiz-types";
@@ -3799,7 +3800,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           <Settings size={15} /> Form settings
         </button>
         {/* Right Fillout Action Buttons */}
-        <div className="studio-actions flex items-center gap-2">
+        <div className="studio-actions flex flex-wrap items-center gap-2"><EditorModeSwitch basic={false} onChange={changeEditorMode} />
           {/* Keep theme controls outside the scrolling canvas in every editor view. */}
           <button
             onClick={() => setShowThemeModal(true)}
@@ -3809,7 +3810,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <span>Theme</span>
           </button>
           <span data-tour="scoring"><ScoringMode form={form} onChange={setForm} /></span>
-          <button type="button" onClick={() => changeEditorMode(true)} className="hq-secondary !px-3 !py-1.5 !text-xs">Basic mode</button>
+          
           <span role="status" className="text-xs font-semibold text-gray-600">{publicationLabel}</span>
           {isPublished && <button type="button" disabled={publishing || pausing || publicationUncertain} onClick={openPausePublication} className="hq-secondary !px-3 !py-1.5 !text-xs disabled:opacity-50"><Pause size={14} aria-hidden="true"/>Pause publication</button>}
           {/* Device Mockup Toggle */}

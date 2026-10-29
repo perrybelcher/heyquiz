@@ -11,6 +11,7 @@ import OutcomesEditor from "./OutcomesEditor";
 import ScorecardResultsEditor from "./ScorecardResultsEditor";
 import BasicLeadCaptureSettings from "./BasicLeadCaptureSettings";
 import EditorMobileHeader from "./EditorMobileHeader";
+import EditorModeSwitch from "./EditorModeSwitch";
 import { buildGuidedChecklist, guidedTargetKey, resolveGuidedChecklistTarget, type GuidedChecklistTarget, type GuidedReviewSection } from "@/lib/guided-checklist";
 
 const outcomeStepOrder=[2,0,1,3,4], standardStepOrder=[0,1,2,3,4];
@@ -176,7 +177,7 @@ export default function GuidedQuizEditor({ form, onChange, onAdvanced, onTheme, 
     actions={[{ label: "Conversation map", onClick: () => leave(onConversationMap) }, { label: "Advanced mode", onClick: () => leave(onAdvanced) }, { label: "Draft history", onClick: () => leave(onHistory) }, { label: "Save draft", onClick: () => leave(onSave) }]}
     sections={stepOrder.map((i,position) => ({ id: String(i), label: `${position + 1}. ${steps[i]}`, onClick: () => goToStep(i) }))} activeSection={String(step)} steps
   /><main onPointerDownCapture={event => { if ((pendingTarget || pendingNavigationFocus) && !(event.target as Element).closest("[data-checklist-action]")) cancelChecklist(); }} onKeyDownCapture={event => { if ((pendingTarget || pendingNavigationFocus) && event.key === "Tab") cancelChecklist(); }} onInputCapture={() => { if (pendingTarget || pendingNavigationFocus) cancelChecklist(); }} className="guided-studio flex-1 overflow-y-auto bg-[#faf8f4] px-4 py-6 sm:px-8"><div className="mx-auto max-w-3xl">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-red-800">Basic mode</p><p role="status" className="mt-1 hidden text-xs text-slate-600 lg:block">{status} · {publicationLabel}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => leave(onAdvanced)} className="hq-secondary">Advanced mode</button></div></header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-red-800">Basic mode</p><p role="status" className="mt-1 hidden text-xs text-slate-600 lg:block">{status} · {publicationLabel}</p></div><div className="flex flex-wrap items-center gap-2"><EditorModeSwitch basic onChange={basic => { if (!basic) leave(onAdvanced); }} /><button type="button" onClick={() => leave(onShare)} className="hq-secondary">Share</button><button type="button" disabled={previewing} onClick={() => leave(onPreview)} className="hq-secondary">{previewing ? "Preparing…" : "Preview"}</button></div></header>
     <p className="mt-3 text-sm text-slate-600">The essentials, one step at a time. Advanced mode keeps all your customization tools. Switching modes never resets your quiz.</p>{!!form.logicRules?.length && <p className="mt-2 text-xs text-slate-500">This quiz has advanced branching. It remains active; edit those rules in Advanced mode.</p>}
     <nav aria-label="Quiz setup steps" className="guided-steps my-7 !hidden lg:!flex flex-wrap gap-2">{stepOrder.map((i,position) => <button key={steps[i]} aria-current={step === i ? "step" : undefined} onClick={() => goToStep(i)} className={`rounded-full px-4 py-2 text-sm ${step === i ? "bg-red-800 text-white" : "border bg-white text-slate-600"}`}>{position + 1}. {steps[i]}</button>)}</nav>
     {step === 4 && <><section aria-label="Your next step" className="my-4 rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
@@ -205,6 +206,11 @@ export default function GuidedQuizEditor({ form, onChange, onAdvanced, onTheme, 
           <button type="button" className="hq-secondary" disabled={form.questions.length >= 200} onClick={addQuestion}><Plus size={16}/>Add question</button>
         </div>
         {q ? <>
+          <nav aria-label="Question navigation" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 p-3">
+            <button type="button" className="hq-secondary" disabled={questionIndex <= 0} onClick={() => { cancelChecklist(); setQuestionIndex(index => Math.max(0, index - 1)); setEditingError(""); }}>Previous question</button>
+            <p role="status" className="text-sm font-semibold">Question {Math.min(questionIndex + 1, questions.length)} of {questions.length}</p>
+            <button type="button" className="hq-secondary" disabled={questionIndex >= questions.length - 1} onClick={() => { cancelChecklist(); setQuestionIndex(index => Math.min(questions.length - 1, index + 1)); setEditingError(""); }}>Next question</button>
+          </nav>
           <label className="block text-sm font-medium">Question<select aria-label="Question" className="hq-input mt-2 w-full" value={Math.min(questionIndex, questions.length - 1)} onChange={e => { cancelChecklist(); setQuestionIndex(Number(e.target.value)); setEditingError(""); }}>{questions.map((x, i) => <option key={x.id} value={i}>{i + 1}. {x.title || "Untitled question"}</option>)}</select></label>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="hq-secondary" aria-label="Move question up" disabled={questionIndex === 0} onClick={() => edit(() => moveGuidedQuestion(form, q.id, -1))}><ArrowUp size={15}/>Move up</button>
