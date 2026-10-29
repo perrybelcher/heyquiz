@@ -9,13 +9,16 @@ import {
   type MarketingConfig,
   validateMarketing,
 } from "@/lib/marketing";
+import { qualificationNumericTypes } from "@/lib/qualification";
 import { scoringDiagnostics } from "@/lib/scoring-diagnostics";
 import MarketingResultCard from "./MarketingResultCard";
 import ResultSectionsEditor from "./ResultSectionsEditor";
 import ScorecardResultsEditor from "./ScorecardResultsEditor";
+import OutcomesEditor from "./OutcomesEditor";
 import ResultLayoutEditor from "./ResultLayoutEditor";
 import { multiTypes, type Answers } from "@/lib/engine";
 const kinds = {
+  qualification: "Qualification routes",
   product_finder: "Product finder",
   segmentation: "Buyer segmentation",
   scorecard: "Category scorecard",
@@ -98,8 +101,7 @@ export default function MarketingStudio({
             preferences separate from right-or-wrong grading.
           </p>
         </div>
-        {!m ? (
-          <div className="grid md:grid-cols-3 gap-5">
+        {!m ? (form.quizType ? <p className="rounded-xl border bg-white p-6">This quiz uses correct-answer results. Use Change Type to create a copy with a different outcome.</p> : <div className="grid md:grid-cols-3 gap-5">
             {Object.entries(kinds).map(([kind, title]) => (
               <button
                 key={kind}
@@ -138,9 +140,9 @@ export default function MarketingStudio({
               <p className="text-xs text-slate-500 flex-1">
                 {m.kind === "scorecard"
                   ? "Unknown answers are not zeros. Categories require a minimum number of scored answers."
-                  : "Highest eligible points wins. Ties follow result order. Exclusions always override points."}
+                  : m.kind === "qualification" ? "First matching route wins. Missing or skipped answers never qualify." : "Highest eligible points wins. Ties follow result order. Product exclusions override points."}
               </p>
-              <button
+              {!form.quizType && <button
                 className="hq-secondary"
                 onClick={() => {
                   if (
@@ -152,7 +154,7 @@ export default function MarketingStudio({
                 }}
               >
                 <RotateCcw size={14} aria-hidden="true" className="inline-block mr-2" />Use standard results
-              </button>
+              </button>}
             </div>
             <section aria-label="Scoring diagnostics" className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-5">
               <h2 className="font-semibold">Scoring diagnostics</h2>
@@ -172,7 +174,7 @@ export default function MarketingStudio({
                 <ResultLayoutEditor marketing={m} onChange={presentation => change({ presentation })} />
                 <ResultSectionsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />
                 {m.kind === "scorecard" && <ScorecardResultsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />}
-                <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+                {form.quizType && m.kind!=="scorecard" ? <OutcomesEditor form={form} onChange={onChange}/> : <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold">
                       {m.kind === "scorecard"
@@ -363,8 +365,8 @@ export default function MarketingStudio({
                       )}
                     </details>
                   ))}
-                </section>
-                <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+                </section>}
+                {m.kind!=="qualification"&&<section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <h2 className="text-lg font-semibold">Answer rules</h2>
                     <button
@@ -453,7 +455,8 @@ export default function MarketingStudio({
                                 Missing question — choose another
                               </option>
                             )}
-                            {choices.map((q) => (
+                            {m.kind==="qualification"&&form.questions.filter(q=>qualificationNumericTypes.includes(q.type)).map(q=><label key={q.id} className="block text-sm">{q.title}<input type="number" step="any" className="hq-input mt-1" value={typeof testAnswers[q.id]==="string"?testAnswers[q.id] as string:""} onChange={e=>setTestAnswers(a=>({...a,[q.id]:e.target.value}))}/></label>)}
+                  {choices.map((q) => (
                               <option key={q.id} value={q.id}>
                                 {q.title}
                               </option>
@@ -510,7 +513,7 @@ export default function MarketingStudio({
                               }
                             >
                               <option value="add">Add points</option>
-                              {m.kind !== "scorecard" && (
+                              {m.kind !== "scorecard" && (!form.quizType || form.quizType === "product_finder") && (
                                 <option value="exclude">
                                   Exclude this result
                                 </option>
@@ -548,7 +551,7 @@ export default function MarketingStudio({
                       </details>
                     );
                   })}
-                </section>
+                </section>}
                 <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
                   <h2 className="text-lg font-semibold">
                     Unsure or no-fit result
@@ -576,6 +579,7 @@ export default function MarketingStudio({
                     response or lead. Use Preview to test the full question
                     flow.
                   </p>
+                  {m.kind==="qualification"&&form.questions.filter(q=>qualificationNumericTypes.includes(q.type)).map(q=><label key={q.id} className="block text-sm">{q.title}<input type="number" step="any" className="hq-input mt-1" value={typeof testAnswers[q.id]==="string"?testAnswers[q.id] as string:""} onChange={e=>setTestAnswers(a=>({...a,[q.id]:e.target.value}))}/></label>)}
                   {choices.map((q) => (
                     <label key={q.id} className="block text-sm">
                       {q.title}

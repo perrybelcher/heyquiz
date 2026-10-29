@@ -3,25 +3,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
-import { FormSchema, type FormSchemaType } from "@/lib/schema";
-import { marketingTemplate } from "@/lib/marketing-templates";
+import { type FormSchemaType } from "@/lib/schema";
+import { outcomeTemplate } from "@/lib/outcome-templates";
+import QuizTypeChooser from "./QuizTypeChooser";
+import type { QuizType } from "@/lib/quiz-types";
 import { readGuestDraft, recoverBuilderReload } from "@/lib/guest-draft";
 import EditorStudio from "./EditorStudio";
 import WorkspaceHeader from "./WorkspaceHeader";
-const choices = [
-  ["product_finder", "Recommend a product", "Match answers to the best product or offer. Product scoring is ready to customize."],
-  ["scorecard", "Create a scorecard", "Give different answers different points and show scores by category."],
-  ["segmentation", "Understand your audience", "Group people by their needs and guide each group to a relevant next step."],
-  ["quiz", "Test knowledge", "Mark correct answers and award points for what someone knows."],
-] as const;
-export default function GuestBuilder({mode = "guided"}:{mode?:"guided"|"resume"}) {
+export default function GuestBuilder({mode = "guided",initialQuizType}:{mode?:"guided"|"resume";initialQuizType?:QuizType}) {
+  const [quizType,setQuizType]=useState(initialQuizType);
   const [form,setForm]=useState<FormSchemaType|null>(null);
   const [ready,setReady]=useState(false);
   const [title,setTitle]=useState("");
   const [error,setError]=useState("");
   useEffect(()=>{
     try {
-      const id=mode==="resume"?localStorage.getItem("pippi-guest-draft"):recoverBuilderReload("/create/guided")?sessionStorage.getItem("pippi-guided-draft"):null;
+      const requested=new URLSearchParams(window.location.search).get("draft");
+      const id=mode==="resume"?(requested&&/^[a-zA-Z0-9_-]{1,128}$/.test(requested)?requested:localStorage.getItem("pippi-guest-draft")):recoverBuilderReload("/create/guided")?sessionStorage.getItem("pippi-guided-draft"):null;
       const saved=id?readGuestDraft(localStorage,sessionStorage,id):null;
       if(saved) {
         // Only an explicit resume or this wizard tab's reload reopens a draft.
@@ -32,9 +30,9 @@ export default function GuestBuilder({mode = "guided"}:{mode?:"guided"|"resume"}
     }catch{}
     setReady(true);
   },[mode]);
-  function start(kind:typeof choices[number][0]) {
+  function start(kind:QuizType) {
     const id=`quiz-${nanoid(10)}`;
-    const draft=kind==="quiz"?FormSchema.parse({id,title:title.trim()||"My knowledge quiz",mode:"quiz",questions:[{id:nanoid(8),type:"multiple_choice",title:"What would you like to ask?",required:true,points:10,options:[{id:"a",label:"First option",isCorrect:true},{id:"b",label:"Second option",isCorrect:false}]}]}):marketingTemplate(kind,id);
+    const draft=outcomeTemplate(kind,id);
     if(title.trim())draft.title=title.trim();
     draft.theme={...draft.theme,primaryColor:"#c62121",backgroundColor:"#faf9f6"};
     try{
@@ -54,7 +52,7 @@ export default function GuestBuilder({mode = "guided"}:{mode?:"guided"|"resume"}
     <p className="mt-5 flex flex-wrap gap-4"><Link prefetch={false} href="/create" className="font-semibold text-red-800 underline">← All ways to create</Link><Link prefetch={false} href="/create/blank" className="font-semibold text-red-800 underline">Prefer a blank canvas?</Link></p>
     {error&&<p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
     <label className="mt-7 block text-sm font-semibold">Quiz name <span className="font-normal text-gray-500">(optional)</span><input value={title} maxLength={200} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Find your perfect fit" className="mt-2 w-full rounded-xl border bg-white p-3 font-normal" /></label>
-    <div className="mt-6 grid gap-4 sm:grid-cols-2">{choices.map(([kind,name,description])=><button key={kind} onClick={()=>start(kind)} className="rounded-2xl border border-gray-200 bg-white p-6 text-left hover:border-red-600 focus-visible:outline-2 focus-visible:outline-red-600"><span className="text-lg font-semibold">{name}</span><span className="mt-2 block text-sm leading-relaxed text-gray-600">{description}</span><span className="mt-4 block text-sm font-semibold text-red-700">Start building →</span></button>)}</div>
+    <div className="mt-6"><QuizTypeChooser selected={quizType} onSelect={setQuizType}/>{quizType&&<button className="hq-primary mt-5" onClick={()=>start(quizType)}>Review possible results →</button>}</div>
     <p className="mt-6 text-sm text-gray-500">Free to build. Create a free account to save and publish. No credit card. Marketing templates contain fictional examples—replace them with your own products and advice.</p>
   </div></main></>;
 }

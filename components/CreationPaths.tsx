@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { ArrowUpRight, FilePlus2, LayoutTemplate, ListChecks, Sparkles } from "lucide-react";
+import { creationTypeHref } from "@/lib/creation-quiz-type";
+import type { QuizType } from "@/lib/quiz-types";
 import { clarityEvent } from "@/lib/clarity";
 
 const paths = [
@@ -11,7 +13,8 @@ const paths = [
   { id: "ai", title: "Create with AI", description: "Describe your idea and let AI write a first draft for you to review.", href: "/create/ai", icon: Sparkles },
 ] as const;
 
-export default function CreationPaths({ busy = false, onBlank, onAI }: {
+export default function CreationPaths({ busy = false, onBlank, onAI, quizType }: {
+  quizType?: QuizType;
   busy?: boolean;
   onBlank?: () => void;
   onAI?: () => void;
@@ -30,7 +33,7 @@ export default function CreationPaths({ busy = false, onBlank, onAI }: {
       </>;
       return action
         ? <button key={id} type="button" disabled={busy} onClick={() => { clarityEvent(`create_${id}`); action(); }} className={cardClass}>{content}</button>
-        : <Link key={id} href={href} prefetch={false} aria-disabled={busy || undefined} tabIndex={busy ? -1 : undefined} onClick={event => { if (busy) event.preventDefault(); else clarityEvent(`create_${id}`); }} className={`${cardClass}${busy ? " cursor-wait opacity-60" : ""}`}>{content}</Link>;
+        : <Link key={id} href={creationTypeHref(href, quizType)} prefetch={false} aria-disabled={busy || undefined} tabIndex={busy ? -1 : undefined} onClick={event => { if (busy) event.preventDefault(); else clarityEvent(`create_${id}`); }} className={`${cardClass}${busy ? " cursor-wait opacity-60" : ""}`}>{content}</Link>;
     })}
   </div>;
 }

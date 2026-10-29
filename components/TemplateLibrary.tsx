@@ -1,7 +1,11 @@
 "use client";
+import { readGuestDraft, recoverBuilderReload } from "@/lib/guest-draft";
+import QuizTypeChooser from "./QuizTypeChooser";
+import { outcomeTemplate } from "@/lib/outcome-templates";
+import { quizTypeDefinitions, type QuizType } from "@/lib/quiz-types";
 import WorkspaceHeader from "./WorkspaceHeader";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { ArrowRight, BarChart3, ShoppingBag, Users, Search, SlidersHorizontal, Check, X } from "lucide-react";
 import { launchTemplate, launchTemplates, type LaunchTemplateId } from "@/lib/launch-templates";
@@ -13,9 +17,14 @@ import TemplateVisual from "./TemplateVisual";
 const industries = [...new Set(launchTemplates.map(t=>t.industry))].sort();
 const goals = ['Product finder','Service & audience match','Scorecard'];
 const pageSize = 12;
-export default function TemplateLibrary() {
+export default function TemplateLibrary({initialQuizType}:{initialQuizType?:QuizType}) {
+  const [quizType,setQuizType]=useState(initialQuizType);
   const [selected, setSelected] = useState<LaunchTemplateId | null>(null);
   const [form, setForm] = useState<FormSchemaType | null>(null);
+  useEffect(()=>{if(!recoverBuilderReload("/templates"))return;try{const id=sessionStorage.getItem("pippi-template-draft");const saved=id?readGuestDraft(localStorage,sessionStorage,id):null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore this tab's explicit template draft after hydration.
+    if(saved)setForm(saved);
+  }catch{}},[]);
   const [error, setError] = useState("");
   const [query,setQuery] = useState('');
   const [industry,setIndustry] = useState('');
@@ -25,22 +34,29 @@ export default function TemplateLibrary() {
   const selectedButton = useRef<HTMLButtonElement | null>(null);
   const sample = selected ? launchTemplate(selected, "template-preview") : null;
   const campaign = selected ? templateCampaignDetails(selected) : null;
-  const filtered = launchTemplates.filter(t=>(!industry || t.industry===industry)&&(!goal || t.goal===goal)&&`${t.name} ${t.industry} ${t.summary} ${t.goal}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const filtered = launchTemplates.filter(t=>(!quizType || (quizType==="product_finder"?t.goal==="Product finder":t.goal==="Scorecard"))&&(!industry || t.industry===industry)&&(!goal || t.goal===goal)&&`${t.name} ${t.industry} ${t.summary} ${t.goal}`.toLowerCase().includes(query.trim().toLowerCase()));
   function clearFilters(){setQuery('');setIndustry('');setGoal('');setVisible(pageSize);}
   function start() {
     if(!selected) return;
-    const draft = launchTemplate(selected, `quiz-${nanoid(10)}`);
+    const draft = {...launchTemplate(selected, `quiz-${nanoid(10)}`), ...(quizType?{quizType}:{})};
     try {
       // Each selection creates an independent draft; existing work keeps its own ID.
       localStorage.setItem(`heyquiz-draft:${draft.id}`, JSON.stringify(draft));
       localStorage.setItem("pippi-guest-draft", draft.id);
+      sessionStorage.setItem("pippi-template-draft",draft.id);
+      localStorage.setItem(`pippi-editor-mode:${draft.id}`,"guided");
       setForm(draft);
     } catch { setError("Your browser could not store this draft. Enable site storage before starting so your work can be recovered."); }
   }
   function closePreview(){setSelected(null);selectedButton.current?.focus();}
   if (form) return <EditorStudio initialForm={form} guest />;
+  if(!quizType || !["product_finder","scorecard"].includes(quizType)) {
+    const starter=quizType?outcomeTemplate(quizType,"template-preview"):null;
+    return <><WorkspaceHeader active="templates"/><main className="mx-auto max-w-6xl space-y-6 p-8"><h1 className="text-3xl font-semibold">Choose the outcome for your template</h1><QuizTypeChooser selected={quizType} onSelect={setQuizType}/>{starter&&<section className="space-y-4 rounded-2xl border bg-white p-6"><h2 className="text-2xl font-semibold">{starter.title}</h2><p className="text-slate-600">An editable {quizTypeDefinitions[quizType!].outcomeLabel.toLowerCase()} template. Review its example results before editing questions.</p><TemplateVisual form={starter} large/><ul className="list-disc pl-5">{starter.marketing?.outcomes.map(o=><li key={o.id}>{o.title}: {o.advice}</li>)??<li>Correct-answer grading with editable explanations.</li>}</ul><button className="hq-primary" onClick={()=>{const draft=outcomeTemplate(quizType!,`quiz-${nanoid(10)}`);try{localStorage.setItem(`heyquiz-draft:${draft.id}`,JSON.stringify(draft));localStorage.setItem("pippi-guest-draft",draft.id);sessionStorage.setItem("pippi-template-draft",draft.id);localStorage.setItem(`pippi-editor-mode:${draft.id}`,"guided");setForm(draft);}catch{setError("Enable browser storage to keep this draft recoverable.");}}}>Use this template</button>{error&&<p role="alert">{error}</p>}</section>}</main></>;
+  }
   return <><WorkspaceHeader active="templates" /><main className="min-h-screen bg-[#faf8f4] px-5 py-10 text-slate-900"><div className="mx-auto max-w-6xl">
 
+    <button className="mb-5 text-sm underline" onClick={()=>{setQuizType(undefined);setSelected(null);}}>Choose another quiz outcome</button>
     <p className="text-sm font-semibold uppercase tracking-widest text-red-800">{launchTemplates.length} free templates. Your next idea starts here.</p>
     <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">A head start for<br />your kind of business.</h1>
     <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">Help shoppers find their fit. Match prospects with the right service. Give people a useful scorecard. Start with real questions and results, then make every word your own.</p>

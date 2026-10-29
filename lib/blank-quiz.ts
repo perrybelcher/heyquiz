@@ -1,5 +1,7 @@
 import { FormSchema } from "./schema";
-/** A genuinely empty canvas: no example questions, outcomes, or marketing rules. */
-export function blankQuiz(id: string) {
-  return FormSchema.parse({ id, title: "Untitled quiz", mode: "quiz", questions: [], outcomeTiers: [], theme: { primaryColor: "#a92335", backgroundColor: "#faf8f4", cardColor: "#ffffff", layout: "step" } });
+import { quizTypeDefinitions, type QuizType } from "./quiz-types";
+/** Omitting type preserves the legacy empty knowledge canvas. */
+export function blankQuiz(id: string, quizType?: QuizType) {
+  const definition = quizType ? quizTypeDefinitions[quizType] : undefined;
+  return FormSchema.parse({ id, title: "Untitled quiz", ...(quizType ? {quizType} : {}), mode: definition?.mode ?? "quiz", ...(definition?.marketingKind ? {marketing:{kind:definition.marketingKind}} : {}), questions: [], outcomeTiers: [], theme: { primaryColor: "#a92335", backgroundColor: "#faf8f4", cardColor: "#ffffff", layout: "step" } });
 }

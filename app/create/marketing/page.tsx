@@ -1,3 +1,4 @@
+import { creationQuizType, creationTypeHref } from "@/lib/creation-quiz-type";
 import Link from "next/link";
 import WorkspaceHeader from "@/components/WorkspaceHeader";
 import MarketingBriefBuilder from "@/components/MarketingBriefBuilder";
@@ -8,7 +9,8 @@ import { privateMetadata } from "@/lib/seo";
 export const metadata = privateMetadata;
 export const dynamic = "force-dynamic";
 
-export default async function MarketingCreatePage() {
+export default async function MarketingCreatePage({searchParams}:{searchParams:Promise<{quizType?:string}>}) {
+  const initialQuizType=creationQuizType((await searchParams).quizType);
   const user = await currentUser();
   if (!user) return (
     <><WorkspaceHeader guest />
@@ -16,9 +18,9 @@ export default async function MarketingCreatePage() {
       <div className="mx-auto max-w-3xl">
         <Link href="/create" className="text-sm font-semibold text-stone-600 underline underline-offset-4">All creation options</Link>
         <h1 className="mb-7 mt-9 text-3xl font-semibold tracking-tight text-stone-900">Create a marketing quiz</h1>
-        <AIAccountGate returnTo="/create/marketing" />
+        <AIAccountGate returnTo={creationTypeHref("/create/marketing",initialQuizType)} />
       </div>
     </main></>
   );
-  return <MarketingBriefBuilder aiAvailable={Boolean(process.env.GEMINI_API_KEY)} />;
+  return <MarketingBriefBuilder initialQuizType={initialQuizType} aiAvailable={Boolean(process.env.GEMINI_API_KEY)} />;
 }

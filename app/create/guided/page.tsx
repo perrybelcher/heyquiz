@@ -1,2 +1,5 @@
 import GuestBuilder from "@/components/GuestBuilder";
-export default function GuidedCreatePage() { return <GuestBuilder mode="guided" />; }
+import { creationQuizType } from "@/lib/creation-quiz-type";
+export default async function Page({searchParams}:{searchParams:Promise<{quizType?:string}>}) {
+ return <GuestBuilder initialQuizType={creationQuizType((await searchParams).quizType)}/>;
+}

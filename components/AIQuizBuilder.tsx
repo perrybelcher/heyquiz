@@ -1,5 +1,7 @@
 "use client";
 
+import type { QuizType } from "@/lib/quiz-types";
+import { creationTypeHref } from "@/lib/creation-quiz-type";
 import Link from "next/link";
 import WorkspaceHeader from "./WorkspaceHeader";
 import { useRouter } from "next/navigation";
@@ -7,7 +9,7 @@ import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, GraduationCap, LockKeyhole, Sparkles, Target } from "lucide-react";
 import { creationAuthHref } from "@/lib/creation-auth-return";
 
-export function AIAccountGate({ returnTo = "/create/ai" }: { returnTo?: "/create/ai" | "/create/marketing" }) {
+export function AIAccountGate({ returnTo = "/create/ai" }: { returnTo?: string }) {
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-6 sm:p-9" aria-labelledby="ai-account-title">
       <LockKeyhole className="mb-4 text-red-800" aria-hidden="true" size={26} />
@@ -22,7 +24,7 @@ export function AIAccountGate({ returnTo = "/create/ai" }: { returnTo?: "/create
   );
 }
 
-export default function AIQuizBuilder({ signedIn, aiAvailable }: { signedIn: boolean; aiAvailable: boolean }) {
+export default function AIQuizBuilder({ signedIn, aiAvailable, initialQuizType }: { signedIn: boolean; aiAvailable: boolean; initialQuizType?: QuizType }) {
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [count, setCount] = useState(5);
@@ -38,7 +40,7 @@ export default function AIQuizBuilder({ signedIn, aiAvailable }: { signedIn: boo
     try {
       const response = await fetch("/api/agent/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim(), numQuestions: count }),
+        body: JSON.stringify({ topic: topic.trim(), numQuestions: count, quizType: "knowledge" }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -66,7 +68,7 @@ export default function AIQuizBuilder({ signedIn, aiAvailable }: { signedIn: boo
           <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600">Choose what your quiz should do. AI creates an editable draft; you review and publish it when it’s ready.</p>
         </header>
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          <Link href="/create/marketing" className="group rounded-3xl border border-stone-200 bg-white p-6 transition hover:border-red-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-800">
+          <Link href={creationTypeHref("/create/marketing",initialQuizType && initialQuizType!=="knowledge"?initialQuizType:undefined)} className="group rounded-3xl border border-stone-200 bg-white p-6 transition hover:border-red-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-800">
             <Target className="mb-4 text-red-800" size={26} aria-hidden="true" />
             <h2 className="text-xl font-semibold text-stone-900">Recommend, segment, or assess</h2>
             <p className="mt-3 leading-6 text-stone-600">Start with your audience and offer. Build personalized recommendations or a useful scorecard.</p>
@@ -79,7 +81,7 @@ export default function AIQuizBuilder({ signedIn, aiAvailable }: { signedIn: boo
             <span className="mt-5 inline-flex items-center gap-2 font-semibold text-red-800">Create a knowledge quiz <ArrowRight size={17} aria-hidden="true" /></span>
           </a>
         </div>
-        {!signedIn ? <AIAccountGate /> : (
+        {!signedIn ? <AIAccountGate returnTo={creationTypeHref("/create/ai",initialQuizType)}/> : (
           <section id="knowledge-quiz" className="scroll-mt-6 rounded-3xl border border-stone-200 bg-white p-6 sm:p-9" aria-labelledby="knowledge-title">
             <h2 id="knowledge-title" className="text-2xl font-semibold tracking-tight text-stone-900">What should your quiz cover?</h2>
             <p className="mt-3 leading-7 text-stone-600">Describe the topic, audience, and difficulty. We’ll save your generated draft and open it in the editor.</p>
