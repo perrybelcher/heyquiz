@@ -13,6 +13,7 @@ export interface V2EditorHeaderProps {
   publicationLabel: string;
   activeSection: EditorSection;
   onSectionChange: (section: EditorSection) => void;
+  onBasicMode: () => void;
   onDesign: () => void;
   onPreview: () => void;
   onPublish: () => void;
@@ -42,6 +43,7 @@ export default function V2EditorHeader(props: V2EditorHeaderProps) {
       <button type="button" onClick={props.onDesign}><Paintbrush size={16} />Design</button>
       <button type="button" aria-current={connect ? "page" : undefined} onClick={() => props.onSectionChange("integrate")}><Plug size={16} />Connect</button>
       <button type="button" aria-current={results ? "page" : undefined} onClick={() => props.onSectionChange("results")}><BarChart3 size={16} />Results</button>
+      <button type="button" onClick={props.onBasicMode}>Basic mode</button>
       <details className="v2-editor-tools"><summary aria-label="More editor tools"><MoreHorizontal size={19} /><span>More</span></summary><div className="v2-editor-tools-menu" onClick={event => { if (event.target instanceof Element && event.target.closest("button")) event.currentTarget.closest("details")?.removeAttribute("open"); }}><button type="button" onClick={() => props.onSectionChange("share")}>Share & embed</button>{props.actions}</div></details>
     </nav>
     {connect && <nav className="v2-editor-subnav" aria-label="Connection tools"><button type="button" aria-current={props.activeSection === "integrate" ? "page" : undefined} onClick={() => props.onSectionChange("integrate")}>Integrations & tracking</button><button type="button" aria-current={props.activeSection === "marketing" ? "page" : undefined} onClick={() => props.onSectionChange("marketing")}>Marketing</button></nav>}

@@ -205,7 +205,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     () => null,
   );
   const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(initialSection === "edit" ? null : false);
-  const guided = !v2 && (editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true));
+  const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true);
   function changeEditorMode(value: boolean) {
     setEditorModeOverride(value);
     if (value) setActiveNavTab("edit");
@@ -3688,7 +3688,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
       {guided && <GuidedQuizEditor reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => changeEditorMode(false)} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
-      {v2 ? <V2EditorHeader title={form.title || "Untitled quiz"} onTitleChange={title => setForm({...form,title})} saveLabel={mobileSaveStatus} publicationLabel={publicationLabel} activeSection={activeNavTab} onSectionChange={setActiveNavTab} onDesign={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} onPublish={requestPublish} previewing={previewing} publishing={publishing || pausing || publicationUncertain} actions={<>
+      {v2 ? <V2EditorHeader title={form.title || "Untitled quiz"} onTitleChange={title => setForm({...form,title})} saveLabel={mobileSaveStatus} publicationLabel={publicationLabel} activeSection={activeNavTab} onSectionChange={setActiveNavTab} onBasicMode={() => changeEditorMode(true)} onDesign={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} onPublish={requestPublish} previewing={previewing} publishing={publishing || pausing || publicationUncertain} actions={<>
         <button type="button" onClick={() => void saveNow()}>Save draft</button><button type="button" onClick={openDraftHistory}>Draft history</button><button type="button" onClick={() => setShowConversationMap(true)}>Conversation map</button><button type="button" onClick={() => {setSelectedQuestionId(null);setActiveNavTab("edit");}}>Form settings</button><button type="button" onClick={() => {setJsonText(JSON.stringify(form,null,2));setShowJsonModal(true);}}>Schema JSON</button>{outcomeCreationEnabled && <button type="button" onClick={() => setShowConversion(true)}>Change type</button>}{isPublished && <button type="button" disabled={pausing || publishing || publicationUncertain} onClick={openPausePublication}>Pause publication</button>}
       </>} /> : <>
       <EditorMobileHeader

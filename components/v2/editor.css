@@ -23,3 +23,4 @@
  .pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help{margin-left:auto}
  .pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help>div{right:0;width:min(320px,calc(100vw - 40px))}
 }
+@media(max-width:767px){.pippi-v2 .v2-editor-workflow{flex-wrap:wrap}}
