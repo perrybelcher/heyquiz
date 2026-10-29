@@ -165,3 +165,4 @@
 /* The shared support launcher must not cover the fixed editor actions. */
 body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:170px!important;right:18px!important}
 @media(max-width:767px){body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:calc(16px + env(safe-area-inset-bottom))!important;right:12px!important}body:has(.basic-builder) aside[aria-label="Pippi support"]>button{min-width:44px;max-width:44px;overflow:hidden;white-space:nowrap}}
+@media(max-width:767px){body:has(.basic-builder) aside[aria-label="Pippi support"]>button{padding:12px;justify-content:center}body:has(.basic-builder) aside[aria-label="Pippi support"]>button>span{display:none}body:has(.basic-builder) aside[aria-label="Pippi support"]>button>svg{flex-shrink:0}}
