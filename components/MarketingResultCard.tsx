@@ -1,4 +1,5 @@
 import ResultVideo from "./ResultVideo";
+import { outcomePresentation } from "@/lib/result-presentation";
 import type { MarketingResult } from "@/lib/marketing";
 
 type Category = MarketingResult["categories"][number];
@@ -26,18 +27,20 @@ function Priorities({ result }: { result: MarketingResult }) {
 }
 
 function Reasons({ result }: { result: MarketingResult }) {
+  const presentation = outcomePresentation(result);
   if (!result.reasons.length) return null;
-  return <section data-result-block="reasons" className="rounded-2xl bg-indigo-50 p-5">
-    <h2 className="font-semibold mb-3">Why this fits</h2>
-    <ul className="list-disc pl-5 space-y-2 text-sm text-slate-600">{result.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+  return <section data-result-block="reasons" className="rounded-2xl bg-indigo-50 p-5" style={presentation ? { backgroundColor: "color-mix(in srgb, var(--hq-primary, #c62121) 8%, var(--hq-card, #fff))", color: "var(--hq-text, #172033)" } : undefined}>
+    <h2 className="font-semibold mb-3">{presentation?.reasons || "Why this fits"}</h2>
+    <ul className={`list-disc pl-5 space-y-2 text-sm ${presentation ? "" : "text-slate-600"}`}>{result.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
   </section>;
 }
 
 function Advice({ result, prominent = false }: { result: MarketingResult; prominent?: boolean }) {
+  const presentation = outcomePresentation(result);
   if (!result.advice) return null;
   return <section data-result-block="advice" className={prominent ? "rounded-2xl bg-indigo-50 border border-slate-200 p-6" : ""}>
-    <h2 className="font-semibold mb-2">A useful first step</h2>
-    <p className="text-slate-600 leading-relaxed whitespace-pre-line">{result.advice}</p>
+    <h2 className="font-semibold mb-2">{presentation?.advice || "A useful first step"}</h2>
+    <p className={`${presentation ? "" : "text-slate-600"} leading-relaxed whitespace-pre-line`}>{result.advice}</p>
   </section>;
 }
 
@@ -78,7 +81,7 @@ function ResultSections({ result, onOfferClick }: { result: MarketingResult; onO
   // Presentation never checks the current draft or reselects content client-side.
   return <>{result.resultSections?.map(section => {
     const heading = section.title && <h2 className="text-xl font-semibold tracking-tight">{section.title}</h2>;
-    const body = <p className="text-slate-600 leading-relaxed whitespace-pre-line">{section.body}</p>;
+    const body = <p className={`${outcomePresentation(result) ? "" : "text-slate-600"} leading-relaxed whitespace-pre-line`}>{section.body}</p>;
     const safeUrl = /^https?:\/\//i.test(section.url);
     if (section.type === "faq") return <details data-result-section={section.id} key={section.id} className="rounded-2xl border border-slate-200 p-5"><summary className="font-semibold cursor-pointer">{section.title || "Learn more"}</summary><div className="mt-3">{body}</div></details>;
     if (section.type === "testimonial") return <figure data-result-section={section.id} key={section.id} className="rounded-2xl bg-slate-50 border border-slate-200 p-6"><blockquote className="text-lg leading-relaxed whitespace-pre-line">{section.body}</blockquote>{section.title && <figcaption className="mt-4 text-sm font-semibold">{section.title}</figcaption>}</figure>;
@@ -96,6 +99,15 @@ export default function MarketingResultCard({ result, onOfferClick }: { result: 
   // Historical results without a presentation keep the original order. A newly
   // selected layout cannot restyle a prior submission through a changed draft.
   const layout = result.presentation?.layout ?? "stacked";
+  const outcome = outcomePresentation(result);
+  if (outcome) return <div data-result-layout={layout} data-quiz-type={result.quizType} className="text-left space-y-6 break-words" style={{ color: "var(--hq-text, #172033)" }}>
+    <header className="space-y-4">
+      <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: "var(--hq-primary, #c62121)" }}>{outcome.heading}</p>
+      <h1 className="text-3xl font-semibold tracking-tight">{result.title}</h1>
+      <p className="leading-relaxed whitespace-pre-line">{result.message}</p>
+    </header>
+    {layout === "action_plan" ? <><Advice result={result}/><PrimaryAction result={result} onOfferClick={onOfferClick}/><Reasons result={result}/><ResultSections result={result} onOfferClick={onOfferClick}/></> : <><Reasons result={result}/><Advice result={result}/><ResultSections result={result} onOfferClick={onOfferClick}/><PrimaryAction result={result} onOfferClick={onOfferClick}/></>}
+  </div>;
   const hasEvidence = result.overallScore !== undefined || result.categories.length > 0 || result.reasons.length > 0;
   return <div data-result-layout={layout} className="text-left space-y-6 break-words">
     <header className="space-y-4">

@@ -19,6 +19,7 @@ import type { QuizSubmissionResult, FormSchemaType } from "../schema";
 import { HttpError } from "../auth";
 import { sendProvider } from "./adapters";
 import { isNangoProvider, providers } from "./providers";
+import { contactScore } from "../contact-filters";
 import { submissionDeleted } from "../submission-lifecycle";
 const scope = (owner: string, c: Pick<IntegrationConfig, "formId" | "id">) =>
   `${owner}:${c.formId}:${c.id}`;
@@ -148,6 +149,8 @@ export function makeEvent(
     formId: result.formId,
     submittedAt: result.submittedAt,
     score: result.percentageScore,
+    ...(result.marketing?.quizType ? { quizType: result.marketing.quizType } : {}),
+    applicableScore: contactScore(result).value,
     contact: {
       email: result.contact.email,
       name: result.contact.name,

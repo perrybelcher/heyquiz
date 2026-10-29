@@ -43,7 +43,7 @@ export function contactScore(row: QuizSubmissionResult): { kind: "knowledge" | "
 export const contactResultTitle = (row: QuizSubmissionResult) => row.marketing?.title || row.matchedTier?.title || "Completed";
 // Include both identity and saved wording: a renamed outcome stays a distinct historical choice.
 export function contactResultKey(row: QuizSubmissionResult) {
-  return JSON.stringify([row.marketing?.kind || "knowledge", row.marketing?.outcomeId || row.matchedTier?.id || "", contactResultTitle(row)]);
+  return JSON.stringify([row.marketing?.quizType || row.marketing?.kind || "knowledge", row.marketing?.outcomeId || row.matchedTier?.id || "", contactResultTitle(row)]);
 }
 export function contactResultOptions(rows: QuizSubmissionResult[]) {
   const options = new Map<string, { value: string; title: string; count: number }>();

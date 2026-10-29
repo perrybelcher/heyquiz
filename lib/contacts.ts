@@ -51,6 +51,7 @@ export function contactExportRows(rows: QuizSubmissionResult[]) {
             marketingConsent: row.contact?.marketingConsent, consentText: row.contact?.consentText, recordedAt: row.contact?.recordedAt,
             privacyUrl: row.contact?.privacyUrl, formRevision: row.contact?.formRevision, purposeText: row.contact?.purposeText, placement: row.contact?.placement,
             result: row.marketing || row.matchedTier || {}, score: score.value ?? "", answers: row.answers || {},
+            quizType: row.marketing?.quizType || "", outcomeId: row.marketing?.outcomeId || "", applicableScore: score.value,
             scoreType: score.kind, scoreStatus: score.value === null ? "not_scored" : "scored",
             // Older exports called this raw grading value "score", even for ungraded surveys (100).
             // Retain it explicitly for migration; it is never used for marketing filtering or display.

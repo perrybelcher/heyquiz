@@ -5,7 +5,7 @@ const source = z
   .string()
   .max(160)
   .regex(
-    /^(contact\.(email|name|phone|marketingConsent|recordedAt|consentText)|result\.(title|outcomeId|kind|status|categories)|score|responseId|formId|submittedAt|answers\.[a-zA-Z0-9_-]+)$/,
+    /^(contact\.(email|name|phone|marketingConsent|recordedAt|consentText)|result\.(title|outcomeId|kind|status|categories)|score|quizType|applicableScore|responseId|formId|submittedAt|answers\.[a-zA-Z0-9_-]+)$/,
   );
 export const IntegrationInput = z
   .object({
@@ -91,6 +91,9 @@ export interface LeadEvent {
   formId: string;
   submittedAt: string;
   score: number;
+  /** Original score remains unchanged for existing mappings. */
+  quizType?: string;
+  applicableScore?: number | null;
   contact: {
     email: string;
     name?: string;

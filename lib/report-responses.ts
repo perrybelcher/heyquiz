@@ -49,7 +49,7 @@ export function responsesCsv(rows: QuizSubmissionResult[]) {
     for (const id of Object.keys(row.answers || {})) if (!(row.grading || []).some(answer => answer.questionId === id)) columns.set(JSON.stringify([id]), { id });
   }
   const questions = [...columns.values()];
-  const headers = ["Submission ID", "Submitted at (UTC)", "Name", "Email", "Phone", "Marketing consent", "Score %", "Points earned", "Total possible", "Status", "Result", "Category scores", ...questions.map(question => question.title === undefined ? `Answer [${question.id}] (saved wording unavailable)` : `${question.title} [${question.id}]`)];
+  const headers = ["Submission ID", "Submitted at (UTC)", "Name", "Email", "Phone", "Marketing consent", "Score %", "Points earned", "Total possible", "Status", "Result", "Category scores", "Quiz type", "Outcome ID", ...questions.map(question => question.title === undefined ? `Answer [${question.id}] (saved wording unavailable)` : `${question.title} [${question.id}]`)];
   const records = rows.map(row => {
     const score = reportScore(row);
     return [row.id, Number.isFinite(Date.parse(row.submittedAt)) ? new Date(row.submittedAt).toISOString() : row.submittedAt, row.contact?.name || row.respondentName, row.contact?.email, row.contact?.phone,
@@ -57,6 +57,7 @@ export function responsesCsv(rows: QuizSubmissionResult[]) {
       score ?? "", score === null ? "" : row.totalPointsEarned, score === null ? "" : row.totalPointsPossible,
       score === null ? "Recorded" : row.passed ? "Passed" : "Needs Review", reportOutcome(row),
       row.marketing?.categories?.map(category => `${category.title}: ${category.score === null ? "Not enough information" : `${category.score}%`}`).join("; "),
+      row.marketing?.quizType || "", row.marketing?.outcomeId || "",
       ...questions.map(question => question.title === undefined
         ? (row.grading || []).some(answer => answer.questionId === question.id) ? "" : row.answers?.[question.id]
         : (row.grading || []).find(answer => answer.questionId === question.id && answer.questionTitle === question.title)?.userAnswer)];

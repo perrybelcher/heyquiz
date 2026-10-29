@@ -1,3 +1,4 @@
+import { outcomePresentation } from "./result-presentation";
 import { ReportDesignSchema, safeReportUrl, type ReportDesign } from "./report-design";
 import { PdfRenderError } from "./result-pdf-errors";
 export { PdfRenderError } from "./result-pdf-errors";
@@ -126,12 +127,13 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
         }
     } else {
         const marketing = object(result.marketing);
-        if (typeof marketing.kind !== "string" || !["product_finder", "segmentation", "scorecard"].includes(marketing.kind)) return invalid();
+        if (typeof marketing.kind !== "string" || !["product_finder", "segmentation", "scorecard", "qualification"].includes(marketing.kind)) return invalid();
         if (marketing.presentation !== undefined) {
             const savedLayout = object(marketing.presentation).layout;
             if (typeof savedLayout !== "string" || !["stacked", "score_overview", "action_plan"].includes(savedLayout)) return invalid();
             layout = savedLayout as ResultPdfLayout;
         }
+        const presentation = outcomePresentation(marketing);
         const categories = list(marketing.categories, 20).map(category);
         const reasons = list(marketing.reasons, 1000).map(value => text(value));
         const priorities = list(marketing.priorities, 20, true).map(value => { const row = object(value); return { title: text(row.title), action: text(row.action) }; });
@@ -142,21 +144,21 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
             if (typeof section.type !== "string" || !["text", "image", "testimonial", "faq", "cta", "video"].includes(section.type)) return invalid();
             return { type: section.type as string, title: text(section.title), body: text(section.body), label: text(section.label), url: text(section.url) };
         });
-        label(marketing.kind === "product_finder" ? "Your recommendation" : marketing.kind === "segmentation" ? "Your next step" : "Your assessment");
+        label(presentation?.heading || (marketing.kind === "product_finder" ? "Your recommendation" : marketing.kind === "segmentation" ? "Your next step" : "Your assessment"));
         heading(text(marketing.title), 1); paragraph(text(marketing.message));
         const addOverall = () => {
-            if (overall === undefined) return;
+            if (presentation || overall === undefined) return;
             add({ kind: "score", label: "Overall score", value: overall });
             paragraph(overall === null ? "Every category needs enough scored answers before an overall recommendation is available." : "Each category contributes equally to this score.");
         };
         const addPriorities = () => {
-            if (!priorities.length) return;
+            if (presentation || !priorities.length) return;
             heading("Your next priorities"); paragraph("Starting with your lowest scored areas.");
             priorities.forEach((priority, index) => { heading((index + 1) + ". " + priority.title, 3); paragraph(priority.action); });
         };
-        const addReasons = () => { if (reasons.length) { heading("Why this fits"); reasons.forEach(paragraph); } };
-        const addAdvice = () => { if (advice) { heading("A useful first step"); paragraph(advice); } };
-        const addCategories = () => categories.forEach(row => {
+        const addReasons = () => { if (reasons.length) { heading(presentation?.reasons || "Why this fits"); reasons.forEach(paragraph); } };
+        const addAdvice = () => { if (advice) { heading(presentation?.advice || "A useful first step"); paragraph(advice); } };
+        const addCategories = () => (presentation ? [] : categories).forEach(row => {
             heading(row.title); add({ kind: "score", label: "Score", value: row.score });
             paragraph(row.description); heading(row.bandTitle, 3); paragraph(row.advice); label(coverage(row));
         });
@@ -178,6 +180,9 @@ export function buildResultPdfModel(input: unknown): ResultPdfModel {
             addOverall(); addCategories();
             const addGroup = { priorities: addPriorities, reasons: addReasons, advice: addAdvice, details: addSections, action: addAction };
             for (const section of design.sections) addGroup[section]();
+        } else if (presentation) {
+            if (layout === "action_plan") { addAdvice(); addAction(); addReasons(); addSections(); }
+            else { addReasons(); addAdvice(); addSections(); addAction(); }
         } else if (layout === "action_plan") {
             addAdvice(); addPriorities(); addAction();
             if (overall !== undefined || categories.length || reasons.length) {
