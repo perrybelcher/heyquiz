@@ -11,6 +11,7 @@ for(const k of env)delete process.env[k];process.env.HEYQUIZ_DATA_DIR=dir;
 (async()=>{
  try{
   const source=FormSchema.parse({id:'original',title:'Product',quizType:'product_finder',mode:'survey',questions:[{id:'q',type:'multiple_choice',title:'Choose',options:[{id:'a',label:'A'},{id:'b',label:'B'}]}],marketing:{kind:'product_finder',outcomes:[{id:'one',title:'One'}],rules:[{id:'r',questionId:'q',answerId:'a',targetId:'one',points:1},{id:'x',questionId:'q',answerId:'b',targetId:'one',effect:'exclude'}]},publishedAt:'past'});
+  const longTitle=previewQuizConversion({...source,title:"A".repeat(300)},"diagnostic").form.title;assert.equal(longTitle.length,200);assert.ok(longTitle.endsWith(" (converted copy)"));
   const snapshot=JSON.stringify(source);const preview=previewQuizConversion(source,'diagnostic');assert.equal(JSON.stringify(source),snapshot);assert.notEqual(preview.form.id,source.id);assert.equal(preview.form.publishedAt,undefined);assert.equal(preview.form.marketing.rules.length,1);assert.equal(preview.form.questions[0].options[0].id,'a');assert.equal(preview.form.conversionReview.required,true);assert.throws(()=>validateMarketing(preview.form,true));assert.ok(preview.changes.some(s=>s.includes('exclusion')));
   const qualification=previewQuizConversion(source,'qualification').form;assert.equal(qualification.marketing.rules.length,0);assert.equal(qualification.marketing.qualificationRules,undefined);assert.equal(qualification.meta,undefined);assert.equal(qualification.tracking,undefined);
   let saved=await saveForm(source,'owner');

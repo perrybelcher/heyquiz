@@ -11,7 +11,8 @@ export function previewQuizConversion(source: FormSchemaType, targetType: QuizTy
   const changes: string[] = ["Create an unpublished copy with a new quiz ID. The original and its responses remain available.", "Review the copied results, answer mappings and retained branching before publishing."];
   const copy = structuredClone(source);
   copy.id = `quiz-${nanoid(12)}`;
-  copy.title = `${source.title} (converted copy)`;
+  const suffix = " (converted copy)";
+  copy.title = `${source.title.slice(0, 200 - suffix.length)}${suffix}`;
   copy.quizType = targetType;
   copy.mode = definition.mode;
   delete copy.createdAt; delete copy.updatedAt; delete copy.publishedAt; delete copy.revision;

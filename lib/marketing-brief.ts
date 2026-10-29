@@ -26,6 +26,7 @@ export const MarketingBriefSchema = z.object({
     ctaUrl: destination.default(""),
   })).min(2).max(5),
 }).superRefine((b, ctx) => {
+  if (b.kind === "qualification" && b.quizType !== "qualification") ctx.addIssue({code:"custom",path:["quizType"],message:"Choose the qualification quiz type for route-based creation."});
   if (b.quizType && quizTypeDefinitions[b.quizType].marketingKind !== b.kind)
     ctx.addIssue({code:"custom",path:["quizType"],message:"The selected outcome type does not match this brief."});
   if (new Set(b.targets.map(t => t.title.toLowerCase())).size !== b.targets.length)

@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     checkOrigin(req);
     const u = await requireUser(),
       body = FormSchema.parse(await readJsonRequest(req));
+    if (body.marketing?.kind === "qualification" && body.quizType !== "qualification") throw new HttpError(400,"Choose the qualification quiz type before creating a qualification quiz.");
     if (!outcomeCreationEnabled && body.quizType && ["personality", "product_finder", "diagnostic", "qualification"].includes(body.quizType)) throw new HttpError(503,"New outcome quiz creation is temporarily unavailable. Existing quizzes remain available.");
     return Response.json(await saveForm({ ...body, revision: 0 }, u.id), {
       status: 201,
