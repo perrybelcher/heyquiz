@@ -18,6 +18,7 @@ const result=evaluateMarketing(f,{choice:'yes',budget:11});assert.equal(result.q
 assert.equal(evaluateMarketing(renameGuidedAnswer(f,'choice','yes','Absolutely'),{choice:'yes',budget:11}).outcomeId,'fit');
 assert.ok(reviewGuidedRemoval(f,'choice','yes').changes.some(c=>c.includes('qualification')));
 assert.equal(removeGuidedAnswer(f,'choice','yes').marketing.qualificationRules.length,1);
+const incomplete=structuredClone(f);incomplete.marketing.qualificationRules[0].conditions[1].value='';validateMarketing(incomplete);assert.throws(()=>validateMarketing(incomplete,true));assert.equal(evaluateMarketing(incomplete,{choice:'yes',budget:11}).outcomeId,'other');
 const draft=FormSchema.parse({...base,marketing:{kind:'qualification'}});validateMarketing(draft);assert.throws(()=>validateMarketing(draft,true));
 const bad=structuredClone(f);bad.marketing.qualificationRules[0].conditions[0].value='Yes';assert.throws(()=>validateMarketing(bad));
 const review=structuredClone(f);review.conversionReview={sourceQuizId:'source',required:true};validateMarketing(review);assert.throws(()=>validateMarketing(review,true));

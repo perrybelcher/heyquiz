@@ -508,6 +508,7 @@ export interface QuestionGradingResult {
 }
 
 export interface QuizSubmissionResult {
+  quizType?: QuizType;
   metaDecision?: MetaDecision;
   contact?: ContactRecord;
   contactCaptured?: boolean;

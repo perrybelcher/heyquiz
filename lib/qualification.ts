@@ -22,7 +22,11 @@ export function validateQualification(form: FormSchemaType, publishing = false) 
       if (!q) throw new ValidationError("A qualification condition refers to a missing question.");
       if (singleTypes.has(q.type) || multiTypes.has(q.type)) {
         if (!["equals", "not_equals"].includes(c.operator) || !q.options?.some(o => o.id === c.value)) throw new ValidationError("Qualification choice conditions must reference an existing answer ID.");
-      } else if (!qualificationNumericTypes.includes(q.type) || !c.value.trim() || !Number.isFinite(Number(c.value))) throw new ValidationError("Qualification numeric conditions require a numeric field and finite value.");
+      } else {
+        if (!qualificationNumericTypes.includes(q.type)) throw new ValidationError("Qualification numeric conditions require a numeric field.");
+        if (!c.value.trim()) { if (publishing) throw new ValidationError("Complete each numeric qualification condition before publishing."); }
+        else if (!Number.isFinite(Number(c.value))) throw new ValidationError("Qualification numeric conditions require a finite value.");
+      }
     }
   }
   if (publishing) {

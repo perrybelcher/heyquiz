@@ -2,14 +2,14 @@ import { aiProviderError } from "./ai-provider-error";
 import { z } from "zod";
 import { HttpError } from "./auth";
 import { ValidationError } from "./errors";
-import { MarketingBriefSchema, MarketingDraftSchema, compileMarketingDraft, marketingSystemPrompt } from "./marketing-brief";
+import { MarketingBriefSchema, marketingDraftSchema, compileMarketingDraft, marketingSystemPrompt } from "./marketing-brief";
 
 // One fresh retry for malformed/invalid drafts; never retry configuration or quota errors.
 // Both attempts share a deadline below the route's 90-second execution limit.
 export async function generateMarketingQuiz(input: unknown) {
   const brief = MarketingBriefSchema.parse(input);
   if (!process.env.GEMINI_API_KEY) throw new HttpError(503, "AI creation is not connected yet. Your brief is still here. You can use a quiz starter while the AI connection is configured.");
-  const schema = z.toJSONSchema(MarketingDraftSchema);
+  const schema = z.toJSONSchema(marketingDraftSchema(brief.kind));
   const deadline = Date.now() + 75000;
   let repair = "";
   for (let attempt = 0; attempt < 2; attempt++) {

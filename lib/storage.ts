@@ -99,6 +99,9 @@ export async function saveForm(
   owner: string,
 ): Promise<FormSchemaType> {
   const form = FormSchema.parse(input);
+  const previous = await ownedForm(form.id, owner);
+  if (previous && previous.quizType !== form.quizType && (previous.quizType || form.quizType))
+    throw new ValidationError("Change quiz type by creating a converted copy. The original quiz type cannot be changed in place.");
   validateFormReferences(form);
   validateMarketing(form);
   const questions = orderedQuestions(form),

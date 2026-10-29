@@ -1,8 +1,10 @@
+import { QuizTypeSchema } from "./quiz-types";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { FormSchema, type FormSchemaType } from "./schema";
 import { HttpError } from "./auth";
 export const GenerateRequest = z.object({
+  quizType: QuizTypeSchema.extract(["knowledge"]).optional(),
   topic: z.string().trim().min(3).max(4000),
   numQuestions: z.number().int().min(2).max(30).default(5),
   difficulty: z
@@ -41,6 +43,7 @@ export async function generateQuizWithAgent(
   input: unknown,
 ): Promise<FormSchemaType> {
   const req = GenerateRequest.parse(input);
+  if(req.quizType === "knowledge") req.mode = "quiz";
   if (!process.env.GEMINI_API_KEY)
     throw new HttpError(
       503,
@@ -154,6 +157,7 @@ export async function generateQuizWithAgent(
       );
   }
   return FormSchema.parse({
+    ...(req.quizType ? {quizType:req.quizType} : {}),
     id: `quiz-${nanoid(10)}`,
     title: data.title,
     description: data.description,

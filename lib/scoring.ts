@@ -109,6 +109,7 @@ export function gradeQuizSubmission(
         percentageScore <= t.maxScorePercent,
     );
   return {
+    ...(form.quizType ? {quizType: form.quizType} : {}),
     formId: form.id,
     totalQuestions: grading.length,
     totalPointsPossible,
