@@ -22,6 +22,7 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
   const claimAccount = useRef<string | undefined>(undefined);
   const restore = useRef(options.onRestore), claimAcknowledged = useRef(false), claimedId = useRef<string | null>(null), claimedCreatedAt = useRef<string | undefined>(undefined);
   const uncertainSnapshot = useRef<FormSchemaType | null>(null);
+  const leavingClaimedDraft = useRef(false);
   const key = `heyquiz-draft:${form.id}`;
   useEffect(() => { restore.current = options.onRestore; }, [options.onRestore]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -134,6 +135,7 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
       if (uncertainSnapshot.current) {
         const old = uncertainSnapshot.current, outcome = await reconcile(old);
         if (outcome === "matched" && isCreation) {
+          leavingClaimedDraft.current = true;
           claimedId.current = old.id; claimedCreatedAt.current = old.createdAt; setClaimed(true);
           if (draftFingerprint(latest.current) !== saved.current) backupNow(latest.current);
           window.history.replaceState(null, "", `/editor/${old.id}`); window.location.assign(`/editor/${old.id}`); return false;
@@ -172,6 +174,7 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
             claimedCreatedAt.current = typeof data?.createdAt === "string" ? data.createdAt : undefined;
             const session = await checkEditorSession();
             if (session.state === "authenticated") { scopeRef.current = session.accountKey; setScope(session.accountKey); }
+            leavingClaimedDraft.current = true;
             setClaimed(true); setRecoveryDismissed(true);
             // Retain any edits that arrived during creation before navigation.
             if (draftFingerprint(latest.current) !== saved.current) backupNow(latest.current);
@@ -181,10 +184,12 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
           }
           markAuth(false); retries.current = 0; clarityEvent("draft_saved");
         } catch (cause) {
+          leavingClaimedDraft.current = false;
           // A network loss can occur after commit. Reconcile before reporting
           // failure, but never clear a backup based on HTTP success alone.
           if (sent && uncertainSnapshot.current && await reconcile(current) === "matched") {
             if (creating) {
+              leavingClaimedDraft.current = true;
               claimedId.current = current.id; setClaimed(true);
               if (draftFingerprint(latest.current) !== saved.current) backupNow(latest.current);
               window.history.replaceState(null, "", `/editor/${current.id}`); window.location.assign(`/editor/${current.id}`); return false;
@@ -213,7 +218,9 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
     return () => clearTimeout(timer);
   }, [failureCount, saveNow]);
   useEffect(() => {
-    if (guest && !claimed) return;
+    // Claiming deliberately loads the owner editor in a new document. Starting
+    // another session fetch during that departure creates a WebKit access error.
+    if (leavingClaimedDraft.current || (guest && !claimed)) return;
     let lastActivityCheck = Date.now(), cancelled = false;
     const resume = async () => {
       if (document.visibilityState !== "visible" || !navigator.onLine) return;
