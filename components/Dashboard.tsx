@@ -134,8 +134,26 @@ export default function Dashboard({
       <WorkspaceHeader active="overview" />
       <main className={v2 ? "v2-page-inner" : "max-w-7xl mx-auto px-5 py-7 sm:px-10 sm:py-10"}>
         {v2 ? <>
-          <header className="v2-page-heading"><div><h1>Your quizzes <span className="v2-beta">Beta</span></h1><p>Create, refine, and share your next conversation.</p></div><div className="v2-heading-actions"><Link href="/templates" className="v2-button">Browse templates</Link><Link href="/create" className="v2-button v2-button-primary"><Plus size={16} aria-hidden="true" />Create quiz</Link></div></header>
-          <div className="v2-quiz-summary"><dl aria-label="Workspace overview"><div><dt>Total quizzes</dt><dd>{forms.length}</dd></div><div><dt>Published</dt><dd>{forms.filter(form => form.publishedAt).length}</dd></div><div><dt>In progress</dt><dd>{forms.filter(form => !form.publishedAt).length}</dd></div></dl>{forms[0] && <Link className="v2-recent-link" href={`/editor/${forms[0].id}`}><span>Continue: {forms[0].title}</span><ArrowRight size={15} aria-hidden="true" /></Link>}</div>
+          <section className="v2-welcome" aria-labelledby="v2-welcome-title">
+            <p className="v2-welcome-eyebrow">Your workspace</p>
+            <h1 id="v2-welcome-title">{forms.length ? "Welcome back." : "Your next quiz starts here."}</h1>
+            <p className="v2-welcome-description">{forms.length ? "Create, refine, and share your next conversation." : "Start with a template or create something of your own."}</p>
+            {forms[0] && <section className="v2-resume" aria-labelledby="v2-resume-title">
+              <h2 id="v2-resume-title">Pick up where you left off.</h2>
+              <div className="v2-resume-body">
+                <span className="v2-resume-icon"><FileText size={28} aria-hidden="true" /></span>
+                <div className="v2-resume-details"><p className="v2-resume-label">Continue editing</p><h3>{forms[0].title}</h3>
+                  {forms[0].description && <p className="v2-resume-description">{forms[0].description}</p>}
+                  <div className="v2-resume-meta"><span>{forms[0].questions.length} {forms[0].questions.length === 1 ? "question" : "questions"}</span><span className={`v2-quiz-status ${forms[0].publishedAt ? "is-published" : ""}`}>{forms[0].publishedAt ? "Published" : "Draft"}</span>
+                    {forms[0].updatedAt && Number.isFinite(Date.parse(forms[0].updatedAt)) && <span>Updated {new Date(forms[0].updatedAt).toLocaleDateString("en-US", {timeZone:"UTC",month:"short",day:"numeric",year:"numeric"})}</span>}
+                  </div>
+                </div>
+                <div className="v2-resume-actions"><Link className="v2-button v2-button-primary" href={`/editor/${encodeURIComponent(forms[0].id)}`}>Continue editing<ArrowRight size={18} aria-hidden="true" /></Link><Link className="v2-quiz-link" href={`/play/${encodeURIComponent(forms[0].id)}?preview=1`} target="_blank" rel="noopener noreferrer">Preview<ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+              </div>
+            </section>}
+          </section>
+          <div className="v2-quiz-summary"><dl aria-label="Workspace overview"><div><dt>Total quizzes</dt><dd>{forms.length}</dd></div><div><dt>Published</dt><dd>{forms.filter(form => form.publishedAt).length}</dd></div><div><dt>In progress</dt><dd>{forms.filter(form => !form.publishedAt).length}</dd></div></dl></div>
+          <header className="v2-page-heading v2-library-heading"><h2>Your quizzes <span className="v2-beta">Beta</span></h2><div className="v2-heading-actions"><Link href="/templates" className="v2-button">Browse templates</Link><Link href="/create" className="v2-button v2-button-primary"><Plus size={16} aria-hidden="true" />Create quiz</Link></div></header>
           {!forms.length && <section className="mb-8" aria-label="Create your first quiz"><CreationPaths busy={busy} onBlank={() => void create()} onAI={() => { setError(""); setAIGoal("choose"); setAgent(true); }} /></section>}
         </> : <WorkspaceWelcome busy={busy} onCreate={kind=>void create(undefined,kind)} onAI={()=>{setError("");setAIGoal("choose");setAgent(true);}} recentQuiz={forms[0]} projectCount={forms.length} publishedCount={forms.filter(f=>f.publishedAt).length} />}
         {error && !agent && (
