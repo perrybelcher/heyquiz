@@ -23,11 +23,20 @@ try {
   assert.ok(lastHtml.includes('Question 30 of 30')); assert.ok(lastHtml.includes('First answer'));
   const styled=structuredClone(form);styled.theme.primaryColor='#123456';
   assert.deepEqual(appearanceResult(styled,'explorer'),selected,'Theme edits must not change projected result content');
-  for(const type of ['file_upload','captcha']) {
-    const variant=structuredClone(form);variant.questions[0].type=type;
-    const html=render(Preview,{form:variant,step:1,questionId:'q1'});
-    assert.ok(html.includes(type==='file_upload'?'Uploads are disabled here':'No challenge request is made here'));
-  }
+  const attachmentModule=require('../components/AttachmentField.tsx'), challengeModule=require('../components/Challenge.tsx');
+  const savedAttachment=attachmentModule.default, savedChallenge=challengeModule.default;
+  attachmentModule.default=()=>{throw Error('AttachmentField must not mount in appearance preview');};
+  challengeModule.default=()=>{throw Error('Challenge must not mount in appearance preview');};
+  try {
+    for(const type of ['file_upload','image_upload','audio_recorder','captcha','video_embed']) {
+      const variant=structuredClone(form);variant.questions[0].type=type;variant.questions[0].videoUrl='https://www.youtube.com/watch?v=example';
+      const html=render(Preview,{form:variant,step:1,questionId:'q1'});
+      assert.ok(html.includes(type==='captcha'?'No challenge request is made here':type==='audio_recorder'?'microphone access and uploads are disabled here':type==='video_embed'?'external video player is not loaded here':'Uploads are disabled here'),type);
+      assert.ok(!html.includes('type="file"'),type+' must not expose an upload input');
+      assert.ok(!html.includes('Start recording'),type+' must not request microphone access');
+      assert.ok(!html.includes('<iframe'),type+' must not load an external player');
+    }
+  }finally{attachmentModule.default=savedAttachment;challengeModule.default=savedChallenge;}
   const score=structuredClone(form);score.quizType='scorecard';score.marketing.kind='scorecard';score.marketing.outcomes=[];score.marketing.categories=[{id:'followup',title:'Follow-up',description:'Responding to enquiries',minAnswers:2}];score.marketing.scorecard={title:'Health check',message:'From your answers',bands:[{id:'steady',title:'Steady foundation',advice:'Improve follow-up',min:40,max:69,ctaLabel:'Learn',ctaUrl:''}]};
   const scorePreview=appearanceResult(score,'steady');assert.equal(scorePreview.title,'Steady foundation');assert.equal(scorePreview.overallScore,null);assert.equal(scorePreview.categories[0].score,null);assert.equal(scorePreview.categories[0].answered,0);
   const knowledge=structuredClone(form);knowledge.mode='quiz';knowledge.quizType='knowledge';delete knowledge.marketing;knowledge.outcomeTiers=[{id:'low',minScorePercent:0,maxScorePercent:49,title:'Keep practicing',message:'Review the examples',badge:''},{id:'high',minScorePercent:50,maxScorePercent:100,title:'Good understanding',message:'Keep checking',badge:''}];
