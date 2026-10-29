@@ -166,3 +166,17 @@
 body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:170px!important;right:18px!important}
 @media(max-width:767px){body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:calc(16px + env(safe-area-inset-bottom))!important;right:12px!important}body:has(.basic-builder) aside[aria-label="Pippi support"]>button{min-width:44px;max-width:44px;overflow:hidden;white-space:nowrap}}
 @media(max-width:767px){body:has(.basic-builder) aside[aria-label="Pippi support"]>button{padding:12px;justify-content:center}body:has(.basic-builder) aside[aria-label="Pippi support"]>button>span{display:none}body:has(.basic-builder) aside[aria-label="Pippi support"]>button>svg{flex-shrink:0}}
+/* Compact association rows keep the result and its points visible together. */
+.basic-builder .basic-association{display:grid;grid-template-columns:minmax(0,1fr) 96px;align-items:center;gap:8px 12px;padding:10px 12px}
+.basic-builder .basic-association-target{font-size:13px;font-weight:600;line-height:1.4;min-width:0;overflow-wrap:anywhere}
+.basic-builder .basic-association>.basic-field{min-width:0;gap:3px;font-size:11px}
+.basic-builder .basic-association>.basic-field input{padding:7px 9px;min-height:40px;width:100%}
+.basic-builder .basic-association-details{grid-column:1 / -1;border:0;padding:0;background:transparent}
+.basic-builder .basic-association-details>summary{font-size:12px;font-weight:500;min-height:32px;display:flex;align-items:center;color:var(--basic-muted)}
+.basic-builder .basic-association-details[open]>summary{margin-bottom:8px}
+.basic-builder .basic-exclusion-badge{display:block;color:var(--basic-accent);font-size:11px;font-weight:550;margin-top:3px}
+.basic-builder .basic-add-association{border:0;padding:0;background:transparent}
+.basic-builder .basic-add-association>summary{font-size:12px;font-weight:600;color:var(--basic-accent);min-height:44px;display:flex;align-items:center}
+.basic-builder .basic-answer-actions{display:flex;align-items:center;gap:4px}
+.basic-builder .basic-answer-actions button{width:44px;min-width:44px;height:44px;padding:10px;display:inline-flex;align-items:center;justify-content:center}
+@media(max-width:767px){.basic-builder .basic-association>.basic-field{min-width:0;flex-basis:auto}.basic-builder .basic-association-details>summary{min-height:44px}}
