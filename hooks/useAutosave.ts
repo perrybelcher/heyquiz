@@ -218,17 +218,19 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
     return () => clearTimeout(timer);
   }, [failureCount, saveNow]);
   useEffect(() => {
-    // Claiming deliberately loads the owner editor in a new document. Starting
-    // another session fetch during that departure creates a WebKit access error.
-    if (leavingClaimedDraft.current || (guest && !claimed)) return;
+    if (guest && !claimed) return;
     let lastActivityCheck = Date.now(), cancelled = false;
-    const resume = async () => {
+    const resume = async (event?: Event) => {
+      // Skip only the immediate refresh while the claim loads a new document.
+      // Keep save/listener protection if beforeunload cancels that departure.
+      if (event) leavingClaimedDraft.current = false;
+      if (leavingClaimedDraft.current) return;
       if (document.visibilityState !== "visible" || !navigator.onLine) return;
       if (!(await checkSession()) || cancelled) return;
       if (retryable.current && !pending.current && !(recoveryCopies.length && !recoveryDismissed) && draftFingerprint(latest.current) !== saved.current) void saveNow(undefined, true);
     };
-    const activity = () => { if (Date.now() - lastActivityCheck >= 300000) { lastActivityCheck = Date.now(); void resume(); } };
-    const notice = (event: StorageEvent) => { if (event.key === "pippi-auth-notice") void resume(); };
+    const activity = () => { if (leavingClaimedDraft.current || Date.now() - lastActivityCheck >= 300000) { leavingClaimedDraft.current = false; lastActivityCheck = Date.now(); void resume(); } };
+    const notice = (event: StorageEvent) => { if (event.key === "pippi-auth-notice") void resume(event); };
     void resume();
     for (const name of ["online", "focus", "pippi-auth-change"]) window.addEventListener(name, resume);
     document.addEventListener("visibilitychange", resume);
