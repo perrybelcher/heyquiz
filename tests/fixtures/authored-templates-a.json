@@ -1,0 +1,124 @@
+{
+  "personality-working-style": {
+    "answers": {
+      "brief": "brief-planner",
+      "first-hour": "first-hour-planner",
+      "unknown-task": "unknown-task-planner",
+      "workspace": "workspace-planner",
+      "motivation": "motivation-planner",
+      "weekly-plan": "weekly-plan-planner",
+      "estimate": "estimate-planner",
+      "milestone": "milestone-planner",
+      "dependency": "dependency-planner",
+      "task-list": "task-list-planner",
+      "options": "options-planner",
+      "incomplete-data": "incomplete-data-planner",
+      "purchase": "purchase-planner",
+      "disagreement": "disagreement-planner",
+      "risk": "risk-planner",
+      "meeting": "meeting-planner",
+      "feedback": "feedback-planner",
+      "handoff": "handoff-planner",
+      "remote": "remote-planner",
+      "help": "help-planner",
+      "scope": "scope-planner",
+      "tool-change": "tool-change-planner",
+      "interruption": "interruption-planner",
+      "failed-attempt": "failed-attempt-planner",
+      "uncertainty": "uncertainty-planner",
+      "final-check": "final-check-planner",
+      "deadline": "deadline-planner",
+      "documentation": "documentation-planner",
+      "retrospective": "retrospective-planner",
+      "satisfaction": "satisfaction-planner"
+    },
+    "outcomeId": "planner"
+  },
+  "personality-traveller": {
+    "answers": {
+      "weekend": "weekend-planner",
+      "stay": "stay-planner",
+      "meal": "meal-planner",
+      "free-day": "free-day-planner",
+      "souvenir": "souvenir-planner",
+      "transport": "transport-planner",
+      "activity": "activity-planner",
+      "pace": "pace-planner"
+    },
+    "outcomeId": "planner"
+  },
+  "personality-home-style": {
+    "answers": {
+      "room": "room-planner",
+      "shelf": "shelf-planner",
+      "colour": "colour-planner",
+      "furniture": "furniture-planner",
+      "lighting": "lighting-planner",
+      "purchase": "purchase-planner",
+      "hosting": "hosting-planner",
+      "refresh": "refresh-planner"
+    },
+    "outcomeId": "planner"
+  },
+  "knowledge-suspicious-messages": {
+    "answers": {
+      "display-name": "display-name-correct",
+      "lookalike": "lookalike-correct",
+      "familiar-account": "familiar-account-correct",
+      "personal-details": "personal-details-correct",
+      "mobile-sender": "mobile-sender-correct",
+      "link-label": "link-label-correct",
+      "qr": "qr-correct",
+      "short-link": "short-link-correct",
+      "account-alert": "account-alert-correct",
+      "chat-link": "chat-link-correct",
+      "invoice-file": "invoice-file-correct",
+      "macros": "macros-correct",
+      "forwarded-file": "forwarded-file-correct",
+      "double-extension": "double-extension-correct",
+      "zip-password": "zip-password-correct",
+      "password-request": "password-request-correct",
+      "verification-code": "verification-code-correct",
+      "mfa": "mfa-correct",
+      "shared-password": "shared-password-correct",
+      "account-recovery": "account-recovery-correct",
+      "bank-change": "bank-change-correct",
+      "secret-payment": "secret-payment-correct",
+      "callback": "callback-correct",
+      "thread": "thread-correct",
+      "transfer-sent": "transfer-sent-correct",
+      "report-channel": "report-channel-correct",
+      "clicked": "clicked-correct",
+      "unsure": "unsure-correct",
+      "recovery-check": "recovery-check-correct",
+      "help-colleague": "help-colleague-correct"
+    },
+    "percentageScore": 100
+  },
+  "knowledge-coffee-basics": {
+    "answers": {
+      "espresso": "espresso-correct",
+      "storage": "storage-correct",
+      "grinding": "grinding-correct",
+      "cold-brew": "cold-brew-correct",
+      "press": "press-correct",
+      "decaf": "decaf-correct",
+      "latte": "latte-correct",
+      "beans": "beans-correct"
+    },
+    "percentageScore": 100
+  },
+  "knowledge-customer-service": {
+    "answers": {
+      "listen": "listen-correct",
+      "record": "record-correct",
+      "evidence": "evidence-correct",
+      "solution": "solution-correct",
+      "delay": "delay-correct",
+      "handoff": "handoff-correct",
+      "follow-up": "follow-up-correct",
+      "learning": "learning-correct"
+    },
+    "percentageScore": 100
+  }
+}
