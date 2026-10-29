@@ -14,11 +14,12 @@ async function stored(page){return page.evaluate(()=>{const id=localStorage.getI
   const instanceIds=new Set();
   for(const t of authoredTemplates){
    await page.goto(base+'/templates?quizType='+t.quizType);
-   assert.equal(await page.locator('[data-template-id]').count(),3);
+   assert.ok(await page.locator('[data-template-id]').count()>=3,'Unified type includes its three authored examples and compatible historical templates');
    const card=page.locator(`[data-template-id="${t.id}"]`);await card.focus();await page.keyboard.press('Enter');
-   const preview=page.getByRole('region',{name:'Template details'});await preview.getByRole('heading',{name:t.title,exact:true}).waitFor();
+   let preview=page.getByRole('region',{name:'Template details'});await preview.getByRole('heading',{name:t.title,exact:true}).waitFor();
+   await preview.getByRole('tab',{name:`Questions (${t.questionCount})`,exact:true}).click();
    assert.equal(await preview.locator('ol > li').count(),t.questionCount);
-   await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Preview fits mobile');
+   await page.setViewportSize({width:390,height:844});preview=page.getByRole('dialog',{name:'Template details'});await preview.waitFor();assert.equal(await preview.getAttribute('aria-modal'),'true');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Preview fits mobile');
    await preview.getByRole('button',{name:'Use this template',exact:true}).click();
    await page.waitForFunction(()=>Boolean(localStorage.getItem('pippi-guest-draft')));
    const f=await stored(page);assert.equal(f.quizType,t.quizType);assert.equal(f.title,t.title);assert.equal(f.questions.length,t.questionCount);assert.equal(f.publishedAt,undefined);assert.ok(!instanceIds.has(f.id));instanceIds.add(f.id);
@@ -60,7 +61,7 @@ async function stored(page){return page.evaluate(()=>{const id=localStorage.getI
    const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export CSV',exact:true}).click();const file=await (await download).path();const csv=fs.readFileSync(file,'utf8');assert.ok(csv.includes(t.quizType));if(fixture.outcomeId)assert.ok(csv.includes(fixture.outcomeId));
    console.log(`PASS ${name}: ${t.title} (${t.questionCount}) preview → draft/reload → publish → all questions → result/PDF/CSV`);
   }
-  await page.goto(base+'/templates');await page.getByRole('button',{name:'Browse additional existing templates',exact:true}).click();await page.getByRole('combobox',{name:'Industry',exact:true}).waitFor();
+  await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/templates');await page.getByRole('button',{name:'All templates',exact:true}).click();await page.getByRole('status').filter({hasText:'61 templates'}).waitFor();while(await page.getByRole('button',{name:/^Show more templates/}).count())await page.getByRole('button',{name:/^Show more templates/}).click();assert.equal(await page.locator('[data-template-id]').count(),61,'All authored and historical templates share the catalogue');
   const navigationDiagnostic=e=>{if(name!=='webkit'||!e.name.startsWith('Fetch API cannot load')||!e.url)return false;const url=new URL(e.url);return url.origin===base&&url.searchParams.has('_rsc');};
   const unexpected=errors.filter(e=>!navigationDiagnostic(e));if(errors.length!==unexpected.length)console.log(`NOTE ${name}: ${errors.length-unexpected.length} background RSC prefetch diagnostics; all page readiness checks passed.`);assert.deepEqual(unexpected,[]);
  }catch(e){await page.screenshot({path:path.join(artifacts,name+'-failure.png'),fullPage:true}).catch(()=>{});throw e;}finally{await browser.close();}
