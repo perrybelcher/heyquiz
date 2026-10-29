@@ -44,7 +44,7 @@
     "test:browser-outcomes": "node tests/browser-outcome-quizzes.cjs",
     "test:browser-outcome-creation": "node tests/browser-outcome-creation.cjs",
     "test:v2": "node tests/interface-rollout.cjs && node tests/interface-telemetry.cjs && node tests/v2-field-compatibility.cjs && node tests/v2-element-picker.cjs && node tests/v2-editor-order.cjs && node tests/v2-data-screens.cjs",
-    "test:templates": "node tests/authored-templates.cjs && node tests/authored-templates-a.cjs && node tests/authored-templates-b.cjs && node tests/authored-templates-c.cjs && node tests/template-catalog.cjs",
+    "test:templates": "node tests/authored-templates.cjs && node tests/authored-templates-a.cjs && node tests/authored-templates-b.cjs && node tests/authored-templates-c.cjs && node tests/authored-templates-independent-qa.cjs && node tests/template-catalog.cjs",
     "test:browser-templates": "node tests/browser-authored-templates.cjs"
   },
   "dependencies": {

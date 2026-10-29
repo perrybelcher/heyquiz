@@ -25,6 +25,7 @@ async function stored(page){return page.evaluate(()=>{const id=localStorage.getI
    await page.reload();await page.getByRole('button',{name:'Design quiz',exact:true}).waitFor();assert.equal((await stored(page)).id,f.id);
    await page.setViewportSize({width:1440,height:1000});
   }
+  console.log(`PASS ${name}: all18 previews, fresh drafts, mobile layout, keyboard selection and reload recovery`);
   // Authentication claims the actual template draft through the existing editor.
   const guest=await stored(page);await json(await context.request.post(base+'/api/auth',{headers,data:{local:true}}));
   await page.getByRole('button',{name:'Save my quiz',exact:true}).click();await page.waitForURL(base+'/editor/'+guest.id);
@@ -55,7 +56,7 @@ async function stored(page){return page.evaluate(()=>{const id=localStorage.getI
    await page.getByRole('button',{name:'Create private result link',exact:true}).click();const link=page.getByRole('link',{name:'Open saved result'});await link.waitFor();const href=await link.getAttribute('href');
    await page.goto(base+href);await page.getByText(f.title,{exact:true}).first().waitFor();
    const pdf=await context.request.get(base+'/api'+href+'/pdf');assert.equal(pdf.status(),200,await pdf.text());assert.equal((await pdf.body()).subarray(0,4).toString(),'%PDF');
-   await page.goto(base+'/reports/'+f.id);await page.getByRole('heading',{name:'Responses',exact:true}).waitFor();
+   await page.goto(base+'/reports/'+f.id);await page.getByRole('tab',{name:'Responses',exact:true}).click();await page.getByRole('heading',{name:'Responses',exact:true}).waitFor();
    const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export CSV',exact:true}).click();const file=await (await download).path();const csv=fs.readFileSync(file,'utf8');assert.ok(csv.includes(t.quizType));if(fixture.outcomeId)assert.ok(csv.includes(fixture.outcomeId));
    console.log(`PASS ${name}: ${t.title} (${t.questionCount}) preview → draft/reload → publish → all questions → result/PDF/CSV`);
   }
