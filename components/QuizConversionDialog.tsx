@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { FormSchemaType } from "@/lib/schema";
 import { quizTypes, quizTypeDefinitions, type QuizType } from "@/lib/quiz-types";
 
@@ -24,8 +24,18 @@ export default function QuizConversionDialog({ currentType, onClose, onPreview, 
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const element = dialog.current;
     element?.showModal();
+    element?.querySelector<HTMLSelectElement>("select")?.focus();
     return () => { element?.close(); if (opener?.isConnected) opener.focus(); };
   }, []);
+  function containTab(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key !== "Tab") return;
+    const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), select:not(:disabled), input:not(:disabled), a[href]")).filter(element => element.getClientRects().length);
+    if (!controls.length) { event.preventDefault(); return; }
+    event.preventDefault();
+    const current = controls.indexOf(document.activeElement as HTMLElement);
+    const next = current < 0 ? (event.shiftKey ? controls.length - 1 : 0) : (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+    controls[next].focus();
+  }
   async function review() {
     setBusy(true); setError("");
     try { const next = await onPreview(target); key.current = crypto.randomUUID(); setPreview(next); }
@@ -39,7 +49,7 @@ export default function QuizConversionDialog({ currentType, onClose, onPreview, 
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the copy. Retry safely with the same request."); }
     finally { setBusy(false); }
   }
-  return <dialog ref={dialog} aria-labelledby="conversion-title" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 text-stone-900 shadow-xl backdrop:bg-black/40">
+  return <dialog ref={dialog} aria-labelledby="conversion-title" onKeyDown={containTab} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 text-stone-900 shadow-xl backdrop:bg-black/40">
     <h2 id="conversion-title" className="text-xl font-semibold">Change quiz type</h2>
     <p className="mt-2 text-sm text-stone-600">Create an unpublished copy with a different outcome. Your original quiz and its responses remain available.</p>
     <label className="mt-5 block text-sm font-semibold" htmlFor="conversion-type">Desired outcome</label>

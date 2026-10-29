@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
 require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
-const {filterResponses,responseFilterError,responsePage,responsesCsv}=require('../lib/report-responses.ts');
+const {filterResponses,responseFilterError,responsePage,responsesCsv,responseTimestamp}=require('../lib/report-responses.ts');
 const row=(id,date,extra={})=>({id,formId:'quiz',submittedAt:date,totalPointsPossible:0,totalPointsEarned:0,percentageScore:100,passed:true,grading:[{questionId:'q',questionTitle:'Preference',userAnswer:'Bread'}],...extra});
 const rows=[row('before','2026-10-24T23:59:59.999Z'),row('start','2026-10-25T00:00:00Z'),row('offset','2026-10-25T23:30:00-01:00'),row('end','2026-10-25T23:59:59.999Z'),row('next','2026-10-26T00:00:00Z'),row('unknown','invalid')];
 assert.deepEqual(filterResponses(rows,{query:'',from:'2026-10-25',to:'2026-10-25'}).map(r=>r.id),['start','end']);
@@ -23,3 +23,9 @@ assert.equal(parse(responsesCsv([rows[2]]))[1][1],'2026-10-26T00:30:00.000Z','CS
 const structured=row('structured','2026-10-25',{grading:[],answers:{files:[{name:'example.txt',size:12}]}});assert.equal(parse(responsesCsv([structured]))[1].at(-1),'{"name":"example.txt","size":12}');
 assert.equal(parse(responsesCsv(many)).length,52,'Export includes all matching pages');
 console.log('PASS report responses: inclusive UTC/DST boundaries, malformed/reversed ranges, name/email search, pagination/clamping, all-page CSV, historical/legacy answers, honest scores and formula/quote/newline escaping.');
+
+assert.equal(responseTimestamp('2026-10-29T09:05:00Z'),'Oct 29, 2026, 9:05 AM');
+assert.equal(responseTimestamp('2026-10-29T00:00:00Z'),'Oct 29, 2026, 12:00 AM');
+assert.equal(responseTimestamp('2026-10-29T12:30:00Z'),'Oct 29, 2026, 12:30 PM');
+assert.equal(responseTimestamp('invalid'),'Date unavailable');
+console.log('PASS deterministic UTC response timestamps across server and browser rendering');

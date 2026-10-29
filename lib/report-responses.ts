@@ -1,4 +1,13 @@
 import type { QuizSubmissionResult } from "./schema";
+
+/** Fixed UTC display avoids server/WebKit Intl punctuation differences during hydration. */
+export function responseTimestamp(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Date unavailable";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const hour = date.getUTCHours();
+  return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}, ${hour % 12 || 12}:${String(date.getUTCMinutes()).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
+}
 import { reportOutcome, reportResponseMatches, reportScore } from "./submission-reporting";
 
 export const RESPONSE_PAGE_SIZE = 25;

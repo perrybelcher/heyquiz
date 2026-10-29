@@ -18,14 +18,15 @@ function fixture(type,id) {
     const browser = await engines[name].launch({headless:true});
     const context = await browser.newContext({viewport:{width:1440,height:1000}});
     const page = await context.newPage(), errors=[];
-    context.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));page.on('pageerror',e=>errors.push(e.message));
+    const watch = p => p.on('pageerror', e => errors.push(new URL(p.url()).pathname.replace(/\/result\/.+/, '/result/[token]') + ': ' + e.message));
+    context.on('page',watch);watch(page);
     page.setDefaultTimeout(15000);
     await context.route('**/*',route=>new URL(route.request().url()).origin!==base?route.abort():route.continue());
     page.on('dialog',dialog=>dialog.accept());
     try {
       // Every direct path starts with type selection, including AI.
       for (const route of ['/create','/create/ai','/create/marketing']) {
-        await page.goto(base+route); await page.getByRole('button',{name:/Discover your type/}).waitFor();
+        await page.goto(base+route); await page.waitForLoadState('networkidle'); await page.getByRole('button',{name:/Discover your type/}).waitFor();
         assert.equal(await page.getByRole('region',{name:'Choose quiz outcome'}).getByRole('button').count(),6);
       }
       // Guest blank creation, reload, and authentication retain identity.
@@ -40,6 +41,7 @@ function fixture(type,id) {
       await page.waitForURL(base+'/editor/'+guestId);
       await page.waitForFunction(before=>performance.timeOrigin!==before,beforeClaim);
       await page.getByRole('heading',{name:'Possible profile results'}).waitFor();
+      await page.waitForLoadState('networkidle');
       assert.equal((await json(await context.request.get(base+'/api/forms/'+guestId))).quizType,'personality');
       for (const type of Object.keys(kinds)) {
         const form=fixture(type,`qa-outcome-${name}-${type}-${Date.now()}`);

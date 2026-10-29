@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizSubmissionResult } from "@/lib/schema";
 import { reportIdentity, reportOutcome, reportScore } from "@/lib/submission-reporting";
-import { filterResponses, responseFilterError, responsePage, responsesCsv, type ResponseFilters } from "@/lib/report-responses";
-
-function timestamp(value: string) {
-  return Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }) : "Date unavailable";
-}
+import { filterResponses, responseFilterError, responsePage, responsesCsv, responseTimestamp as timestamp, type ResponseFilters } from "@/lib/report-responses";
 
 export default function ReportResponses({ submissions, formId }: { submissions: QuizSubmissionResult[]; formId: string }) {
   const router = useRouter();
