@@ -15,11 +15,11 @@ export function ScoringMode({form,onChange}:{form:FormSchemaType;onChange:(form:
     onChange({...form, mode:next==="quiz"?"quiz":"survey",marketing});
   }
   if(form.quizType)return <p className="text-sm text-slate-600">Result logic follows your quiz type. Use Change Type to create a converted copy.</p>;
-  return <div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-2 text-xs font-semibold">Scoring
+  return <div className="hq-scoring-mode flex flex-wrap items-center gap-2"><label className="flex items-center gap-2 text-xs font-semibold">Scoring
     <select aria-label="Scoring mode" value={value} onChange={e=>change(e.target.value)} className="max-w-48 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs">
       <option value="none">No scoring</option><option value="quiz">Correct-answer scoring</option><option value="scorecard">Scorecard</option><option value="product_finder">Product matching</option><option value="segmentation">Segment matching</option>
     </select>
-  </label><details className="relative text-xs"><summary data-clarity-event="scoring_help" className="cursor-pointer rounded px-2 py-2 font-semibold text-slate-700 underline">How scoring works</summary><div className="mt-2 w-72 max-w-[75vw] space-y-3 rounded-xl border border-stone-300 bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-lg">
+  </label><details className="hq-scoring-help relative text-xs"><summary data-clarity-event="scoring_help" className="cursor-pointer rounded px-2 py-2 font-semibold text-slate-700 underline">How scoring works</summary><div className="mt-2 w-72 max-w-[75vw] space-y-3 rounded-xl border border-stone-300 bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-lg">
     <p><strong>Different points for each answer?</strong> Choose Scorecard, add a category, then assign points beside each answer.</p>
     <p><strong>A right or wrong answer?</strong> Choose Correct-answer scoring. Mark the answer key and set the question’s points. Multiple-answer questions allow partial credit, with incorrect selections reducing the score.</p>
     <p><strong>Recommend a product or result?</strong> Choose Product or Segment matching. Each answer adds points toward a result; exclusions rule a result out.</p>

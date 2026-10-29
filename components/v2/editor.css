@@ -10,3 +10,16 @@
 
 .pippi-v2 .v2-focused-question ul>li{padding:15px 12px;min-height:58px;border-radius:7px}.pippi-v2 .v2-editor-empty{padding:70px 25px;border:1px dashed #d6c7cd;border-radius:9px;text-align:center;background:white}.pippi-v2 .v2-editor-empty h2{font-size:22px;font-weight:600;letter-spacing:-.03em}.pippi-v2 .v2-editor-empty p{font-size:13px;color:#77717a;margin-top:12px}
 @media(min-width:1400px){.pippi-v2 .v2-element-picker{margin-left:calc(96px + 300px + 28px);margin-right:24px;width:calc(100vw - 96px - 300px - 28px - 48px);max-width:1020px}}
+/* Help is an overlay: opening it must never resize the editing toolbar. */
+.pippi-v2 .v2-editor-canvas-toolbar{align-items:center;min-height:44px}
+.pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-mode{min-width:0;gap:8px;align-items:center}
+.pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help{position:relative}
+.pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help>div{position:absolute;z-index:30;top:100%;right:0;margin-top:8px;width:320px;max-width:calc(100vw - 40px);max-height:min(480px,60dvh);overflow:auto;text-align:left}
+.pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help>summary{white-space:nowrap}
+.pippi-v2 .v2-editor-canvas-toolbar>span{flex-shrink:0}
+.pippi-v2 .v2-editor-canvas-toolbar>.hq-secondary{margin-left:auto;flex-shrink:0}
+@media(max-width:767px){
+ .pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-mode{width:100%;order:3}
+ .pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help{margin-left:auto}
+ .pippi-v2 .v2-editor-canvas-toolbar .hq-scoring-help>div{right:0;width:min(320px,calc(100vw - 40px))}
+}
