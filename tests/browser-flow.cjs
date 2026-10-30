@@ -17,7 +17,16 @@ if (!engine) throw Error('Use chromium, firefox, webkit, chrome or edge');
  try{
   let response=await owner.request.post(base+'/api/auth',{data:{local:true},headers});assert.equal(response.status(),200,await response.text());
   response=await owner.request.post(base+'/api/forms',{data,headers});assert.equal(response.status(),201,await response.text());
-  await page.goto(base+'/editor/'+id);await page.getByRole('button',{name:'Flow view',exact:true}).click();
+  await page.goto(base+'/editor/'+id);
+  const flowEntry=page.getByRole('button',{name:'Flow (Beta)',exact:true});
+  for (const width of [390,768,1280,1513]) {
+   await page.setViewportSize({width,height:900});
+   assert.equal(await flowEntry.evaluate(el=>!!el.closest('header')),true,'Flow belongs in the editor header');
+   const bounds=await flowEntry.boundingBox();assert.ok(bounds&&bounds.x>=0&&bounds.x+bounds.width<=width,'Flow entry fits viewport');
+  }
+  await flowEntry.click();
+  await page.getByText('Flow builder is in beta. Test each path before publishing.',{exact:true}).waitFor();
+
   const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Add question',exact:true}).waitFor();
   assert.ok(await dialog.getByText('Choose a route',{exact:true}).count());
   const nodeCount=await page.locator('.react-flow__node').count();assert.ok(nodeCount>=3);
@@ -51,11 +60,19 @@ if (!engine) throw Error('Use chromium, firefox, webkit, chrome or edge');
   const blankId=id+'-blank';
   try {
    response=await owner.request.post(base+'/api/forms',{headers,data:{id:blankId,title:'Blank flow regression',mode:'survey',questions:[],routing:{version:1,entry:{kind:'automatic'},routes:{}}}});assert.equal(response.status(),201,await response.text());
-   await page.goto(base+'/editor/'+blankId);await page.getByRole('button',{name:'Flow view',exact:true}).click();
+   await page.goto(base+'/editor/'+blankId);await page.getByRole('button',{name:'Flow (Beta)',exact:true}).click();
    await page.getByRole('button',{name:'Add question',exact:true}).click();
    const entry=await page.getByRole('combobox',{name:'Quiz entry',exact:true}).inputValue();assert.match(entry,/^question:/,'First block becomes the entry');
    await page.getByRole('button',{name:'Close question editor',exact:true}).click();await page.waitForTimeout(1500);
    response=await owner.request.get(base+'/api/forms/'+blankId);const first=await response.json();assert.equal(first.routing.entry.id,first.questions[0].id);assert.equal(first.routing.routes[first.questions[0].id].default.kind,'automatic');
+   await page.getByRole('button',{name:'Builder',exact:true}).click();
+   await page.getByRole('button',{name:'Advanced',exact:true}).click();
+   for (const width of [390,768,1280,1513]) {
+    await page.setViewportSize({width,height:900});
+    const action=page.getByRole('button',{name:'Flow (Beta)',exact:true});
+    await action.waitFor({state:'visible'});assert.equal(await action.evaluate(el=>!!el.closest('header')),true);
+    const bounds=await action.boundingBox();assert.ok(bounds&&bounds.x>=0&&bounds.x+bounds.width<=width,'Advanced Flow header fits viewport');
+   }
   } finally {await owner.request.delete(base+'/api/forms/'+blankId,{headers}).catch(()=>{});}
   assert.deepEqual(errors,[]);console.log(`PASS ${name} ${browser.version()}: real drag, tap, destination menu, add/undo/responsive controls; D route -> Launch plan; no page errors`);
  }catch(error){await page.screenshot({path:`/private/tmp/pippi-flow-${name}-failure.png`}).catch(()=>{});console.error('PAGE ERRORS',errors);throw error;}finally{await owner.request.delete(base+'/api/forms/'+id,{headers}).catch(()=>{});await browser.close();}

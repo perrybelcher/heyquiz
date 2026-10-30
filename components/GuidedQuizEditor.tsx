@@ -15,12 +15,13 @@ import BasicPublishSettings from "./basic/BasicPublishSettings";
 export type BasicEditorState = { step: number; resultsReviewed: boolean; resultId: string | null };
 const outcomeStepOrder=[2,0,1,3,4], standardStepOrder=[0,1,2,3,4];
 const steps = ["Your quiz", "Questions", "Results", "Design", "Publish"];
-export default function GuidedQuizEditor({ form, onChange, onAdvanced, onTheme, onPublish, onPreview, onSave, status, published, publicationLabel, publicationUncertain, hasUnpublishedChanges, onShare, onPause, publicationBusy, onConversationMap, navigationRequest, onHistory, previewing, saveFailed, uiState, onUiStateChange, selectedQuestionId, onQuestionSelect, onChooseImage, onChangeType }: {
+export default function GuidedQuizEditor({ form, onChange, onAdvanced, onFlow, onTheme, onPublish, onPreview, onSave, status, published, publicationLabel, publicationUncertain, hasUnpublishedChanges, onShare, onPause, publicationBusy, onConversationMap, navigationRequest, onHistory, previewing, saveFailed, uiState, onUiStateChange, selectedQuestionId, onQuestionSelect, onChooseImage, onChangeType }: {
   uiState: BasicEditorState; onUiStateChange: (state: BasicEditorState) => void; selectedQuestionId: string | null; onQuestionSelect: (id: string | null) => void; onChooseImage: () => void; onChangeType?: () => void;
   reportDesignEditor?: ReactNode;
   resultEmailEditor?: ReactNode;
   onHistory: () => void; previewing: boolean; saveFailed: boolean; mobileStatus: string;
   form: FormSchemaType; onChange: (form: FormSchemaType) => void;
+  onFlow?: () => void;
   onAdvanced: () => void; onTheme: () => void; onPublish: (event?: MouseEvent<HTMLButtonElement>) => void; onPreview: () => void; onSave: () => void;
   status: string; published: boolean; publicationLabel: string; publicationUncertain: boolean; hasUnpublishedChanges: boolean; onShare: () => void; onPause: () => void; publicationBusy: boolean; onConversationMap: () => void; navigationRequest?: ConversationEdit & {requestId:number; focus?:boolean};
 }) {
@@ -161,7 +162,7 @@ export default function GuidedQuizEditor({ form, onChange, onAdvanced, onTheme, 
   return <BasicBuilderShell title={form.title} status={status} saveFailed={saveFailed}
     steps={stepOrder.map(id => ({id, label: steps[id]}))} activeStep={step} onStepChange={goToStep}
     questions={questions} selectedQuestionId={q?.id || null} onQuestionSelect={id => { cancelChecklist(); onQuestionSelect(id); }} onAddQuestion={addQuestion}
-    onAdvanced={() => leave(onAdvanced)} onShare={() => leave(onShare)} onPreview={() => leave(onPreview)} onPublish={publish} previewing={previewing} publicationBusy={publicationBusy}
+    onAdvanced={() => leave(onAdvanced)} onFlow={onFlow ? () => leave(onFlow) : undefined} onShare={() => leave(onShare)} onPreview={() => leave(onPreview)} onPublish={publish} previewing={previewing} publicationBusy={publicationBusy}
     preview={<BasicVisitorPreview form={form} step={step} questionId={q?.id} resultId={uiState.resultId || undefined}/>} footer={footer}
     notices={<>{checklistNotice && <p role="status">{checklistNotice}</p>}{editingError && <p role="alert">{editingError}</p>}</>}
   >
