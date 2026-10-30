@@ -48,6 +48,15 @@ if (!engine) throw Error('Use chromium, firefox, webkit, chrome or edge');
   await p.getByRole('heading',{name:'Choose a route',exact:true}).waitFor();
   await p.getByRole('radio',{name:'D answer',exact:true}).check();await p.getByRole('heading',{name:'D detail',exact:true}).waitFor();
   await p.getByRole('radio',{name:'A answer',exact:true}).check();await p.getByRole('heading',{name:'Launch plan',exact:true}).waitFor();
+  const blankId=id+'-blank';
+  try {
+   response=await owner.request.post(base+'/api/forms',{headers,data:{id:blankId,title:'Blank flow regression',mode:'survey',questions:[],routing:{version:1,entry:{kind:'automatic'},routes:{}}}});assert.equal(response.status(),201,await response.text());
+   await page.goto(base+'/editor/'+blankId);await page.getByRole('button',{name:'Flow view',exact:true}).click();
+   await page.getByRole('button',{name:'Add question',exact:true}).click();
+   const entry=await page.getByRole('combobox',{name:'Quiz entry',exact:true}).inputValue();assert.match(entry,/^question:/,'First block becomes the entry');
+   await page.getByRole('button',{name:'Close question editor',exact:true}).click();await page.waitForTimeout(1500);
+   response=await owner.request.get(base+'/api/forms/'+blankId);const first=await response.json();assert.equal(first.routing.entry.id,first.questions[0].id);assert.equal(first.routing.routes[first.questions[0].id].default.kind,'automatic');
+  } finally {await owner.request.delete(base+'/api/forms/'+blankId,{headers}).catch(()=>{});}
   assert.deepEqual(errors,[]);console.log(`PASS ${name} ${browser.version()}: real drag, tap, destination menu, add/undo/responsive controls; D route -> Launch plan; no page errors`);
  }catch(error){await page.screenshot({path:`/private/tmp/pippi-flow-${name}-failure.png`}).catch(()=>{});console.error('PAGE ERRORS',errors);throw error;}finally{await owner.request.delete(base+'/api/forms/'+id,{headers}).catch(()=>{});await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
