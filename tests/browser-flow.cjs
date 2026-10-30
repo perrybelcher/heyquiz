@@ -42,11 +42,12 @@ if (!engine) throw Error('Use chromium, firefox, webkit, chrome or edge');
   await startNode.getByRole('button',{name:'Edit Choose a route',exact:true}).click();
   assert.equal(await dialog.getByRole('combobox',{name:'Then go to',exact:true}).nth(1).inputValue(),'tier:growth');
   await dialog.getByRole('button',{name:'Close question editor',exact:true}).click();if(await dialog.getByRole('button',{name:'Dismiss notification',exact:true}).count())await dialog.getByRole('button',{name:'Dismiss notification',exact:true}).click();await dialog.getByRole('button',{name:'Undo',exact:true}).click();
-  await startNode.getByRole('button',{name:'Connect D answer',exact:true}).click();await page.locator('.react-flow__node[data-id="tier:growth"]').click();
+  await startNode.getByRole('button',{name:'Connect D answer',exact:true}).click();await page.getByRole('dialog',{name:'Continue from D answer'}).getByRole('button',{name:'Show ending: Growth plan',exact:true}).click();
   await dialog.getByRole('button',{name:/fit view/i}).click();await page.waitForTimeout(500);
   await startNode.getByRole('button',{name:'Edit Choose a route',exact:true}).click();assert.equal(await dialog.getByRole('combobox',{name:'Then go to',exact:true}).nth(1).inputValue(),'tier:growth');
   await dialog.getByRole('combobox',{name:'Then go to',exact:true}).nth(1).selectOption('question:detail');assert.equal(await dialog.getByRole('combobox',{name:'Then go to',exact:true}).nth(1).inputValue(),'question:detail');
   await dialog.getByRole('button',{name:'Close question editor',exact:true}).click();
+  await dialog.getByRole('button',{name:'Tidy up',exact:true}).click();await page.waitForTimeout(500);
   await page.screenshot({path:`output/flow-builder/${name}-canvas.png`,fullPage:true});
   for (const width of [390,768,1280,1513]){await page.setViewportSize({width,height:900});assert.ok(await dialog.getByRole('button',{name:'Add question',exact:true}).isVisible());assert.ok(await dialog.getByRole('button',{name:'Test quiz',exact:true}).isVisible());}
   // Wait for the existing autosave rather than competing with its revision.
@@ -62,7 +63,7 @@ if (!engine) throw Error('Use chromium, firefox, webkit, chrome or edge');
    response=await owner.request.post(base+'/api/forms',{headers,data:{id:blankId,title:'Blank flow regression',mode:'survey',questions:[],routing:{version:1,entry:{kind:'automatic'},routes:{}}}});assert.equal(response.status(),201,await response.text());
    await page.goto(base+'/editor/'+blankId);await page.getByRole('button',{name:'Flow (Beta)',exact:true}).click();
    await page.getByRole('button',{name:'Add question',exact:true}).click();
-   const entry=await page.getByRole('combobox',{name:'Quiz entry',exact:true}).inputValue();assert.match(entry,/^question:/,'First block becomes the entry');
+   await page.getByText('Quiz settings',{exact:true}).click();const entry=await page.getByRole('combobox',{name:'Quiz entry',exact:true}).inputValue();assert.match(entry,/^question:/,'First block becomes the entry');
    await page.getByRole('button',{name:'Close question editor',exact:true}).click();await page.waitForTimeout(1500);
    response=await owner.request.get(base+'/api/forms/'+blankId);const first=await response.json();assert.equal(first.routing.entry.id,first.questions[0].id);assert.equal(first.routing.routes[first.questions[0].id].default.kind,'automatic');
    await page.getByRole('button',{name:'Builder',exact:true}).click();

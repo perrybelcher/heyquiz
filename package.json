@@ -47,7 +47,7 @@
     "test:templates": "node tests/authored-templates.cjs && node tests/authored-templates-a.cjs && node tests/authored-templates-b.cjs && node tests/authored-templates-c.cjs && node tests/authored-templates-independent-qa.cjs && node tests/template-catalog.cjs && node tests/template-library-catalog.cjs && node tests/unified-template-library.cjs",
     "test:browser-templates": "node tests/browser-authored-templates.cjs",
     "test:flow": "node tests/flow-routing.cjs && node tests/flow-editing.cjs && node tests/flow-integration.cjs",
-    "test:browser-flow": "node tests/browser-flow.cjs",
+    "test:browser-flow": "node tests/browser-flow.cjs && node tests/browser-flow-ux.cjs",
     "test:browser-flow-performance": "node tests/browser-flow-performance.cjs"
   },
   "dependencies": {

@@ -1,0 +1,11 @@
+.flow-inspector .flow-inspector-hint { margin: -8px 0 18px; }
+.flow-inspector .flow-answer-intro { margin-top: 24px; }
+.flow-inspector .flow-answer-intro h3 { font-size: 15px; font-weight: 650; margin: 0; }
+.flow-inspector .flow-answer-intro p { margin: 6px 0; }
+.flow-inspector .flow-answer-edit { border: 1px solid #e5e5df; border-radius: 10px; margin: 12px 0; padding: 0 12px 10px; background: #fafaf7; }
+.flow-inspector .flow-remove-answer { color: #8b3340; font-size: 12px; }
+.flow-inspector .flow-add-answer { width: 100%; justify-content: center; border-style: dashed; }
+.flow-inspector .flow-default-help { margin-top: -4px; }
+.flow-inspector .flow-quiz-settings { border-top: 1px solid #e5e5df; padding-top: 14px; }
+.flow-inspector > header { position: sticky; top: -20px; background: white; z-index: 1; padding: 10px 0; }
+.flow-inspector textarea { resize: vertical; }
