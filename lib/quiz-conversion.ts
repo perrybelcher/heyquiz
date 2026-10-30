@@ -1,3 +1,4 @@
+import { reconcileFlowEdit } from "./flow-editing";
 import { nanoid } from "nanoid";
 import { FormSchema, type FormSchemaType } from "./schema";
 import { MarketingSchema, validateMarketing } from "./marketing";
@@ -51,7 +52,7 @@ export function previewQuizConversion(source: FormSchemaType, targetType: QuizTy
     changes.push("Remove incompatible outcome references, answer mappings, exclusions and score bands. Define the new results and their rules.");
   }
   if (targetType === "qualification") changes.push("Define explicit route conditions and next-step buttons. Eligibility is never inferred from old scores.");
-  const form = FormSchema.parse(copy);
+  const form = FormSchema.parse(reconcileFlowEdit(source, copy));
   validateMarketing(form);
   return {form, changes};
 }

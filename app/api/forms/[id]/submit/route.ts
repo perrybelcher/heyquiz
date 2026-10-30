@@ -49,6 +49,7 @@ export async function POST(
         : undefined;
     const answers: Answers = record(b.answers);
     const path = resolvePath(form, answers);
+    if (path.incomplete) throw new HttpError(422, "This quiz has an unconnected answer. Ask the quiz owner to review its flow.");
     const timedOut = Boolean(
       form.settings.timerMinutes &&
         Date.now() - a.startedAt >= form.settings.timerMinutes * 60000,

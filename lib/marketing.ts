@@ -1,3 +1,4 @@
+import { flowUsesAutomaticResults } from './flow-routing';
 import { validateQuizType, type QuizType } from "./quiz-types";
 import { QualificationRuleSchema, validateQualification, matchingQualificationRules } from "./qualification";
 import { ValidationError } from "./errors";
@@ -147,7 +148,8 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
   validateQuizType(form, publishing);
   const m = form.marketing;
   if (!m) return;
-  validateQualification(form, publishing);
+  const requiresAutomaticRules = flowUsesAutomaticResults(form);
+  validateQualification(form, publishing && requiresAutomaticRules);
   const targets = m.kind === "scorecard" ? m.categories : m.outcomes;
   const unique = (ids: string[]) => new Set(ids).size === ids.length;
   if (!unique(targets.map((t) => t.id)) || !unique(m.rules.map((r) => r.id)))
@@ -168,7 +170,7 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
     if (section.type === "faq" && !section.title.trim()) throw new ValidationError(`${name}: add a question.`);
     if (["text", "faq", "testimonial"].includes(section.type) && !section.body.trim()) throw new ValidationError(`${name}: add content.`);
   }
-  if (publishing && m.kind !== "qualification" && (!targets.length || !m.rules.length))
+  if (publishing && requiresAutomaticRules && m.kind !== "qualification" && (!targets.length || !m.rules.length))
     throw new ValidationError(
       "Add a result and at least one answer rule before publishing this marketing quiz.",
     );
@@ -223,7 +225,7 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
     if (pairs.has(key)) throw new ValidationError("This answer rule is duplicated.");
     pairs.add(key);
   }
-  if (publishing && m.kind !== "qualification")
+  if (publishing && requiresAutomaticRules && m.kind !== "qualification")
     for (const target of targets)
       if (
         !m.rules.some(
@@ -296,6 +298,9 @@ function evaluateMarketingCore(
     reasons: [],
     categories: [],
   };
+  const directId = form.routing ? resolvePath(form, answers).outcomeId : undefined;
+  const direct = m.kind !== "scorecard" ? m.outcomes.find(o => o.id === directId) : undefined;
+  if (direct) return { ...base, status: "matched", outcomeId: direct.id, title: direct.title, message: direct.description, advice: direct.advice, ctaLabel: direct.ctaLabel, ctaUrl: direct.ctaUrl };
   if (m.kind === "qualification") {
     const rule = matchingQualificationRules(form, answers)[0];
     const outcome = m.outcomes.find(o => o.id === rule?.outcomeId);

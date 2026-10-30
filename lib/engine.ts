@@ -1,3 +1,4 @@
+import { resolveFlowPath, validateFlowRouting } from './flow-routing';
 import { ValidationError } from "./errors";
 import type { FormSchemaType, Question, LogicOperator } from "./schema";
 
@@ -87,7 +88,8 @@ export function evaluateCondition(
 export function resolvePath(
   form: FormSchemaType,
   answers: Answers,
-): { questions: Question[]; tierId?: string } {
+): { questions: Question[]; tierId?: string; outcomeId?: string; incomplete?: boolean } {
+  if (form.routing) return resolveFlowPath(form, answers);
   const all = orderedQuestions(form),
     path: Question[] = [],
     seen = new Set<string>(),
@@ -249,6 +251,7 @@ export function publicForm(form: FormSchemaType): FormSchemaType {
   return {
     ...form,
     conversionReview: undefined,
+    editorLayout: undefined,
     meta: form.meta ? { ...form.meta, rules: [], mappings: [] } : undefined,
     // Creator email drafts stay server-side; respondents receive only the
     // requested message assembled from their frozen attempt, never its config.
@@ -285,6 +288,7 @@ export function choiceQuestionProblems(form: FormSchemaType): { questionId: stri
 }
 
 export function validateFormReferences(form: FormSchemaType): void {
+  validateFlowRouting(form);
   const ids = new Set(form.questions.map((q) => q.id));
   if (ids.size !== form.questions.length)
     throw new ValidationError("Question IDs must be unique.");
