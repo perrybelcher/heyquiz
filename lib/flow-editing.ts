@@ -1,4 +1,4 @@
-import type { FormSchemaType } from "./schema";
+import type { FormSchemaType, Question } from "./schema";
 import { singleTypes, multiTypes } from "./engine";
 import { removeGuidedQuestion } from "./guided-editing";
 import type { FlowDestination, FlowRoute } from "./flow-routing";
@@ -163,5 +163,20 @@ export function reconcileFlowEdit(previous: FormSchemaType, next: FormSchemaType
     ...next,
     routing: { ...next.routing, routes, visibility: next.routing.visibility ? visibility : undefined },
     editorLayout,
+  };
+}
+
+/** The first block in a blank flow becomes its start; later additions stay unconnected. */
+export function appendFlowQuestion(form: FormSchemaType, question: Question): FormSchemaType {
+  const next = { ...form, questions: [...form.questions, question] };
+  if (!form.routing || form.questions.length || form.routing.entry.kind !== "automatic") return next;
+  const owner = routeOwner(next, question.id);
+  return {
+    ...next,
+    routing: {
+      ...form.routing,
+      entry: form.settings.presentation === "page" ? { kind: "page", id: owner } : { kind: "question", id: question.id },
+      routes: { ...form.routing.routes, [owner]: { rules: [], default: automatic } },
+    },
   };
 }

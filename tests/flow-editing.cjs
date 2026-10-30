@@ -7,7 +7,7 @@ require.extensions['.ts'] = (m, file) => m._compile(ts.transpileModule(fs.readFi
 const { FormSchema } = require('../lib/schema.ts');
 const { resolvePath } = require('../lib/engine.ts');
 const { migrateLegacyRouting, validateFlowRouting } = require('../lib/flow-routing.ts');
-const { connectAnswer, removeQuestion, reconcileFlowEdit, destinationChoices, routeOwner } = require('../lib/flow-editing.ts');
+const { appendFlowQuestion, connectAnswer, removeQuestion, reconcileFlowEdit, destinationChoices, routeOwner } = require('../lib/flow-editing.ts');
 
 function fixture() {
   return migrateLegacyRouting(FormSchema.parse({
@@ -98,3 +98,18 @@ assert.deepEqual(cleaned.marketing.rules, []);
 assert.deepEqual(cleaned.marketing.qualificationRules, []);
 assert.equal(cleaned.editorLayout.positions.q2, undefined);
 assert.deepEqual(cleaned.editorLayout.positions.q1, { x: 1, y: 2 });
+
+// A blank flow starts at its first added question, including a grouped page.
+for (const grouped of [false, true]) {
+ const empty = migrateLegacyRouting(FormSchema.parse({id:'blank-flow',title:'Blank',mode:'survey',settings:grouped?{presentation:'page'}:{},pages:grouped?[{id:'p1',title:'Page',questionIds:[]}]:undefined})).form;
+ const question={id:'first',title:'First question',type:'multiple_choice',options:[{id:'a',label:'A'},{id:'b',label:'B'}],...(grouped?{pageId:'p1'}:{})};
+ const added=appendFlowQuestion(empty,question);
+ assert.deepEqual(resolvePath(added,{first:'a'}).questions.map(q=>q.id),['first']);
+ assert.equal(resolvePath(added,{first:'a'}).incomplete,undefined);
+ validateFlowRouting(added,true);
+ const second=appendFlowQuestion(added,{...question,id:'second'});
+ assert.deepEqual(second.routing.entry,added.routing.entry);
+ assert.equal(second.questions.length,2);
+ assert.equal(empty.questions.length,0);
+}
+console.log('PASS blank flow: first added question becomes entry, grouped pages work, later blocks preserve entry');

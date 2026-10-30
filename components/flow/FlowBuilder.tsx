@@ -45,6 +45,7 @@ import {
 } from "@/lib/flow-routing";
 import {
   reconcileFlowEdit,
+  appendFlowQuestion,
   automatic,
   connectAnswer,
   destinationChoices,
@@ -581,8 +582,7 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
         form.settings.presentation === "page" ? form.pages?.[0]?.id : undefined,
     };
     commit({
-      ...form,
-      questions: [...form.questions, q],
+      ...appendFlowQuestion(form, q),
       editorLayout: {
         version: 1,
         positions: { ...form.editorLayout?.positions, [id]: position },
