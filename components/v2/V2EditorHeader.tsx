@@ -5,6 +5,7 @@ import { ArrowLeft, BarChart3, Eye, FileText, MoreHorizontal, Paintbrush, Plug, 
 import { navigateWorkspace } from "@/lib/workspace-navigation";
 import type { EditorSection } from "@/lib/editor-navigation";
 import "./editor.css";
+import FlowBetaButton from "../FlowBetaButton";
 import EditorModeSwitch from "../EditorModeSwitch";
 
 export interface V2EditorHeaderProps {
@@ -15,6 +16,7 @@ export interface V2EditorHeaderProps {
   activeSection: EditorSection;
   onSectionChange: (section: EditorSection) => void;
   onBasicMode: () => void;
+  onFlow?: () => void;
   onDesign: () => void;
   onPreview: () => void;
   onPublish: () => void;
@@ -35,6 +37,7 @@ export default function V2EditorHeader(props: V2EditorHeaderProps) {
       </div>
       <div className="v2-editor-header-actions">
         <EditorModeSwitch basic={false} onChange={basic => { if (basic) props.onBasicMode(); }} />
+        {props.onFlow && <FlowBetaButton className="v2-editor-button" onClick={props.onFlow} />}
         <button type="button" className="v2-editor-button v2-editor-share" aria-pressed={props.activeSection === "share"} onClick={() => props.onSectionChange("share")}><Share2 size={16} />Share</button>
         <button type="button" className="v2-editor-button" disabled={props.previewing} onClick={props.onPreview}><Eye size={16} />{props.previewing ? "Preparing…" : "Preview"}</button>
         <button type="button" className="v2-editor-button is-primary" data-publication-action="publish" disabled={props.publishing} onClick={props.onPublish}><Upload size={16} />Publish</button>

@@ -682,13 +682,14 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
           </button>
           <div>
             <h1>{form.title}</h1>
-            <span>Flow · {form.questions.length} questions</span>
+            <span>Flow <strong className="flow-beta-badge">Beta</strong> · {form.questions.length} questions</span>
           </div>
           <button onClick={onPreview}>
             <Play size={17} />
             Test quiz
           </button>
         </header>
+        <p className="flow-beta-notice">Flow builder is in beta. Test each path before publishing.</p>
         {readOnly && (
           <div className="flow-legacy">
             Existing quiz · reviewing this map does not change its routing.

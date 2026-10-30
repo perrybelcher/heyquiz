@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore, type MouseEve
 import Image from "next/image";
 import Link from "next/link";
 import { Eye, Link2, List, Plus, Search, X } from "lucide-react";
+import FlowBetaButton from "../FlowBetaButton";
 import EditorModeSwitch from "../EditorModeSwitch";
 import "./basic-builder.css";
 
@@ -19,6 +20,7 @@ export type BasicBuilderShellProps = {
   onQuestionSelect: (id: string) => void;
   onAddQuestion: () => void;
   onAdvanced: () => void;
+  onFlow?: () => void;
   onShare: () => void;
   onPreview: () => void;
   onPublish: (event?: MouseEvent<HTMLButtonElement>) => void;
@@ -40,7 +42,7 @@ function subscribeDesktop(onChange: () => void) {
 function getDesktopSnapshot() { return window.matchMedia(desktopQuery).matches; }
 function getServerDesktopSnapshot() { return false; }
 
-export default function BasicBuilderShell({ title, status, saveFailed, steps, activeStep, onStepChange, questions, selectedQuestionId, onQuestionSelect, onAddQuestion, onAdvanced, onShare, onPreview, onPublish, previewing, publicationBusy, children, preview, footer, notices, outline }: BasicBuilderShellProps) {
+export default function BasicBuilderShell({ title, status, saveFailed, steps, activeStep, onStepChange, questions, selectedQuestionId, onQuestionSelect, onAddQuestion, onAdvanced, onFlow, onShare, onPreview, onPublish, previewing, publicationBusy, children, preview, footer, notices, outline }: BasicBuilderShellProps) {
   const [search, setSearch] = useState("");
   const desktop = useSyncExternalStore(subscribeDesktop, getDesktopSnapshot, getServerDesktopSnapshot);
   const [outlineOpen, setOutlineOpen] = useState(false);
@@ -88,6 +90,7 @@ export default function BasicBuilderShell({ title, status, saveFailed, steps, ac
       <div className="basic-builder-identity"><p className="basic-quiz-title" title={title}>{title || "Untitled quiz"}</p><p role="status" className={`basic-save-status${saveFailed ? " basic-save-status--error" : ""}`}>{status}</p></div>
       <div className="basic-builder-actions">
         <EditorModeSwitch basic onChange={basic => { if (!basic) onAdvanced(); }} />
+        {onFlow && <FlowBetaButton className="basic-button" onClick={onFlow} />}
         <button className="basic-button" type="button" onClick={onShare}><Link2 size={17} aria-hidden="true" />Share</button>
         <button className="basic-button" type="button" onClick={onPreview} disabled={previewing}><Eye size={18} aria-hidden="true" />{previewing ? "Preparing…" : "Preview"}</button>
         <button className="basic-button basic-button--primary" type="button" onClick={onPublish} disabled={publicationBusy}>Publish</button>
