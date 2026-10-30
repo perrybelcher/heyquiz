@@ -31,6 +31,7 @@ import {
   formatAnswer,
   type Answers,
 } from "@/lib/engine";
+import { retainFlowAnswers } from "@/lib/flow-answer-state";
 import { quizThemeStyle } from "@/lib/theme-style";
 import QuestionField from "./QuestionField";
 import { playerPages } from "@/lib/player-pages";
@@ -166,7 +167,7 @@ export default function QuizPlayer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token: session.token, metaToken: await metaTokenFor(form.id), metaContext: freshMetaContext(form.id),
-          answers: latestAnswers.current,
+          answers: retainFlowAnswers(session.form, latestAnswers.current),
           contact,
         }),
       });
@@ -250,7 +251,8 @@ export default function QuizPlayer({
     cancelAutoAdvance();
     if (!q || inFlight.current || busy) return;
     // Resolve with the newly selected value; React state may not have rendered yet.
-    const nextScreens = playerPages(active, resolvePath(active, nextAnswers).questions.filter(item => item.type !== "hidden"));
+    const nextPath = resolvePath(active, nextAnswers);
+    const nextScreens = playerPages(active, nextPath.questions.filter(item => item.type !== "hidden"));
     const position = Math.max(0, nextScreens.findIndex(items => items.some(item => item.id === q.id)));
     const invalid = (nextScreens[position] || []).find(item => validationError(item, nextAnswers[item.id]));
     const validation = invalid ? `${invalid.title}: ${validationError(invalid, nextAnswers[invalid.id])}` : null;
@@ -290,6 +292,7 @@ export default function QuizPlayer({
     }
     setFeedback(null);
     if (position < nextScreens.length - 1) setCurrentId(nextScreens[position + 1][0].id);
+    else if (nextPath.incomplete) setError("This answer has no destination yet. Please contact the quiz creator.");
     else if (active.settings.showReviewBeforeSubmit) setReview(true);
     else void submit();
   }
@@ -338,7 +341,9 @@ export default function QuizPlayer({
             resume={resume ? { label: resume.result ? "View your results" : "Resume your response", onResume: () => {
               setSession(resume);
               if (resume.result) setResult(resume.result);
-              setAnswers(resume.answers);
+              const restoredAnswers = retainFlowAnswers(resume.form, resume.answers);
+              latestAnswers.current = restoredAnswers;
+              setAnswers(restoredAnswers);
               setCurrentId(resume.currentId);
               setResumeDismissed(true);
             } } : undefined} />
@@ -564,7 +569,7 @@ export default function QuizPlayer({
                     {field.description && <p className="text-slate-500 leading-relaxed mb-5">{field.description}</p>}
                     {!["heading", "banner"].includes(field.type) && <QuestionField q={field} value={answers[field.id]} answers={answers} token={session?.token || ""} onChange={value => {
                       cancelAutoAdvance();
-                      const updated = { ...answers, [field.id]: value };
+                      const updated = retainFlowAnswers(active, { ...answers, [field.id]: value });
                       latestAnswers.current = updated;
                       setFeedback(null); setAnswers(updated); setError("");
                       if (!grouped && singleTypes.has(field.type) && value && !validationError(field, value)) {

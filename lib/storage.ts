@@ -1,3 +1,4 @@
+import { validateFlowRouting } from './flow-routing';
 import { ValidationError } from "./errors";
 import { assertMetaReady } from "./meta/setup";
 import { validateMarketing } from "./marketing";
@@ -128,6 +129,7 @@ export async function saveForm(
   return { ...updated, revision: r.version };
 }
 export async function publishForm(form: FormSchemaType, owner: string) {
+  validateFlowRouting(form, true);
   await assertMetaReady(owner, form);
   const choiceProblems = choiceQuestionProblems(form);
   if (choiceProblems.length) throw new ValidationError(choiceProblems.map(problem => problem.message).join(" "));

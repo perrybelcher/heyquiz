@@ -44,7 +44,7 @@ export async function POST(
           : q.options,
       })),
     };
-    if (form.settings.shuffleQuestions && !form.logicRules?.length)
+    if (!form.routing && form.settings.shuffleQuestions && !form.logicRules?.length)
       shuffled.questions = shuffled.questions
         .map((q) => ({ q, r: Math.random() }))
         .sort((a, b) => a.r - b.r)

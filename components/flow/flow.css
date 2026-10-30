@@ -1,0 +1,546 @@
+.flow-dialog {
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  background: #f7f6f2;
+  color: #24282d;
+}
+.flow-dialog::backdrop {
+  background: #24282d66;
+}
+.flow-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, sans-serif;
+}
+.flow-shell button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 9px 12px;
+  background: white;
+  border: 1px solid #e5e5df;
+  border-radius: 8px;
+  color: #24282d;
+  cursor: pointer;
+}
+.flow-shell button:hover {
+  border-color: #a92335;
+}
+.flow-shell button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.flow-shell :focus-visible {
+  outline: 3px solid #a9233580;
+  outline-offset: 2px;
+}
+.flow-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 20px;
+  background: white;
+  border-bottom: 1px solid #e5e5df;
+}
+.flow-header > div {
+  flex: 1;
+}
+.flow-header h1 {
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0;
+}
+.flow-header span {
+  font-size: 12px;
+  color: #647078;
+}
+.flow-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.flow-canvas {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.flow-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.flow-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: white;
+  border: 1px solid #e5e5df;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.flow-search select {
+  max-width: 180px;
+  min-height: 36px;
+  background: transparent;
+  font-size: 13px;
+}
+.flow-question {
+  width: 320px;
+  border: 1px solid #dedfd9;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 4px 14px #24282d05;
+}
+.flow-question.selected {
+  border-color: #a92335;
+}
+.flow-node-heading {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 15px;
+  cursor: grab;
+}
+.flow-node-heading > div {
+  flex: 1;
+}
+.flow-node-heading > svg {
+  color: #647078;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+.flow-shell .flow-node-heading button,
+.flow-shell .flow-result > button:last-child {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 5px;
+  border: 0;
+}
+.flow-shell small {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: #647078;
+  text-transform: uppercase;
+}
+.flow-shell h3 {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+  margin: 5px 0 0;
+}
+.flow-answers {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.flow-answer {
+  min-height: 45px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #f6f6f3;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 14px;
+}
+.flow-answer.active {
+  background: #fae8eb;
+}
+.flow-letter {
+  background: #f3dfe3;
+  color: #922135;
+  border-radius: 5px;
+  min-width: 27px;
+  padding: 4px;
+  text-align: center;
+}
+.flow-shell .react-flow__handle {
+  width: 15px;
+  height: 15px;
+  background: #a92335;
+  border: 3px solid white;
+  box-shadow: 0 0 0 1px #d8d8d2;
+}
+.flow-shell .react-flow__handle-left {
+  background: #647078;
+}
+.flow-shell .flow-port {
+  position: absolute;
+  right: -26px;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  opacity: 0;
+}
+.flow-shell .flow-port:focus-visible {
+  opacity: 1;
+  background: #a9233520;
+}
+.flow-shell .flow-input {
+  position: absolute;
+  left: -22px;
+  top: calc(50% - 22px);
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 0;
+  opacity: 0;
+}
+.flow-result {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  width: 300px;
+  padding: 20px;
+  border: 1px solid #cdddc9;
+  border-radius: 10px;
+  background: #f0f6ed;
+}
+.flow-result > svg {
+  color: #547b4c;
+}
+.flow-result > div {
+  flex: 1;
+}
+.flow-result.selected {
+  border-color: #a92335;
+}
+.flow-page-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+}
+.flow-page-label > button {
+  font-size: 12px;
+}
+.flow-inspector {
+  width: 360px;
+  flex-shrink: 0;
+  overflow: auto;
+  background: white;
+  border-left: 1px solid #e5e5df;
+  padding: 20px;
+}
+.flow-inspector header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.flow-inspector h2 {
+  font-size: 20px;
+}
+.flow-inspector fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.flow-inspector label {
+  display: block;
+  margin: 13px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.flow-inspector input,
+.flow-inspector select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 7px;
+  padding: 9px;
+  border: 1px solid #deded8;
+  border-radius: 7px;
+  background: #fdfdfb;
+  font: inherit;
+}
+.flow-inspector details {
+  margin-top: 24px;
+}
+.flow-inspector summary {
+  cursor: pointer;
+  min-height: 44px;
+  font-weight: 600;
+}
+.flow-inspector p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #647078;
+}
+.flow-answer-edit,
+.flow-rule {
+  border-bottom: 1px solid #e5e5df;
+  padding: 10px 0;
+}
+.flow-rule .flow-tools {
+  flex-wrap: wrap;
+}
+.flow-shell .flow-delete {
+  color: #a92335;
+  margin-top: 25px;
+}
+.flow-legacy {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 9px 20px;
+  background: #fff8e9;
+  font-size: 13px;
+}
+.flow-notice,
+.flow-connection-actions {
+  position: absolute;
+  bottom: 75px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border: 1px solid #e1d1d4;
+  box-shadow: 0 5px 25px #24282d15;
+  border-radius: 10px;
+  padding: 9px 14px;
+  z-index: 20;
+  max-width: 90%;
+  font-size: 13px;
+}
+.flow-notice {
+  position: fixed;
+  bottom: 20px;
+}
+.flow-connection-actions {
+  flex-wrap: wrap;
+}
+.flow-review {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(600px, 95%);
+  background: white;
+  border: 1px solid #deded7;
+  box-shadow: 0 10px 80px #24282d40;
+  padding: 30px;
+  border-radius: 15px;
+  z-index: 30;
+}
+.flow-review h2 {
+  font-size: 22px;
+}
+.flow-review p,
+.flow-review li {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 15px 0;
+}
+.flow-review button {
+  margin-right: 10px;
+}
+.flow-shell .react-flow__controls {
+  box-shadow: none;
+  display: flex;
+  bottom: 10px;
+  left: 10px;
+}
+.flow-shell .react-flow__controls-button {
+  border-radius: 0;
+}
+.flow-shell .react-flow__minimap {
+  border: 1px solid #e5e5df;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.flow-shell .react-flow__panel.top-left {
+  margin: 20px;
+}
+.flow-shell .react-flow__panel.bottom-center {
+  margin-bottom: 20px;
+}
+@media (max-width: 1023px) {
+  .flow-inspector {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 25;
+    box-shadow: -10px 0 30px #24282d10;
+  }
+  .flow-workspace {
+    position: relative;
+  }
+  .flow-shell .react-flow__minimap {
+    width: 130px;
+    height: 85px;
+  }
+  .flow-shell .react-flow__minimap svg {
+    width: 130px;
+    height: 85px;
+  }
+}
+@media (max-width: 767px) {
+  .flow-inspector {
+    width: 100%;
+    padding: 16px;
+  }
+  .flow-header {
+    gap: 8px;
+    padding: 9px;
+  }
+  .flow-header h1 {
+    font-size: 15px;
+  }
+  .flow-header button {
+    font-size: 12px;
+    padding: 8px;
+  }
+  .flow-legacy {
+    font-size: 11px;
+    padding: 8px;
+  }
+  .flow-tools {
+    flex-wrap: wrap;
+  }
+  .flow-tools button {
+    font-size: 12px;
+  }
+  .flow-search {
+    max-width: 150px;
+  }
+  .flow-search select {
+    max-width: 100px;
+  }
+  .flow-shell .react-flow__panel.top-left {
+    margin: 10px;
+  }
+  .flow-shell .react-flow__minimap {
+    display: none;
+  }
+  .flow-connection-actions {
+    bottom: 80px;
+    width: 90%;
+  }
+  .flow-shell .react-flow__panel.bottom-center {
+    left: auto;
+    right: 8px;
+    transform: none;
+  }
+  .flow-shell .react-flow__panel.bottom-center button {
+    padding: 6px;
+  }
+  .flow-notice {
+    width: 94%;
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-shell * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* Source handles remain exposed to pointer dragging; answer badges provide the tap alternative. */
+.flow-shell .flow-port {
+  right: auto;
+  left: 0;
+  width: 44px;
+}
+.flow-shell .flow-input {
+  pointer-events: none;
+}
+.flow-inspector input[type="checkbox"] {
+  display: inline-block;
+  width: 20px;
+  min-height: 20px;
+  margin: 0 10px 0 0;
+  vertical-align: middle;
+}
+.flow-inspector textarea {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  margin-top: 7px;
+  padding: 9px;
+  border: 1px solid #deded8;
+  border-radius: 7px;
+  background: #fdfdfb;
+  font: inherit;
+}
+.flow-shell .react-flow__handle-right {
+  z-index: 4;
+}
+.flow-shell .flow-port {
+  z-index: 2;
+}
+/* Preserve React Flow's measured dot geometry; enlarge only the pointer hit area. */
+.flow-shell .react-flow__handle {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  z-index: 4;
+}
+.flow-shell .react-flow__handle::before {
+  content: "";
+  position: absolute;
+  inset: -15px;
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: auto;
+}
+.flow-shell .react-flow__handle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #a92335;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #d8d8d2;
+  pointer-events: none;
+}
+.flow-shell .react-flow__handle-left::after {
+  background: #647078;
+}
+.flow-shell .flow-answer .react-flow__handle-right {
+  right: -12px;
+}
+.flow-shell .react-flow__handle-left {
+  left: 0;
+}
+.flow-recovery {
+  position: absolute;
+  bottom: 8px;
+  left: 160px;
+  z-index: 8;
+}
+.flow-recovery button {
+  font-size: 11px;
+  min-height: 36px;
+  padding: 6px;
+}
+@media (max-width: 767px) {
+  .flow-recovery {
+    bottom: 58px;
+    left: 8px;
+  }
+  .flow-recovery button {
+    font-size: 10px;
+  }
+}

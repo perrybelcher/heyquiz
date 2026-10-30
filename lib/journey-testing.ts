@@ -86,7 +86,7 @@ export function inspectConversation(form: FormSchemaType): ConversationInspectio
   // One factual reminder avoids treating every intentionally unscored question as a separate defect.
   if (unscored.length) add("unscored-answers", "note", "questions", `${unscored.reduce((sum, q) => sum + q.count, 0)} answers across ${unscored.length} question${unscored.length === 1 ? "" : "s"} have no result rules. They may be intentionally neutral; review their effect on the result if needed.`, unscored[0].questionId);
   try { validateFormReferences(form); } catch (error) { add("question-references", "error", "questions", readableError(error)); }
-  for (const rule of form.logicRules || []) {
+  for (const rule of form.routing ? [] : form.logicRules || []) {
     if (rule.action === "jump_to_ending" && (!rule.targetOutcomeTierId || !form.outcomeTiers.some(t => t.id === rule.targetOutcomeTierId))) add(`ending-${rule.id}`, "error", "questions", "A jump rule needs an existing ending.", rule.sourceQuestionId);
     if (["show_question", "hide_question", "jump_to_question"].includes(rule.action) && !rule.targetQuestionId) add(`logic-target-${rule.id}`, "error", "questions", "A logic rule is missing its destination question.", rule.sourceQuestionId);
   }
@@ -146,6 +146,7 @@ export function evaluateJourneyCase(form: FormSchemaType, answers: Answers): Jou
   let path: ReturnType<typeof resolvePath>;
   try { validateJourneyConfiguration(form); path = resolvePath(form, answers); }
   catch (error) { return { id: "explicit", answers: {}, questionIds: [], resultTitle: "Needs a manual check", status: "invalid", error: readableError(error) }; }
+  if (path.incomplete) return { id: "explicit", answers: {}, questionIds: path.questions.map(q => q.id), resultTitle: "Needs a destination", status: "invalid", error: "This answer path has no destination. Connect it before publishing." };
   const clean = Object.fromEntries(path.questions.filter(q => !displayTypes.has(q.type) && q.type !== "password" && answers[q.id] !== undefined).map(q => [q.id, answers[q.id]]));
   const invalid = (error: string): JourneyCase => ({ id: "explicit", answers: clean, questionIds: path.questions.map(q => q.id), resultTitle: "Needs a manual check", status: "invalid", error });
   for (const q of path.questions) {
@@ -156,7 +157,7 @@ export function evaluateJourneyCase(form: FormSchemaType, answers: Answers): Jou
   try {
     const marketing = evaluateMarketing(form, clean);
     const grade = gradeQuizSubmission(form, clean);
-    const ranked = form.marketing && ["segmentation", "product_finder"].includes(form.marketing.kind) ? rankMarketingOutcomes(form, clean) : [];
+    const ranked = !path.outcomeId && form.marketing && ["segmentation", "product_finder"].includes(form.marketing.kind) ? rankMarketingOutcomes(form, clean) : [];
     const tiedOutcomeIds = ranked.filter(item => item.points === ranked[0]?.points).map(item => item.o.id);
     const resultId = marketing ? marketing.outcomeId : grade.matchedTier?.id;
     return {
@@ -166,7 +167,7 @@ export function evaluateJourneyCase(form: FormSchemaType, answers: Answers): Jou
       categories: marketing?.categories.map(({ id, score, answered, applicable, minAnswers }) => ({ id, score, answered, applicable, minAnswers })) || [],
       resultSectionIds: marketing?.resultSections?.map(section => section.id) || [],
       ...(tiedOutcomeIds.length > 1 ? { tiedOutcomeIds } : {}),
-      ...(form.marketing?.kind === "qualification" ? { matchingRouteIds: matchingQualificationRules(form, clean).map(r => r.id) } : {}),
+      ...(!path.outcomeId && form.marketing?.kind === "qualification" ? { matchingRouteIds: matchingQualificationRules(form, clean).map(r => r.id) } : {}),
       status: marketing?.status || (form.mode === "quiz" && grade.totalPointsPossible > 0 ? "scored" : "completed"),
       ...(marketing ? typeof marketing.overallScore === "number" ? { score: marketing.overallScore } : {} : form.mode === "quiz" && grade.totalPointsPossible > 0 ? { score: grade.percentageScore } : {}),
     };
@@ -177,7 +178,7 @@ function validateJourneyConfiguration(form: FormSchemaType) {
   validateFormReferences(form);
   validateMarketing(form);
   if (!form.questions.some(q => !displayTypes.has(q.type))) throw Error("Add at least one answerable question before testing journeys.");
-  for (const rule of form.logicRules || []) {
+  for (const rule of form.routing ? [] : form.logicRules || []) {
     if (rule.action === "jump_to_ending" && !form.outcomeTiers.some(t => t.id === rule.targetOutcomeTierId)) throw Error("A jump rule refers to a missing ending.");
     if (["show_question", "hide_question", "jump_to_question"].includes(rule.action) && !rule.targetQuestionId) throw Error("A logic rule is missing its destination question.");
   }
@@ -294,7 +295,7 @@ export function simulateJourneys(form: FormSchemaType, limit = 256): JourneySimu
   if (partialDomain) notes.push("Large choice fields were sampled. Their complete answer combinations have not been tested.");
   if (unsupported.size) notes.push("Typed inputs, URL-prefilled hidden fields, matrices, rankings, files, and security challenges are not generated. Required fields stop that simulated journey; optional fields are skipped. Complete those paths manually in Preview.");
   if (form.capture?.enabled) notes.push("Contact capture is not submitted or validated by this scoring simulation. Test its fields and sign-up experience separately in Preview.");
-  if (form.settings.shuffleQuestions) notes.push("Question-order randomization is not exercised; this checks the configured answer and scoring paths.");
+  if (!form.routing && form.settings.shuffleQuestions) notes.push("Question-order randomization is not exercised; this checks the configured answer and scoring paths.");
   if (form.settings.timerMinutes) notes.push("Timed-out submissions are not simulated.");
   if (exhaustive) notes.push(`All ${cases.length} discrete answer journeys were evaluated using the quiz's current branching and scoring rules.`);
   const unreachedResultIds = resultIds.filter(id => !reached.has(id));

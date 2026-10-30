@@ -1,4 +1,9 @@
 "use client";
+import dynamic from "next/dynamic";
+import FlowErrorBoundary from "./FlowErrorBoundary";
+import { reconcileFlowEdit } from "@/lib/flow-editing";
+const FlowBuilder = dynamic(() => import("./flow/FlowBuilder"), { ssr: false, loading: () => <div role="status" className="fixed inset-0 z-[90] bg-white p-8">Loading quiz flow…</div> });
+const flowBuilderEnabled = process.env.NEXT_PUBLIC_FLOW_BUILDER === "true" || process.env.NODE_ENV !== "production";
 import { reportScore, reportOutcome } from "@/lib/submission-reporting";
 
 import { reportInterfaceEvent } from "@/lib/interface-telemetry";
@@ -214,6 +219,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {}
   }
   const [showConversationMap, setShowConversationMap] = useState(false);
+  const [showFlowBuilder, setShowFlowBuilder] = useState(false);
   const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>();
   const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
@@ -286,7 +292,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     if (saveStatus === "saved" && previous !== "saved") reportInterfaceEvent("save_confirmed", v2 ? "v2" : "v1");
     if (saveStatus === "error") reportInterfaceEvent("save_failed", v2 ? "v2" : "v1");
   }, [saveStatus, guest, v2]);
-  const setForm = useCallback<React.Dispatch<React.SetStateAction<FormSchemaType>>>(next => { if (canEdit()) setFormState(next); }, [canEdit]);
+  const setForm = useCallback<React.Dispatch<React.SetStateAction<FormSchemaType>>>(next => { if (canEdit()) setFormState(previous => reconcileFlowEdit(previous, typeof next === "function" ? next(previous) : next)); }, [canEdit]);
   const { draft: emailCopyDraft, update: setEmailCopyDraft, restored: emailCopyRestored, storageWarning: emailCopyStorageWarning, alternatives: emailCopyAlternatives } = useResultEmailCopyDraft(initialForm.id, accountKey);
   const { draft: reportDesignDraft, update: setReportDesignDraft, restored: reportDesignRestored, storageWarning: reportDesignStorageWarning, alternatives: reportDesignAlternatives } = useReportDesignDraft(initialForm.id, accountKey);
   useEffect(() => {
@@ -2315,7 +2321,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
               {/* Fillout Logic Button */}
               <button
-                onClick={() => setShowLogicModal(true)}
+                onClick={() => form.routing ? setShowFlowBuilder(true) : setShowLogicModal(true)}
                 className="px-3.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition"
               >
                 <GitBranch className="w-3.5 h-3.5 text-gray-500" />
@@ -3712,6 +3718,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         if (target === "questions") setMobilePanel("fields");
         requestAnimationFrame(() => document.querySelector(`[data-tour="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
       }} />}
+      {flowBuilderEnabled && <button type="button" className="fixed bottom-5 left-28 z-40 hq-primary px-4 py-3 rounded-xl shadow-lg" onClick={() => setShowFlowBuilder(true)}>Flow view</button>}
+      {showFlowBuilder && <FlowErrorBoundary onClose={() => setShowFlowBuilder(false)}><FlowBuilder form={form} onChange={setForm} onClose={() => setShowFlowBuilder(false)} onPreview={() => void handlePreview()} /></FlowErrorBoundary>}
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
       {guided && <GuidedQuizEditor uiState={basicUiState} onUiStateChange={state => updateBasicUi(state)} selectedQuestionId={selectedQuestionId} onQuestionSelect={selectBasicQuestion} onChooseImage={() => setIsCoverMediaPickerOpen(true)} onChangeType={outcomeCreationEnabled ? () => setShowConversion(true) : undefined} reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => { updateBasicUi(basicUiState); changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page"); const selected = form.questions.find(question => question.id === selectedQuestionId); setActivePageId(selected?.pageId || form.pages?.[0]?.id || "page-1"); setMobilePanel(selected ? "settings" : "fields"); }} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
@@ -3914,7 +3922,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         onSelectView={setCanvasView} onAddElement={(type,index)=>{const pageIndices=form.questions.map((q,i)=>(q.pageId || formPages[0].id)===activePageId?i:-1).filter(i=>i>=0);addQuestion(type,index ?? (pageIndices.length?pageIndices[pageIndices.length-1]+1:form.questions.length));}}
         onMoveQuestion={(id,direction)=>moveQuestion(id,direction===-1?"up":"down")}
         onReorderQuestion={(id,beforeId,targetPageId)=>{setActivePageId(targetPageId);setSelectedQuestionId(id);setCanvasView("page");setForm(current=>{const moved=current.questions.find(q=>q.id===id);if(!moved || id===beforeId)return current;const questions=current.questions.filter(q=>q.id!==id);const target=beforeId?questions.findIndex(q=>q.id===beforeId):questions.length;if(target<0)return current;questions.splice(target,0,{...moved,pageId:targetPageId});return {...current,questions};});}} paletteSections={PALETTE_SECTIONS} canvas={focusedCanvas} inspector={editorInspector}
-        onLogic={()=>setShowLogicModal(true)} onLeadCapture={()=>setActiveNavTab("contacts")} onAddPage={addPage}
+        onLogic={()=>form.routing ? setShowFlowBuilder(true) : setShowLogicModal(true)} onLeadCapture={()=>setActiveNavTab("contacts")} onAddPage={addPage}
         toolbar={<><ScoringMode form={form} onChange={setForm}/><button type="button" className="hq-secondary" onClick={()=>setDevicePreview(devicePreview==="desktop"?"mobile":"desktop")}>{devicePreview==="desktop"?"Mobile view":"Desktop view"}</button></>}
       /> : (
         <div className="flex-1 flex overflow-hidden">

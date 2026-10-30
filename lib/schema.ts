@@ -1,3 +1,4 @@
+import { FlowRoutingSchema, FlowEditorLayoutSchema, type FlowRouting, type FlowEditorLayout } from './flow-routing';
 import { QuizTypeSchema, type QuizType } from "./quiz-types";
 import { TrackingSchema, type TrackingConfig } from "./tracking";
 import { MetaSchema, type MetaConfig, type MetaDecision } from "./meta/schema";
@@ -430,6 +431,8 @@ export const LogicRuleSchema: z.ZodType<LogicRule> = z.object({
 });
 
 export interface FormSchemaType {
+  routing?: FlowRouting;
+  editorLayout?: FlowEditorLayout;
   quizType?: QuizType;
   conversionReview?: { sourceQuizId: string; sourceRevision?: number; required: boolean };
   meta?: MetaConfig;
@@ -457,6 +460,8 @@ export interface FormSchemaType {
 }
 
 export const FormSchema: z.ZodType<FormSchemaType> = z.object({
+  routing: FlowRoutingSchema.optional(),
+  editorLayout: FlowEditorLayoutSchema.optional(),
   quizType: QuizTypeSchema.optional(),
   conversionReview: z.object({ sourceQuizId: z.string().min(1).max(128), sourceRevision: z.number().int().nonnegative().optional(), required: z.boolean() }).optional(),
   meta: MetaSchema.optional(),
