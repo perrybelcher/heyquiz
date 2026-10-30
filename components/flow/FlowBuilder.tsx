@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { FormSchema } from "@/lib/schema";
-import type { FormSchemaType, Question } from "@/lib/schema";
+import type { FormSchemaType, Question, QuestionType } from "@/lib/schema";
 import { orderedQuestions, singleTypes, resolvePath } from "@/lib/engine";
 import {
   migrateLegacyRouting,
@@ -49,6 +49,7 @@ import {
   automatic,
   connectAnswer,
   destinationChoices,
+  destinationKey,
   parseDestination,
   removeQuestion,
   routeOwner,
@@ -62,6 +63,7 @@ import {
   type BlockNode,
 } from "./FlowNodes";
 import FlowInspector from "./FlowInspector";
+import FlowBranchChooser from "./FlowBranchChooser";
 import { simulateJourneys } from "@/lib/journey-testing";
 import {
   parseJourneyFixtures,
@@ -115,7 +117,9 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
     [review, setReview] = useState(false),
     [history, setHistory] = useState<FormSchemaType[]>([]),
     [future, setFuture] = useState<FormSchemaType[]>([]),
-    [nodes, setNodes] = useState<BlockNode[]>([]);
+    [nodes, setNodes] = useState<BlockNode[]>([]),
+    [branch, setBranch] = useState<{ source: string; handle: string; edgeId?: string; insert?: boolean; position?: {x: number; y: number} } | null>(null);
+  const connectionSource = useRef<{source: string; handle: string} | null>(null);
   const current = useRef(form);
   useLayoutEffect(() => {
     current.current = form;
@@ -149,13 +153,14 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
         validateFlowRouting(next);
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "Invalid flow edit");
-        return;
+        return false;
       }
       layoutId.current++;
       setHistory((h) => [...h.slice(-99), current.current]);
       setFuture([]);
       expected.current = next;
       onChange(next);
+      return true;
     },
     [onChange],
   );
@@ -226,6 +231,32 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
     return result;
   }, [view]);
   const projected = useMemo(() => {
+    const labels = new Map(destinationChoices(view).map(c => [c.value, c.label]));
+    // Keep first-match rule priority when several rules mention the same answer.
+    const exactEdges = new Map<string, Edge>();
+    for (const edge of edges) {
+      if (edge.data?.isDefault || !edge.sourceHandle || edge.sourceHandle === "default") continue;
+      const key = `${edge.source}\0${edge.sourceHandle}`;
+      if (!exactEdges.has(key)) exactEdges.set(key, edge);
+    }
+    const answerData = (questionId: string, handle: string, label: string) => {
+      const owner = routeOwner(view, questionId);
+      const route = view.routing?.routes[owner];
+      const exact = handle === "default" ? undefined : exactEdges.get(`${questionId}\0${handle}`);
+      const exactIndex = exact ? route?.rules.findIndex(r => r.id === exact.data?.ruleId) ?? -1 : -1;
+      const precedingRules = exactIndex >= 0 ? route!.rules.slice(0, exactIndex) : route?.rules || [];
+      const conditional = precedingRules.some(rule => {
+        const condition = rule.conditions[0];
+        // An exact match on another answer of this question cannot preempt this port.
+        return !(handle !== "default" && rule.conditions.length === 1 && condition.questionId === questionId && condition.operator === "equals" && condition.value !== handle && view.questions.find(q => q.id === questionId)?.options?.some(o => o.id === condition.value));
+      });
+      const destination = exact ? route?.rules[exactIndex]?.destination : route?.default;
+      const id = destination ? keyToNode(destination) : undefined;
+      const resolvedLabel = destination ? labels.get(destinationKey(destination)) : undefined;
+      const destinationLabel = resolvedLabel ? `${conditional ? "After conditions: " : ""}${resolvedLabel}` : undefined;
+      return { id: handle, label, destinationId: id, destinationLabel,
+        inherited: handle !== "default" && !exact && !!destination };
+    };
     const positions = form.editorLayout?.positions || {},
       grouped = view.settings.presentation === "page" && !!view.pages?.length;
     const items: BlockNode[] = [];
@@ -243,7 +274,7 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
             height:
               80 +
               children.reduce(
-                (n, q) => n + 135 + (q.options?.length || 0) * 45,
+                (n, q) => n + 150 + ((q.options?.length || 0) + 1) * 75,
                 0,
               ),
             background: "#eeeee780",
@@ -267,8 +298,8 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
               0,
               siblings.findIndex((n) => n.id === q.id),
             )
-            .reduce((n, q) => n + 135 + (q.options?.length || 0) * 45, 55)
-        : (i % 3) * 300;
+            .reduce((n, q) => n + 150 + ((q.options?.length || 0) + 1) * 75, 55)
+        : (i % 3) * 620;
       items.push({
         id: q.id,
         type: "question",
@@ -276,7 +307,7 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
           ? `page:${q.pageId || view.pages?.[0]?.id}`
           : undefined,
         extent: grouped ? "parent" : undefined,
-        dragHandle: ".flow-node-heading",
+        dragHandle: ".flow-node-grip",
         position: positions[q.id] || {
           x: grouped ? 25 : Math.floor(i / 3) * 460,
           y,
@@ -286,9 +317,9 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
           label: `${i + 1} · ${q.type.replaceAll("_", " ")}`,
           answers: [
             ...(singleTypes.has(q.type)
-              ? (q.options || []).map((o) => ({ id: o.id, label: o.label }))
+              ? (q.options || []).map((o) => answerData(q.id, o.id, o.label))
               : []),
-            { id: "default", label: "Otherwise / Continue" },
+            answerData(q.id, "default", "Otherwise / Continue"),
           ],
           readOnly,
           activePort: port?.id === q.id ? port.handle : undefined,
@@ -306,6 +337,7 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
       items.push({
         id: d.value,
         type: "result",
+        dragHandle: ".flow-node-grip",
         position: positions[d.value] || {
           x: Math.ceil(view.questions.length / 3) * 460,
           y: i * 180,
@@ -318,7 +350,7 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
         },
       });
     return items;
-  }, [form.editorLayout, view, readOnly, port]);
+  }, [form.editorLayout, view, readOnly, port, edges]);
   useEffect(() => {
     // React Flow owns transient drag positions; external draft changes replace that local projection.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -375,7 +407,7 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
           width: Number(n.style?.width) || 320,
           height:
             Number(n.style?.height) ||
-            (n.type === "question" ? 135 + n.data.answers.length * 45 : 100),
+            (n.type === "question" ? 150 + n.data.answers.length * 75 : 100),
         })),
         edges: edges.filter(
           (e) =>
@@ -520,75 +552,93 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
     expected.current = restored;
     onChange(restored);
   };
-  const add = (result = false) => {
+  const goTo = useCallback((id: string) => {
+    userNavigated.current = true;
+    const node = rf.getInternalNode(id);
+    if (!node) return;
+    const absolute = node.internals.positionAbsolute;
+    void rf.setCenter(absolute.x + (node.measured.width || 320) / 2,
+      absolute.y + (node.measured.height || 200) / 2,
+      { zoom: Math.max(rf.getZoom(), 0.65), duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180 });
+  }, [rf]);
+  const openBranch = useCallback((source: string, handle: string, edgeId?: string, position?: {x: number; y: number}) => {
     if (readOnly) return;
-    const id = nanoid(12),
-      position = rf.screenToFlowPosition({
-        x: window.innerWidth * 0.45,
-        y: window.innerHeight * 0.4,
-      });
+    setEditing(null);
+    setNotice("");
+    setPort({ id: source, handle });
+    setBranch({ source, handle, edgeId, position });
+  }, [readOnly]);
+  // Rewrite one existing rule in place, preserving ordered condition priority.
+  const routeBranch = (draft: FormSchemaType, context: NonNullable<typeof branch>, destination: FlowDestination) => {
+    const edge = context.edgeId ? edges.find(e => e.id === context.edgeId) : edges.find(e => context.handle !== "default" && e.source === context.source && e.sourceHandle === context.handle && !e.data?.isDefault);
+    const owner = edge ? String(edge.data?.owner) : context.source.startsWith("page:") ? context.source.slice(5) : routeOwner(draft, context.source);
+    const route = draft.routing!.routes[owner] || { rules: [] };
+    if (edge && !edge.data?.isDefault)
+      return updateRoute(draft, owner, { ...route, rules: route.rules.map(r => r.id === edge.data?.ruleId ? {...r, destination} : r) });
+    return context.handle === "default" ? updateRoute(draft, owner, { ...route, default: destination }) : connectAnswer(draft, context.source, context.handle, destination);
+  };
+  const nearbyPosition = (context: typeof branch) => {
+    if (context?.position) return context.position;
+    const source = context && rf.getInternalNode(context.source);
+    const origin = source ? { x: source.internals.positionAbsolute.x + (source.measured.width || 320) + 130, y: source.internals.positionAbsolute.y } : rf.screenToFlowPosition({x: window.innerWidth * 0.35, y: window.innerHeight * 0.35});
+    let position = origin;
+    const topNodes = rf.getNodes().filter(n => !n.parentId);
+    // Only the new block moves; existing positions are never rearranged.
+    for (let i = 0; i < 210; i++) {
+      const collides = topNodes.some(n => position.x < n.position.x + (n.measured?.width || 370) + 24 && position.x + 370 + 24 > n.position.x && position.y < n.position.y + (n.measured?.height || 320) + 24 && position.y + 440 + 24 > n.position.y);
+      if (!collides) break;
+      position = { x: origin.x, y: position.y + 120 };
+    }
+    return position;
+  };
+  const finishCreation = (next: FormSchemaType, id: string) => {
+    if (!commit(next)) return;
+    setBranch(null); setPort(null); setSelection(null); setEditing(id);
+    setNotice(`${id.includes(":") ? "Result" : "Question"} added${branch ? " and connected" : ""}. Edit it in the panel.`);
+    // Wait for React Flow to measure the new block before revealing it.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const node = rf.getInternalNode(id);
+      if (!node) return;
+      const position = node.internals.positionAbsolute;
+      const screen = rf.flowToScreenPosition(position);
+      const canvas = dialog.current?.querySelector(".flow-canvas")?.getBoundingClientRect();
+      if (canvas && (screen.x < canvas.left + 24 || screen.x + 320 > canvas.right - 24 || screen.y < canvas.top + 70 || screen.y + 240 > canvas.bottom - 130)) goTo(id);
+    }));
+  };
+  const add = (result = false, type: QuestionType = "multiple_choice", context: typeof branch = null) => {
+    if (readOnly || (!result && form.questions.length >= 200)) return;
+    const id = nanoid(12), position = nearbyPosition(context);
     if (result) {
-      if (form.marketing && form.marketing.kind !== "scorecard") {
-        commit({
-          ...form,
-          marketing: {
-            ...form.marketing,
-            outcomes: [
-              ...form.marketing.outcomes,
-              {
-                id,
-                title: "New result",
-                description: "",
-                advice: "",
-                ctaLabel: "",
-                ctaUrl: "",
-                minPoints: 1,
-              },
-            ],
-          },
-        });
-        setEditing(`outcome:${id}`);
-      } else if (!form.marketing) {
-        commit({
-          ...form,
-          outcomeTiers: [
-            ...form.outcomeTiers,
-            {
-              id,
-              title: "New ending",
-              message: "",
-              badge: "",
-              minScorePercent: 0,
-              maxScorePercent: 100,
-            },
-          ],
-        });
-        setEditing(`tier:${id}`);
-      } else
-        setNotice(
-          "This quiz calculates its results. Edit its existing endings in Results.",
-        );
+      let next = form;
+      let destination: FlowDestination;
+      if (form.marketing && form.marketing.kind !== "scorecard" && form.quizType !== "knowledge") {
+        destination = {kind: "outcome", id};
+        next = {...form, marketing: {...form.marketing, outcomes: [...form.marketing.outcomes, {id, title: "New result", description: "", advice: "", ctaLabel: "", ctaUrl: "", minPoints: 1}]}};
+      } else if (!form.marketing && !["knowledge", "scorecard"].includes(form.quizType || "")) {
+        destination = {kind: "tier", id};
+        next = {...form, outcomeTiers: [...form.outcomeTiers, {id, title: "New ending", message: "", badge: "", minScorePercent: 0, maxScorePercent: 100}]};
+      } else { setNotice("This quiz calculates its results. Edit its existing endings in Results."); return; }
+      if (context) next = routeBranch(next, context, destination);
+      const key = keyToNode(destination);
+      next = {...next, editorLayout: {version: 1, positions: {...form.editorLayout?.positions, [key]: position}}};
+      finishCreation(next, key);
       return;
     }
-    const q: Question = {
-      id,
-      type: "multiple_choice",
-      title: "New question",
-      options: [
-        { id: nanoid(10), label: "Answer A" },
-        { id: nanoid(10), label: "Answer B" },
-      ],
-      pageId:
-        form.settings.presentation === "page" ? form.pages?.[0]?.id : undefined,
-    };
-    commit({
-      ...appendFlowQuestion(form, q),
-      editorLayout: {
-        version: 1,
-        positions: { ...form.editorLayout?.positions, [id]: position },
-      },
-    });
-    setEditing(id);
+    const grouped = form.settings.presentation === "page";
+    // A branch enters a page on Continue. A fresh page prevents implying mid-page navigation.
+    const pageId = grouped && context ? nanoid(12) : grouped ? form.pages?.[0]?.id : undefined;
+    const q: Question = {id, type, title: "New question", options: ["multiple_choice", "multiselect"].includes(type) ? [{id: nanoid(10), label: "Answer A"}, {id: nanoid(10), label: "Answer B"}] : undefined, pageId};
+    let next = grouped && context ? {...form, pages: [...(form.pages || []), {id: pageId!, title: `Page ${(form.pages?.length || 0) + 1}`, questionIds: [id]}]} : form;
+    next = appendFlowQuestion(next, q);
+    const owner = routeOwner(next, id);
+    if (grouped) next = {...next, pages: next.pages?.map(p => p.id === owner ? {...p, questionIds: [...new Set([...p.questionIds, id])]} : p)};
+    const insertedEdge = context?.edgeId ? edges.find(e => e.id === context.edgeId) : undefined;
+    const oldRoute = insertedEdge ? form.routing!.routes[String(insertedEdge.data?.owner)] : undefined;
+    const continuation = context?.insert && insertedEdge?.data?.isDefault ? oldRoute?.default : context?.insert ? oldRoute?.rules.find(r => r.id === insertedEdge?.data?.ruleId)?.destination : undefined;
+    if (!grouped || context || !next.routing?.routes[owner]) next = updateRoute(next, owner, {rules: [], default: continuation || automatic});
+    if (context) next = routeBranch(next, context, grouped ? {kind: "page", id: owner} : {kind: "question", id});
+    next = {...next, editorLayout: {version: 1, positions: {...form.editorLayout?.positions, ...(grouped ? {[`page:${owner}`]: context ? position : form.editorLayout?.positions[`page:${owner}`] || {x: 0, y: 60}, [id]: {x: 25, y: context ? 55 : form.questions.filter(n => (n.pageId || form.pages?.[0]?.id) === owner).reduce((y, n) => y + 150 + ((n.options?.length || 0) + 1) * 75, 55)}} : {[id]: position})}}};
+    finishCreation(next, id);
   };
   useEffect(() => {
     if (
@@ -623,15 +673,17 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
   );
   const actions = useMemo(
     () => ({
-      edit: setEditing,
+      edit: target,
       port: (id: string, handle: string) => {
         setPort({ id, handle });
         setNotice("Tap a destination block, or choose it in the editor.");
         setEditing(id);
       },
       target,
+      choose: openBranch,
+      goTo,
     }),
-    [target],
+    [target, openBranch, goTo],
   );
   const chosen = edges.find((e) => e.id === selection);
   const renderedNodes = useMemo(() => {
@@ -654,7 +706,9 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
       ref={dialog}
       className="flow-dialog"
       onCancel={(event) => {
-        if (editing) {
+        if (branch) {
+          event.preventDefault(); setBranch(null); setPort(null);
+        } else if (editing) {
           event.preventDefault();
           setEditing(null);
         } else onClose();
@@ -756,8 +810,14 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
                     });
                 }}
                 onConnect={onConnect}
-                onNodeClick={(_, n) => {
-                  if (port) target(n.id);
+                onConnectStart={(_, params) => { connectionSource.current = params.handleType === "source" && params.nodeId ? {source: params.nodeId, handle: params.handleId || "default"} : null; }}
+                onConnectEnd={(event, state) => {
+                  const source = connectionSource.current;
+                  connectionSource.current = null;
+                  if (!source || state.isValid || state.toNode) return;
+                  const point = "changedTouches" in event ? event.changedTouches[0] : event;
+                  if (!point || !(event.target instanceof Element) || !event.target.closest(".react-flow__pane")) return;
+                  openBranch(source.source, source.handle, undefined, rf.screenToFlowPosition({x: point.clientX, y: point.clientY}));
                 }}
                 onNodeDoubleClick={(_, n) => setEditing(n.id)}
                 onEdgeClick={(_, e) => {
@@ -867,17 +927,9 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
                   {chosen.label || "Answer"} →{" "}
                   {nodes.find((n) => n.id === chosen.target)?.data.title}
                 </span>
-                <button
-                  onClick={() =>
-                    setEditing(
-                      chosen.source.startsWith("page:")
-                        ? chosen.source
-                        : chosen.source,
-                    )
-                  }
-                >
-                  Change destination
-                </button>
+                <button onClick={() => goTo(chosen.target)}>Go to question</button>
+                <button disabled={readOnly} onClick={() => openBranch(chosen.source, chosen.sourceHandle || "default", chosen.id)}>Change destination</button>
+                <button disabled={readOnly || form.questions.length >= 200} onClick={() => { setEditing(null); setPort(null); setBranch({source: chosen.source, handle: chosen.sourceHandle || "default", edgeId: chosen.id, insert: true}); }}>+ Insert question</button>
                 <button
                   disabled={readOnly}
                   onClick={() => {
@@ -978,6 +1030,15 @@ function Canvas({ form, onChange, onPreview, onClose }: Props) {
             />
           )}
         </div>
+        {branch && <FlowBranchChooser
+          title={branch.insert ? "Insert question" : `Continue from ${form.questions.find(q => q.id === branch.source)?.options?.find(o => o.id === branch.handle)?.label || (branch.handle === "default" ? "Continue" : "this answer")}`}
+          choices={destinationChoices(form).filter(c => c.value !== `question:${branch.source}` && c.value !== branch.source)}
+          error={notice} insert={!!branch.insert} canCreate={form.questions.length < 200}
+          canCreateResult={!["knowledge", "scorecard"].includes(form.quizType || "") && form.marketing?.kind !== "scorecard"}
+          onQuestion={type => add(false, type, branch)} onResult={() => add(true, "multiple_choice", branch)}
+          onDestination={value => { if (commit(routeBranch(form, branch, parseDestination(value)))) {setBranch(null); setPort(null); setSelection(null); setNotice("Connection updated");} }}
+          onClose={() => {setBranch(null); setPort(null);}}
+        />}
         {notice && (
           <div role="status" className="flow-notice">
             <span>{notice}</span>

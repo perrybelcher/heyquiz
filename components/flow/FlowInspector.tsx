@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import VisibilityEditor from "./VisibilityEditor";
+import "./flow-inspector.css";
+import { singleTypes, multiTypes } from "@/lib/engine";
 import { removeGuidedAnswer } from "@/lib/guided-editing";
 import { nanoid } from "nanoid";
 import type { FormSchemaType, LogicOperator, QuestionType } from "@/lib/schema";
@@ -54,6 +56,20 @@ export default function FlowInspector({
   const owner = id.startsWith("page:") ? id.slice(5) : routeOwner(form, id),
     route = form.routing?.routes[owner] || { rules: [] },
     choices = destinationChoices(form);
+  const choiceQuestion = !!q && (singleTypes.has(q.type) || multiTypes.has(q.type));
+  // Keep the answer representation stable when changing an existing block.
+  // Other types are available when adding a new question.
+  const compatibleTypes: QuestionType[] = !q ? [] : singleTypes.has(q.type)
+    ? Array.from(new Set([q.type, "multiple_choice", "dropdown"])) as QuestionType[]
+    : multiTypes.has(q.type)
+      ? Array.from(new Set([q.type, "multiselect"])) as QuestionType[]
+      : ["short_answer", "paragraph"].includes(q.type)
+        ? ["short_answer", "paragraph"]
+        : [q.type];
+  const typeName = (type: string) => ({
+    multiple_choice: "Single choice", multiselect: "Multiple answers",
+    short_answer: "Short answer", paragraph: "Long answer", dropdown: "Dropdown",
+  }[type] || type.replaceAll("_", " "));
   const saveTitle = () => {
     if (tier) {
       onChange({
@@ -95,9 +111,11 @@ export default function FlowInspector({
     >
       <header>
         <h2>
-          {id.startsWith("page:")
+          {id === "automatic"
+            ? "Calculated result"
+            : id.startsWith("page:")
             ? "Page routing"
-            : outcome
+            : outcome || tier
               ? "Edit result"
               : "Edit question"}
         </h2>
@@ -112,12 +130,15 @@ export default function FlowInspector({
           <X size={20} />
         </button>
       </header>
+      <p className="flow-inspector-hint">{readOnly ? "Upgrade routing to edit this draft." : "Changes save with your quiz. Use Undo to reverse an edit."}</p>
       {error && <p role="alert">{error}</p>}
+      {id === "automatic" && <p>This step calculates the result using your quiz’s scoring and matching rules. Edit result content and matching in the builder’s Results step. Each respondent still receives the result calculated from their answers.</p>}
       <fieldset disabled={readOnly}>
         {(q || outcome || tier) && (
           <label>
-            Title
-            <input
+            {q ? "Question" : "Title"}
+            <textarea
+              rows={3}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => {
@@ -190,6 +211,7 @@ export default function FlowInspector({
               Question type
               <select
                 value={q.type}
+                disabled={compatibleTypes.length === 1}
                 onChange={(e) =>
                   onChange({
                     ...form,
@@ -201,25 +223,14 @@ export default function FlowInspector({
                   })
                 }
               >
-                {Array.from(
-                  new Set([
-                    q.type,
-                    "multiple_choice",
-                    "multiselect",
-                    "short_answer",
-                    "paragraph",
-                    "number",
-                    "email",
-                    "rating",
-                    "dropdown",
-                  ]),
-                ).map((type) => (
+                {compatibleTypes.map((type) => (
                   <option key={type} value={type}>
-                    {type.replaceAll("_", " ")}
+                    {typeName(type)}
                   </option>
                 ))}
               </select>
             </label>
+            <p>To use a different answer format, add a new question. Existing connections stay tied to their answer IDs.</p>
             <label>
               <input
                 type="checkbox"
@@ -237,31 +248,12 @@ export default function FlowInspector({
             </label>
           </>
         )}
-        {form.routing && (
-          <label>
-            Quiz entry
-            <select
-              value={destinationKey(form.routing.entry)}
-              onChange={(e) =>
-                onChange({
-                  ...form,
-                  routing: {
-                    ...form.routing!,
-                    entry: parseDestination(e.target.value),
-                  },
-                })
-              }
-            >
-              {choices.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {q?.options?.map((a, i) => (
-          <div className="flow-answer-edit" key={a.id}>
+        {choiceQuestion && <section className="flow-answer-intro" aria-label="Answer routing help">
+          <h3>Answers & destinations</h3>
+          <p>{q && multiTypes.has(q.type) ? "People can select more than one answer. Conditions run in order; the first match determines their path." : "Choose where each answer leads. You can connect several answers to the same destination."}</p>
+        </section>}
+        {choiceQuestion && q?.options?.map((a, i) => (
+          <div className="flow-answer-edit" key={a.id} role="group" aria-label={`Answer ${String.fromCharCode(65 + i)}`}>
             <label>
               Answer {String.fromCharCode(65 + i)}
               <input
@@ -319,6 +311,8 @@ export default function FlowInspector({
               </select>
             </label>
             <button
+              className="flow-remove-answer"
+              aria-label={`Remove answer ${String.fromCharCode(65 + i)}`}
               onClick={() => {
                 if (
                   window.confirm(
@@ -341,8 +335,9 @@ export default function FlowInspector({
             </button>
           </div>
         ))}
-        {q && (
+        {choiceQuestion && q && (
           <button
+            className="flow-add-answer"
             onClick={() =>
               onChange({
                 ...form,
@@ -361,7 +356,7 @@ export default function FlowInspector({
             }
           >
             <Plus size={17} />
-            Answer
+            Add answer
           </button>
         )}
         {(outcome || tier) && (
@@ -369,14 +364,12 @@ export default function FlowInspector({
             Delete result and affected routes
           </button>
         )}
-        {q && (
-          <VisibilityEditor form={form} questionId={q.id} onChange={onChange} />
-        )}
         {(q || id.startsWith("page:")) && (
           <>
             <label>
-              Otherwise / Continue
+              {id.startsWith("page:") ? "After Continue" : choiceQuestion ? "Default destination" : "Next destination"}
               <select
+                aria-label="Otherwise / Continue"
                 value={route.default ? destinationKey(route.default) : ""}
                 onChange={(e) =>
                   onChange(
@@ -397,6 +390,7 @@ export default function FlowInspector({
                 ))}
               </select>
             </label>
+            <p className="flow-default-help">{choiceQuestion ? "Answers without their own connection follow this default. Conditions can override it; the first matching rule wins." : "This is where people continue after this block."}</p>
             <details>
               <summary>Conditions and priority ({route.rules.length})</summary>
               <p>
@@ -594,6 +588,34 @@ export default function FlowInspector({
               >
                 Add rule
               </button>
+            </details>
+            {q && <VisibilityEditor form={form} questionId={q.id} onChange={onChange} />}
+            <details className="flow-quiz-settings">
+              <summary>Quiz settings</summary>
+              <p>The entry is the first screen shown when someone starts this quiz.</p>
+              {form.routing && (
+                <label>
+                  Quiz entry
+                  <select
+                    value={destinationKey(form.routing.entry)}
+                    onChange={(e) =>
+                      onChange({
+                        ...form,
+                        routing: {
+                          ...form.routing!,
+                          entry: parseDestination(e.target.value),
+                        },
+                      })
+                    }
+                  >
+                    {choices.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </details>
             {(q || outcome || tier) && (
               <button className="flow-delete" onClick={onDelete}>

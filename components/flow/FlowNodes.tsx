@@ -7,11 +7,11 @@ import {
   type NodeProps,
   type Node,
 } from "@xyflow/react";
-import { GripVertical, Flag, MoreHorizontal } from "lucide-react";
+import { GripVertical, Flag, Pencil, Plus, ArrowRight } from "lucide-react";
 export type BlockData = {
   title: string;
   label: string;
-  answers: { id: string; label: string }[];
+  answers: { id: string; label: string; destinationLabel?: string; destinationId?: string; inherited?: boolean }[];
   readOnly: boolean;
   activePort?: string;
 };
@@ -20,6 +20,8 @@ export const FlowActions = createContext<{
   edit: (id: string) => void;
   port: (id: string, handle: string) => void;
   target: (id: string) => void;
+  choose?: (id: string, handle: string) => void;
+  goTo?: (id: string) => void;
 }>({ edit: () => {}, port: () => {}, target: () => {} });
 export const QuestionNode = memo(function QuestionNode({
   id,
@@ -36,7 +38,7 @@ export const QuestionNode = memo(function QuestionNode({
     }
   }, [id, data.answers.length, update]);
   return (
-    <article className={`flow-question ${selected ? "selected" : ""}`}>
+    <article className={`flow-question ${selected ? "selected" : ""}`} onClick={event => { if (!(event.target as HTMLElement).closest("button,.react-flow__handle,.flow-node-grip")) actions.edit(id); }}>
       <Handle type="target" position={Position.Left} />
       <button
         className="flow-input nodrag"
@@ -44,17 +46,17 @@ export const QuestionNode = memo(function QuestionNode({
         onClick={() => actions.target(id)}
       />
       <header className="flow-node-heading">
-        <GripVertical size={16} />
-        <div>
+        <span className="flow-node-grip" title="Drag to move question"><GripVertical size={18} aria-hidden="true" /></span>
+        <button className="flow-question-title nodrag" onClick={() => actions.edit(id)} aria-label={`Edit ${data.title || "Untitled question"}`}>
           <small>{data.label}</small>
           <h3>{data.title || "Untitled question"}</h3>
-        </div>
+        </button>
         <button
           className="nodrag"
-          aria-label={`Edit ${data.title}`}
+          aria-label={`Edit question settings for ${data.title}`}
           onClick={() => actions.edit(id)}
         >
-          <MoreHorizontal size={18} />
+          <Pencil size={17} aria-hidden="true" />
         </button>
       </header>
       <div className="flow-answers">
@@ -66,7 +68,12 @@ export const QuestionNode = memo(function QuestionNode({
             <span className="flow-letter">
               {a.id === "default" ? "→" : String.fromCharCode(65 + i)}
             </span>
-            <span>{a.label}</span>
+            <div className="flow-answer-copy">
+              <span className="flow-answer-name">{a.label}</span>
+              <button className={`flow-destination nodrag${a.destinationLabel ? "" : " flow-destination--missing"}`} disabled={data.readOnly && !a.destinationId} aria-label={a.destinationId ? `Go to ${a.destinationLabel || "destination"}${a.inherited ? " via default route" : ""}` : `Choose destination for ${a.label}`} onClick={() => a.destinationId && actions.goTo ? actions.goTo(a.destinationId) : (actions.choose || actions.port)(id, a.id)} title={a.destinationLabel}>
+                {a.destinationLabel ? <><ArrowRight size={12} aria-hidden="true" /><span>{a.inherited ? "Default: " : ""}{a.destinationLabel}</span></> : <><Plus size={12} aria-hidden="true" /><span>Choose destination</span></>}
+              </button>
+            </div>
             <Handle
               type="source"
               position={Position.Right}
@@ -75,10 +82,11 @@ export const QuestionNode = memo(function QuestionNode({
             />
             <button
               className="flow-port nodrag"
+              title={a.destinationLabel ? "Change destination or add a step" : "Add next step"}
               disabled={data.readOnly}
               aria-label={`Connect ${a.label}`}
-              onClick={() => actions.port(id, a.id)}
-            />
+              onClick={() => (actions.choose || actions.port)(id, a.id)}
+            ><Plus size={17} aria-hidden="true" /></button>
           </div>
         ))}
       </div>
@@ -92,14 +100,15 @@ export const ResultNode = memo(function ResultNode({
 }: NodeProps<BlockNode>) {
   const actions = useContext(FlowActions);
   return (
-    <article className={`flow-result ${selected ? "selected" : ""}`}>
+    <article className={`flow-result ${selected ? "selected" : ""}`} onClick={event => { if (!(event.target as HTMLElement).closest("button,.react-flow__handle,.flow-node-grip")) actions.edit(id); }}>
       <Handle type="target" position={Position.Left} />
       <button
         className="flow-input nodrag"
         aria-label={`Connect to ${data.title}`}
         onClick={() => actions.target(id)}
       />
-      <Flag size={25} />
+      <span className="flow-node-grip" title="Drag to move result"><GripVertical size={18} aria-hidden="true" /></span>
+      <Flag size={25} aria-hidden="true" />
       <div>
         <small>{data.label}</small>
         <h3>{data.title}</h3>
@@ -109,7 +118,7 @@ export const ResultNode = memo(function ResultNode({
         className="nodrag"
         onClick={() => actions.edit(id)}
       >
-        <MoreHorizontal size={18} />
+        <Pencil size={17} aria-hidden="true" />
       </button>
     </article>
   );
