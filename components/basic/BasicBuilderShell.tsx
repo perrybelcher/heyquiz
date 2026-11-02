@@ -28,6 +28,7 @@ export type BasicBuilderShellProps = {
   publicationBusy?: boolean;
   children: ReactNode;
   preview: ReactNode;
+  inlinePreview?: boolean;
   footer: ReactNode;
   notices?: ReactNode;
   outline?: ReactNode;
@@ -42,7 +43,7 @@ function subscribeDesktop(onChange: () => void) {
 function getDesktopSnapshot() { return window.matchMedia(desktopQuery).matches; }
 function getServerDesktopSnapshot() { return false; }
 
-export default function BasicBuilderShell({ title, status, saveFailed, steps, activeStep, onStepChange, questions, selectedQuestionId, onQuestionSelect, onAddQuestion, onAdvanced, onFlow, onShare, onPreview, onPublish, previewing, publicationBusy, children, preview, footer, notices, outline }: BasicBuilderShellProps) {
+export default function BasicBuilderShell({ title, status, saveFailed, steps, activeStep, onStepChange, questions, selectedQuestionId, onQuestionSelect, onAddQuestion, onAdvanced, onFlow, onShare, onPreview, onPublish, previewing, publicationBusy, children, preview, inlinePreview = false, footer, notices, outline }: BasicBuilderShellProps) {
   const [search, setSearch] = useState("");
   const desktop = useSyncExternalStore(subscribeDesktop, getDesktopSnapshot, getServerDesktopSnapshot);
   const [outlineOpen, setOutlineOpen] = useState(false);
@@ -98,15 +99,15 @@ export default function BasicBuilderShell({ title, status, saveFailed, steps, ac
     </header>
     <nav className="basic-steps" aria-label="Quiz setup steps">{steps.map((step, index) => <button key={step.id} type="button" aria-current={activeStep === step.id ? "step" : undefined} onClick={() => onStepChange(step.id)}><span className="basic-step-number" aria-hidden="true">{index + 1}</span><span>{step.label}</span></button>)}</nav>
     {notices && <div className="basic-builder-notices">{notices}</div>}
-    <div className="basic-compact-tools">
+    {!inlinePreview && <div className="basic-compact-tools">
       {hasOutline && <button type="button" className={`basic-button basic-outline-trigger${!questionStep ? " basic-outline-trigger--other" : ""}`} onClick={() => { setOutlineOpen(true); outlineDialog.current?.showModal(); }}><List size={18} aria-hidden="true" />{questionStep ? `Questions · ${questions.length}` : `${currentStep?.label || "Step"} list`}</button>}
       {questionStep && <span className="basic-current-question">{currentIndex >= 0 ? `Question ${currentIndex + 1} of ${questions.length}` : `${questions.length} questions`}</span>}
       <button type="button" className="basic-button basic-preview-trigger" onClick={() => { setPreviewOpen(true); previewDialog.current?.showModal(); }}><Eye size={18} aria-hidden="true" />Visitor preview</button>
-    </div>
+    </div>}
     <div className="basic-builder-workspace">
       {hasOutline && <aside className="basic-builder-outline" aria-label={questionStep ? "Question outline" : "Step outline"}>{outline ?? questionOutline()}</aside>}
       <div className="basic-builder-editor">{children}</div>
-      {desktop && <aside className="basic-builder-preview" aria-label="Visitor preview">{preview}</aside>}
+      {(desktop || inlinePreview) && <aside className={desktop ? "basic-builder-preview" : "basic-capture-preview"} aria-label="Visitor preview">{preview}</aside>}
       <footer className="basic-builder-footer">{footer}</footer>
     </div>
     <dialog ref={outlineDialog} onClose={() => setOutlineOpen(false)} className="basic-builder-dialog" aria-labelledby={outlineTitleId} onClick={event => { if (event.target === event.currentTarget) outlineDialog.current?.close(); }}>

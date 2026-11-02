@@ -1,4 +1,5 @@
 "use client";
+import { useAddedItemFeedback } from "./useAddedItemFeedback";
 import dynamic from "next/dynamic";
 import FlowBetaButton from "./FlowBetaButton";
 import FlowErrorBoundary from "./FlowErrorBoundary";
@@ -27,7 +28,6 @@ import {
 } from "@/lib/schema";
 import {
   Search,
-  Pencil, Plug,
   Plus,
   Trash2,
   Copy,
@@ -167,6 +167,8 @@ import { clarityEvent, stopClarity } from "@/lib/clarity";
 import ThemeEditor from "./ThemeEditor";
 import BuilderWalkthrough from "./BuilderWalkthrough";
 import ContactsStudio from "./ContactsStudio";
+import BasicLeadCaptureSettings from "./BasicLeadCaptureSettings";
+import { defaultCapture } from "@/lib/contacts";
 import MarketingStudio from "./MarketingStudio";
 import MarketingResultCard from "./MarketingResultCard";
 import IntegrationStudio from "./IntegrationStudio";
@@ -211,17 +213,17 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     () => { try { return localStorage.getItem(`pippi-editor-mode:${initialForm.id}`); } catch { return null; } },
     () => null,
   );
-  const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(initialSection === "edit" ? null : false);
+  const [editorModeOverride, setEditorModeOverride] = useState<boolean | null>(initialSection === "edit" || initialSection === "capture" ? null : false);
   const guided = editorModeOverride ?? (storedEditorMode ? storedEditorMode !== "advanced" : true);
   function changeEditorMode(value: boolean) {
     setEditorModeOverride(value);
-    setGuidedJump(undefined);
-    if (value) setActiveNavTab("edit");
+    if (!value || activeNavTab !== "capture") setGuidedJump(undefined);
+    if (value) { if (activeNavTab === "capture") setGuidedJump(previous => ({ target: "capture", requestId: (previous?.requestId || 0) + 1, focus: true })); setActiveNavTab("edit"); }
     try { localStorage.setItem(`pippi-editor-mode:${initialForm.id}`, value ? "guided" : "advanced"); } catch {}
   }
   const [showConversationMap, setShowConversationMap] = useState(false);
   const [showFlowBuilder, setShowFlowBuilder] = useState(false);
-  const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>();
+  const [guidedJump, setGuidedJump] = useState<(ConversationEdit & {requestId:number; focus?:boolean}) | undefined>(initialSection === "capture" ? { target: "capture", requestId: 1, focus: true } : undefined);
   const [liveFingerprint, setLiveFingerprint] = useState(publishedFingerprint);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
   const [publicationUncertain, setPublicationUncertain] = useState(false);
@@ -306,21 +308,28 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   }, [emailCopyDraft, reportDesignDraft]);
   const reportDesignEditor = <>{reportDesignAlternatives.length > 0 && <div role="alert" className="hq-error">Several unapplied report designs are saved on this device. Review a copy: {reportDesignAlternatives.map((draft, index) => <button className="underline ml-3" key={index} onClick={() => { if (canEdit()) setReportDesignDraft(draft); }}>Recover design {index + 1}</button>)}</div>}<ReportDesignEditor value={form.reportDesign} quizTitle={form.title} theme={form.theme} draft={reportDesignDraft} restored={reportDesignRestored} storageWarning={reportDesignStorageWarning} onDraftChange={(value, reason) => { if (canEdit()) setReportDesignDraft(value, reason); }} onChange={reportDesign => setForm(current => ({ ...current, reportDesign }))} /></>;
   const resultEmailEditor = <>{emailCopyAlternatives.length > 0 && <div role="alert" className="hq-error">Several unapplied email copies are saved on this device. Review a copy: {emailCopyAlternatives.map((draft, index) => <button className="underline ml-3" key={index} onClick={() => { if (canEdit()) setEmailCopyDraft(draft); }}>Recover copy {index + 1}</button>)}</div>}<ResultEmailCopyEditor value={form.resultEmailCopy} quizTitle={form.title} brandName={form.theme.brandName} draft={emailCopyDraft} restored={emailCopyRestored} storageWarning={emailCopyStorageWarning} onDraftChange={(value, reason) => { if (canEdit()) setEmailCopyDraft(value, reason); }} onChange={resultEmailCopy => setForm(current => ({ ...current, resultEmailCopy }))} /></>;
+  const captureHeading = useRef<HTMLHeadingElement>(null);
   const [activeNavTab, updateActiveNavTab] = useState<EditorSection>(initialSection);
   useEffect(() => {
-    if (["contacts", "results", "integrate"].includes(initialSection)) stopClarity();
+    if (["capture", "contacts", "results", "integrate"].includes(initialSection)) stopClarity();
     const restore = () => {
       const section = editorSection(new URL(window.location.href).searchParams.get("section"));
-      if (["contacts", "results", "integrate"].includes(section)) stopClarity();
-      if (section !== "edit") setEditorModeOverride(false);
+      if (["capture", "contacts", "results", "integrate"].includes(section)) stopClarity();
+      if (section === "capture" && guided) setGuidedJump(previous => ({ target: "capture", requestId: (previous?.requestId || 0) + 1, focus: true }));
+      else if (section !== "edit") setEditorModeOverride(false);
       updateActiveNavTab(section);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
-  }, [initialSection]);
+  }, [initialSection, guided]);
+  useEffect(() => {
+    if (activeNavTab !== "capture" || guided) return;
+    const frame = requestAnimationFrame(() => { captureHeading.current?.focus({ preventScroll: true }); captureHeading.current?.scrollIntoView({ block: "start", behavior: "instant" }); });
+    return () => cancelAnimationFrame(frame);
+  }, [activeNavTab, guided]);
   function setActiveNavTab(tab: typeof activeNavTab) {
     // Stop synchronously, before contact records or provider settings enter the DOM.
-    if (["contacts", "results", "integrate"].includes(tab)) stopClarity();
+    if (["capture", "contacts", "results", "integrate"].includes(tab)) stopClarity();
     updateActiveNavTab(tab);
     // Keep direct report links and browser Back aligned without remounting drafts.
     if (!guest && window.location.pathname.startsWith("/editor/")) {
@@ -343,22 +352,22 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   );
   const [basicUiState, setBasicUiState] = useState<BasicEditorState>(() => {
     const outcomesFirst = Boolean(initialForm.quizType && initialForm.marketing && initialForm.marketing.kind !== "scorecard");
-    return { step: outcomesFirst ? 2 : 0, resultsReviewed: !outcomesFirst, resultId: null };
+    return { step: initialSection === "capture" ? 4 : outcomesFirst ? 2 : 0, resultsReviewed: !outcomesFirst, resultId: null };
   });
   // UI navigation is separate from the saved quiz model and survives mode switches.
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(`pippi-basic-navigation:${initialForm.id}`) || "null");
-      if (!saved || !Number.isInteger(saved.step) || saved.step < 0 || saved.step > 4) return;
+      if (!saved || !Number.isInteger(saved.step) || saved.step < 0 || saved.step > 5) return;
       // Restore this quiz's browser navigation after hydration, never participant answers.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBasicUiState({ step: saved.step, resultsReviewed: saved.resultsReviewed === true, resultId: typeof saved.resultId === "string" ? saved.resultId : null });
+      setBasicUiState({ step: initialSection === "capture" ? 4 : saved.navigationVersion === 2 ? saved.step : saved.step === 4 ? 5 : saved.step, resultsReviewed: saved.resultsReviewed === true, resultId: typeof saved.resultId === "string" ? saved.resultId : null });
       if (initialForm.questions.some(question => question.id === saved.questionId)) setSelectedQuestionId(saved.questionId);
     } catch { /* Browser storage is optional. */ }
   }, [initialForm.id, initialForm.questions]);
   function updateBasicUi(state: BasicEditorState, questionId = selectedQuestionId) {
     setBasicUiState(state);
-    try { sessionStorage.setItem(`pippi-basic-navigation:${initialForm.id}`, JSON.stringify({ ...state, questionId })); } catch {}
+    try { sessionStorage.setItem(`pippi-basic-navigation:${initialForm.id}`, JSON.stringify({ ...state, navigationVersion: 2, questionId })); } catch {}
   }
   function selectBasicQuestion(id: string | null) {
     setSelectedQuestionId(id);
@@ -494,8 +503,9 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     // Advanced editor navigation must select both the question and its page.
     changeEditorMode(false);
     if (where.target === "results") { setActiveNavTab("marketing"); return; }
-    if (v2 && (where.target === "capture" || where.target === "publish")) { setActiveNavTab(where.target === "capture" ? "contacts" : "share"); return; }
-    if (where.target === "capture" || where.target === "publish") {
+    if (where.target === "capture") { setActiveNavTab("capture"); return; }
+    if (v2 && where.target === "publish") { setActiveNavTab("share"); return; }
+    if (where.target === "publish") {
       changeEditorMode(true); setGuidedJump(previous => ({ ...where, requestId: (previous?.requestId || 0) + 1 })); return;
     }
     setActiveNavTab("edit");
@@ -891,6 +901,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     return qPageId === activePageId;
   });
 
+  const { attachRoot: logicRoot, added: logicAdded, feedback: logicNotice } = useAddedItemFeedback();
   // Logic Rule Helpers
   const logicRules: LogicRule[] = form.logicRules || [];
 
@@ -910,6 +921,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       ...prev,
       logicRules: [...(prev.logicRules || []), newRule],
     }));
+    logicAdded(`[data-logic-rule="${newRule.id}"]`);
   };
 
   const handleUpdateLogicRule = (id: string, updates: Partial<LogicRule>) => {
@@ -3721,7 +3733,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       }} />}
       {showFlowBuilder && <FlowErrorBoundary onClose={() => setShowFlowBuilder(false)}><FlowBuilder form={form} onChange={setForm} onClose={() => setShowFlowBuilder(false)} onPreview={() => void handlePreview()} /></FlowErrorBoundary>}
       {showConversationMap && <ConversationMap form={form} onClose={() => setShowConversationMap(false)} onEdit={editFromConversation} />}
-      {guided && <GuidedQuizEditor onFlow={flowBuilderEnabled ? () => setShowFlowBuilder(true) : undefined} uiState={basicUiState} onUiStateChange={state => updateBasicUi(state)} selectedQuestionId={selectedQuestionId} onQuestionSelect={selectBasicQuestion} onChooseImage={() => setIsCoverMediaPickerOpen(true)} onChangeType={outcomeCreationEnabled ? () => setShowConversion(true) : undefined} reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={() => { updateBasicUi(basicUiState); changeEditorMode(false); setActiveNavTab("edit"); setCanvasView("page"); const selected = form.questions.find(question => question.id === selectedQuestionId); setActivePageId(selected?.pageId || form.pages?.[0]?.id || "page-1"); setMobilePanel(selected ? "settings" : "fields"); }} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
+      {guided && <GuidedQuizEditor onFlow={flowBuilderEnabled ? () => setShowFlowBuilder(true) : undefined} uiState={basicUiState} onUiStateChange={state => updateBasicUi(state)} selectedQuestionId={selectedQuestionId} onQuestionSelect={selectBasicQuestion} onChooseImage={() => setIsCoverMediaPickerOpen(true)} onChangeType={outcomeCreationEnabled ? () => setShowConversion(true) : undefined} reportDesignEditor={reportDesignEditor} resultEmailEditor={resultEmailEditor} onConversationMap={() => setShowConversationMap(true)} navigationRequest={guidedJump} form={form} onChange={setForm} onAdvanced={section => { updateBasicUi(basicUiState); changeEditorMode(false); setActiveNavTab(section || "edit"); setCanvasView("page"); const selected = form.questions.find(question => question.id === selectedQuestionId); setActivePageId(selected?.pageId || form.pages?.[0]?.id || "page-1"); setMobilePanel(selected ? "settings" : "fields"); }} onTheme={() => setShowThemeModal(true)} onPublish={requestPublish} onSave={() => void saveNow()} onPreview={() => void handlePreview()} status={mobileSaveStatus} published={isPublished} publicationLabel={publicationLabel} publicationUncertain={publicationUncertain} hasUnpublishedChanges={hasUnpublishedChanges} onShare={openShare} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain} onHistory={openDraftHistory} previewing={previewing} saveFailed={saveStatus === "error" && !authRequired} mobileStatus={mobileSaveStatus} />}
       {!guided && <>
       {v2 ? <V2EditorHeader onFlow={flowBuilderEnabled ? () => setShowFlowBuilder(true) : undefined} title={form.title || "Untitled quiz"} onTitleChange={title => setForm({...form,title})} saveLabel={mobileSaveStatus} publicationLabel={publicationLabel} activeSection={activeNavTab} onSectionChange={setActiveNavTab} onBasicMode={() => changeEditorMode(true)} onDesign={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} onPublish={requestPublish} previewing={previewing} publishing={publishing || pausing || publicationUncertain} actions={<>
         <button type="button" onClick={() => void saveNow()}>Save draft</button><button type="button" onClick={openDraftHistory}>Draft history</button><button type="button" onClick={() => setShowConversationMap(true)}>Conversation map</button><button type="button" onClick={() => {setSelectedQuestionId(null);setActiveNavTab("edit");}}>Form settings</button><button type="button" onClick={() => {setJsonText(JSON.stringify(form,null,2));setShowJsonModal(true);}}>Schema JSON</button>{outcomeCreationEnabled && <button type="button" onClick={() => setShowConversion(true)}>Change type</button>}{isPublished && <button type="button" disabled={pausing || publishing || publicationUncertain} onClick={openPausePublication}>Pause publication</button>}
@@ -3733,7 +3745,11 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         onTheme={() => setShowThemeModal(true)} onPreview={() => void handlePreview()} previewing={previewing} previewLabel={guestDraft ? "Save to preview" : "Preview"}
         onPublish={requestPublish} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain}
         activeSection={activeNavTab}
-        sections={(["edit", "contacts", "marketing", "integrate", "share", "results"] as const).map(tab => ({ id: tab, label: { edit: "Edit", contacts: "Contacts", marketing: "Marketing", integrate: "Integrate", share: "Share", results: "Results" }[tab], onClick: () => { if (guestDraft && !["edit", "marketing"].includes(tab)) { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } }))}
+        sections={[
+          ...(["edit", "capture", "integrate", "results", "share"] as const).map(tab => ({ id: tab, label: { edit: "Build", capture: "Lead capture", integrate: "Connect", results: "Results", share: "Share" }[tab], onClick: () => { if (guestDraft && tab !== "edit") { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } })),
+          ...(activeNavTab === "results" || activeNavTab === "contacts" ? [{ id: "contacts", label: "Contacts", onClick: () => setActiveNavTab("contacts") }] : []),
+          ...(guestDraft || activeNavTab === "integrate" || activeNavTab === "marketing" ? [{ id: "marketing", label: "Marketing", onClick: () => setActiveNavTab("marketing") }] : []),
+        ]}
         actions={[
           { label: "Fields", onClick: () => { setActiveNavTab("edit"); setMobilePanel("fields"); } },
           { label: "Question settings", onClick: () => { setActiveNavTab("edit"); if (!selectedQuestionId) setSelectedQuestionId(form.questions[0]?.id || null); setMobilePanel("settings"); } },
@@ -3769,58 +3785,16 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
         {flowBuilderEnabled && <FlowBetaButton onClick={() => setShowFlowBuilder(true)}/>}
         <button className="hq-secondary" onClick={() => setShowConversationMap(true)}>Conversation map</button>
-        {/* Center Fillout Tabs Capsule */}
-        <div className="studio-tabs flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/60">
-          <button
-            onClick={() => setActiveNavTab("edit")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "edit"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Pencil size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Edit
-          </button>
-
-          <button onClick={() => guestDraft ? void saveNow() : setActiveNavTab("contacts")} className={`px-3.5 py-1 rounded-lg text-xs font-medium ${activeNavTab === "contacts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}><Users size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Contacts</button>
-          <button
-            onClick={() => setActiveNavTab("marketing")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${activeNavTab === "marketing" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`}
-          >
-            <Sparkles size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Marketing
-          </button>
-          <button
-            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("integrate")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "integrate"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Plug size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Integrate
-          </button>
-
-          <button
-            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("share")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "share"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Share2 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Share
-          </button>
-
-          <button
-            onClick={() => guestDraft ? void saveNow() : setActiveNavTab("results")}
-            className={`px-3.5 py-1 rounded-lg text-xs font-medium transition ${
-              activeNavTab === "results"
-                ? "bg-white text-gray-900 shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <BarChart3 size={14} aria-hidden="true" className="inline-block mr-1.5 align-text-bottom" />Results
-          </button>
+        <div className="flex flex-col gap-2">
+          <nav aria-label="Quiz workspace" className="studio-tabs flex flex-wrap items-center gap-1 rounded-xl border border-gray-200/60 bg-gray-100 p-1">
+            {([{ id: "edit", label: "Build" }, { id: "design", label: "Design" }, { id: "capture", label: "Lead capture" }, { id: "integrate", label: "Connect" }, { id: "results", label: "Results" }, { id: "share", label: "Share" }] as const).map(tab => {
+              const active = tab.id === activeNavTab || (tab.id === "results" && activeNavTab === "contacts") || (tab.id === "integrate" && activeNavTab === "marketing");
+              return <button key={tab.id} type="button" aria-current={active ? "page" : undefined} className={`rounded-lg px-3.5 py-1 text-xs font-medium ${active ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`} onClick={() => { if (tab.id === "design") { setShowThemeModal(true); return; } if (guestDraft && !["edit"].includes(tab.id)) { void saveNow(); return; } setActiveNavTab(tab.id); }}>{tab.label}</button>;
+            })}
+            {guestDraft && <button type="button" className="rounded-lg px-3.5 py-1 text-xs font-medium" onClick={() => setActiveNavTab("marketing")}>Marketing</button>}
+          </nav>
+          {(activeNavTab === "results" || activeNavTab === "contacts") && <nav aria-label="Quiz results" className="flex gap-3 text-xs"><button type="button" aria-current={activeNavTab === "results" ? "page" : undefined} onClick={() => setActiveNavTab("results")}>Overview</button><button type="button" aria-current={activeNavTab === "contacts" ? "page" : undefined} onClick={() => setActiveNavTab("contacts")}>Contacts</button></nav>}
+          {(activeNavTab === "integrate" || activeNavTab === "marketing") && <nav aria-label="Connection tools" className="flex gap-3 text-xs"><button type="button" aria-current={activeNavTab === "integrate" ? "page" : undefined} onClick={() => setActiveNavTab("integrate")}>Integrations & tracking</button><button type="button" aria-current={activeNavTab === "marketing" ? "page" : undefined} onClick={() => setActiveNavTab("marketing")}>Marketing</button></nav>}
         </div>
 
         <button
@@ -3923,7 +3897,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         onSelectView={setCanvasView} onAddElement={(type,index)=>{const pageIndices=form.questions.map((q,i)=>(q.pageId || formPages[0].id)===activePageId?i:-1).filter(i=>i>=0);addQuestion(type,index ?? (pageIndices.length?pageIndices[pageIndices.length-1]+1:form.questions.length));}}
         onMoveQuestion={(id,direction)=>moveQuestion(id,direction===-1?"up":"down")}
         onReorderQuestion={(id,beforeId,targetPageId)=>{setActivePageId(targetPageId);setSelectedQuestionId(id);setCanvasView("page");setForm(current=>{const moved=current.questions.find(q=>q.id===id);if(!moved || id===beforeId)return current;const questions=current.questions.filter(q=>q.id!==id);const target=beforeId?questions.findIndex(q=>q.id===beforeId):questions.length;if(target<0)return current;questions.splice(target,0,{...moved,pageId:targetPageId});return {...current,questions};});}} paletteSections={PALETTE_SECTIONS} canvas={focusedCanvas} inspector={editorInspector}
-        onLogic={()=>form.routing ? setShowFlowBuilder(true) : setShowLogicModal(true)} onLeadCapture={()=>setActiveNavTab("contacts")} onAddPage={addPage}
+        onLogic={()=>form.routing ? setShowFlowBuilder(true) : setShowLogicModal(true)} onLeadCapture={()=>setActiveNavTab("capture")} onAddPage={addPage}
         toolbar={<><ScoringMode form={form} onChange={setForm}/><button type="button" className="hq-secondary" onClick={()=>setDevicePreview(devicePreview==="desktop"?"mobile":"desktop")}>{devicePreview==="desktop"?"Mobile view":"Desktop view"}</button></>}
       /> : (
         <div className="flex-1 flex overflow-hidden">
@@ -4004,7 +3978,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       ))}
 
       {/* RESULTS & ANALYTICS TAB */}
-      {activeNavTab === "contacts" && <ContactsStudio form={form} onChange={setForm} />}
+      {activeNavTab === "capture" && <main className="flex-1 overflow-y-auto bg-[#faf8f4] p-4 sm:p-8"><div className="mx-auto max-w-6xl space-y-4"><h1 ref={captureHeading} tabIndex={-1} className="scroll-mt-24 text-3xl font-semibold">Lead capture</h1><p role="status" className="text-sm text-slate-600">{publicationLabel}</p><BasicLeadCaptureSettings config={form.capture || { ...defaultCapture, marketingEnabled: false }} onChange={capture => setForm(current => ({ ...current, capture }))}><label className="block text-sm font-medium">Privacy-policy link<input type="url" className="hq-input mt-2 w-full" value={form.capture?.privacyUrl || ""} onChange={event => setForm(current => ({ ...current, capture: { ...(current.capture || defaultCapture), privacyUrl: event.target.value } }))}/></label></BasicLeadCaptureSettings></div></main>}
+      {activeNavTab === "contacts" && <ContactsStudio form={form} onOpenCapture={() => setActiveNavTab("capture")} />}
       {activeNavTab === "marketing" && (
         <MarketingStudio form={form} onChange={setForm} />
       )}
@@ -4500,7 +4475,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
       {activeNavTab === "integrate" && (
         <div className="flex-1 overflow-auto">
-          <IntegrationStudio form={form} onChange={setForm} />
+          <IntegrationStudio form={form} onChange={setForm} onOpenCapture={() => setActiveNavTab("capture")} />
         </div>
       )}
 
@@ -4743,8 +4718,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
       {/* LOGIC & BRANCHING MODAL */}
       {showLogicModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
+        <div ref={logicRoot} className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          {logicNotice}<div className="bg-white border border-gray-200 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
@@ -4820,6 +4795,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                   return (
                     <div
                       key={rule.id}
+                      data-logic-rule={rule.id}
                       className="p-4 rounded-xl border border-gray-200 bg-gray-50/70 hover:border-gray-300 transition space-y-3.5"
                     >
                       <div className="flex items-center justify-between">

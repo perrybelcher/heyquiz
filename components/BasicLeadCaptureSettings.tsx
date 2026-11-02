@@ -4,14 +4,15 @@ import type { ReactNode } from "react";
 import type { CaptureConfig } from "@/lib/contacts";
 import LeadCapture from "./LeadCapture";
 
-export default function BasicLeadCaptureSettings({ config, onChange, children }: {
+export default function BasicLeadCaptureSettings({ config, onChange, children, showPreview = true }: {
   config: CaptureConfig;
   onChange: (config: CaptureConfig) => void;
-  children: ReactNode;
+  children?: ReactNode;
+  showPreview?: boolean;
 }) {
   const update = (patch: Partial<CaptureConfig>) => onChange({ ...config, ...patch });
-  return <section aria-labelledby="basic-lead-capture-title" className="space-y-4 rounded-xl border border-stone-200 p-4 sm:p-5">
-    <div><h2 id="basic-lead-capture-title" className="font-semibold">Lead collection</h2><p className="mt-1 text-sm text-slate-600">Choose which details to ask for and when visitors see the form. Publish changes to update the live quiz.</p></div>
+  return <section aria-labelledby="basic-lead-capture-title" className={`grid min-w-0 gap-6 rounded-xl border border-stone-200 bg-white p-4 sm:p-5 ${showPreview ? "xl:grid-cols-2" : ""}`}>
+    <div className="min-w-0 space-y-4"><div><h2 id="basic-lead-capture-title" tabIndex={-1} className="scroll-mt-24 text-lg font-semibold">Lead capture</h2><p className="mt-1 text-sm text-slate-600">This setting applies to this quiz. Collected contacts appear in your quiz results and the overall Contacts page.</p><p className="mt-2 text-sm text-slate-600">Publish your changes to update the live quiz.</p></div>
     <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={config.enabled} onChange={event => update({ enabled: event.target.checked })} />Collect contact details</label>
     {config.enabled && <>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -30,10 +31,14 @@ export default function BasicLeadCaptureSettings({ config, onChange, children }:
       {children}
       <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={config.marketingEnabled} onChange={event => update({ marketingEnabled: event.target.checked })} />Offer a separate, optional marketing opt-in</label>
       {config.marketingEnabled && <label className="block text-sm font-medium">Marketing consent wording<input className="hq-input mt-2 w-full" maxLength={500} value={config.marketingLabel} onChange={event => update({ marketingLabel: event.target.value })} /></label>}
-      <p className="text-xs text-slate-500">Marketing consent starts unchecked. Declining it never blocks results. Lead delivery is configured in Advanced mode under Integrate.</p>
-      <details className="border-t border-stone-200 pt-4"><summary className="cursor-pointer text-sm font-semibold">Preview contact form</summary><p className="my-3 text-xs text-slate-500">Preview only. These fields are disabled and no contact details are collected.</p>
-        <fieldset disabled className="min-w-0"><legend className="sr-only">Contact form preview</legend><LeadCapture key={`${config.placement}-${config.marketingEnabled}`} config={{ ...config, privacyUrl: /^https?:\/\//i.test(config.privacyUrl) ? config.privacyUrl : "" }} busy={false} error="" onSubmit={() => {}} onSkip={config.required ? undefined : () => {}} /></fieldset>
-      </details>
+      <p className="text-xs text-slate-500">Marketing consent starts unchecked. Declining it never blocks results. Connect optional lead delivery in Advanced mode under Connect.</p>
     </>}
+    </div>
+    {showPreview && <LeadCapturePreview config={config} />}
   </section>;
+}
+
+export function LeadCapturePreview({ config }: { config: CaptureConfig }) {
+  if (!config.enabled) return <p className="self-start rounded-xl bg-stone-50 p-4 text-sm text-slate-600">Turn on collection to choose your fields and preview the contact form. No external connection is needed.</p>;
+  return <aside aria-label="Contact form preview" className="min-w-0 self-start rounded-xl bg-stone-50 p-4"><h3 className="text-sm font-semibold">Preview contact form</h3><p className="my-3 text-xs text-slate-500">Preview only. These fields are disabled and no contact details are collected.</p><fieldset disabled className="min-w-0"><legend className="sr-only">Contact form preview</legend><LeadCapture key={`${config.placement}-${config.marketingEnabled}`} config={{ ...config, privacyUrl: /^https?:\/\//i.test(config.privacyUrl) ? config.privacyUrl : "" }} busy={false} error="" onSubmit={() => {}} onSkip={config.required ? undefined : () => {}} /></fieldset></aside>;
 }

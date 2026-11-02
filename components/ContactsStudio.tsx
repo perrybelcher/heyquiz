@@ -1,11 +1,11 @@
 "use client";
-import { UserPlus, Users, RefreshCw, Download, Search, SlidersHorizontal, ChevronLeft, ChevronRight, X, Mail, ShieldCheck, CalendarDays, Link2, History } from "lucide-react";
+import { Users, RefreshCw, Download, Search, SlidersHorizontal, ChevronLeft, ChevronRight, X, Mail, ShieldCheck, CalendarDays, Link2, History } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormSchemaType, QuizSubmissionResult } from "@/lib/schema";
 import MarketingResultCard from "./MarketingResultCard";
 import ResultLinkManager, { type ResultLinkSelection } from "./ResultLinkManager";
 import ContactSavedFilters from "./ContactSavedFilters";
-import { defaultCapture, contactsCsv, contactExportRows, type CaptureConfig } from "@/lib/contacts";
+import { contactsCsv, contactExportRows } from "@/lib/contacts";
 import { contactAnswerQuery, parseContactAnswerCohort, contactAnswerVersionLabel, contactAnswerOptionLabel, sameAnswerPair, type ContactAnswerCohort } from "@/lib/contact-answer-cohort";
 import { emptyContactFilters, contactFilterError, filterContacts, contactPage, contactResultOptions, contactResultTitle, contactScore, contactCategoryOptions, type ContactFilters } from "@/lib/contact-filters";
 
@@ -16,8 +16,7 @@ function displayDate(value: string) {
   return Number.isFinite(date.getTime()) ? date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Date unavailable";
 }
 
-export default function ContactsStudio({ form, onChange }: { form: FormSchemaType; onChange: (form: FormSchemaType) => void }) {
-  const config = form.capture || defaultCapture;
+export default function ContactsStudio({ form, onOpenCapture }: { form: FormSchemaType; onOpenCapture: () => void }) {
   const [linkSelection, setLinkSelection] = useState<(ResultLinkSelection & { formId: string }) | undefined>();
   const contactTrigger = useRef<HTMLButtonElement>(null), directoryHeading = useRef<HTMLHeadingElement>(null);
   function selectContactLink(row: QuizSubmissionResult, trigger: HTMLButtonElement) {
@@ -54,7 +53,6 @@ export default function ContactsStudio({ form, onChange }: { form: FormSchemaTyp
   const answerVersion = answerCohort?.versions.find(version => version.id === filters.answerVersion);
   const answerCounts = answerPair && !loading && !error && sameAnswerPair(answerPair, answerCohort?.selection) ? answerCohort?.counts : null;
   const hasLoaded = loaded?.formId === form.id;
-  function update(patch: Partial<CaptureConfig>) { onChange({ ...form, capture: { ...config, ...patch } }); }
   function changeFilters(patch: Partial<ContactFilters>) {
     setFilterState({ formId: form.id, values: { ...filters, ...patch } });
     setRequestedPage(1);
@@ -101,23 +99,9 @@ export default function ContactsStudio({ form, onChange }: { form: FormSchemaTyp
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <main className="mx-auto w-full max-w-6xl min-w-0 space-y-6 overflow-auto p-4 sm:p-8">
-    <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6" aria-label="Lead capture settings">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><h2 className="flex items-center gap-2 text-lg font-semibold"><UserPlus size={20} aria-hidden="true"/>Lead capture</h2><p className="mt-1 max-w-xl text-sm text-slate-500">Collect contact details alongside quiz results. Publish changes to update the live quiz.</p></div>
-        <label className="flex items-center gap-2 rounded-lg bg-stone-50 p-3 text-sm font-medium"><input type="checkbox" checked={config.enabled} onChange={event => update({ enabled: event.target.checked })}/>Enable lead capture</label>
-      </div>
-      {config.enabled && <details className="mt-5 border-t border-stone-100 pt-4">
-        <summary className="text-sm font-semibold">Capture settings <span className="ml-2 font-normal text-slate-500">{config.required ? "Required" : "Optional"} · {config.placement === "before_results" ? "Before results" : "After results"}</span></summary>
-        <div className="mt-5 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm">Placement<select className="hq-input mt-1" value={config.placement} onChange={event => update({ placement: event.target.value as CaptureConfig["placement"], required: false, buttonText: event.target.value === "after_results" ? "Save my details" : "See my results" })}><option value="before_results">Before results</option><option value="after_results">After results</option></select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={config.placement === "after_results"} checked={config.required} onChange={event => update({ required: event.target.checked })}/>Require contact details before showing results</label></div>
-          <div className="grid gap-4 sm:grid-cols-2">{(["name", "phone"] as const).map(key => <label key={key} className="text-sm capitalize">{key}<select className="hq-input mt-1" value={config[key]} onChange={event => update({ [key]: event.target.value })}>{["off", "optional", "required"].map(value => <option key={value}>{value}</option>)}</select></label>)}</div>
-          <p className="text-xs text-slate-500">Email is required when sharing details.</p>
-          {(["title", "description", "buttonText", "privacyUrl"] as const).map(key => <label className="block text-sm" key={key}>{{ title: "Heading", description: "Transition copy", buttonText: "Button text", privacyUrl: "Privacy policy URL" }[key]}<input className="hq-input mt-1" value={config[key]} onChange={event => update({ [key]: event.target.value })}/></label>)}
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={config.marketingEnabled} onChange={event => update({ marketingEnabled: event.target.checked })}/>Offer a separate, optional marketing opt-in</label>
-          {config.marketingEnabled && <input aria-label="Marketing consent wording" className="hq-input" value={config.marketingLabel} onChange={event => update({ marketingLabel: event.target.value })}/>}
-          <p className="text-xs text-slate-500">Marketing consent starts unchecked. Declining it never blocks results. Connect lead delivery from the Integrate tab.</p>
-        </div>
-      </details>}
+    <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Lead capture settings">
+      <div><h2 className="font-semibold">Contacts from this quiz</h2><p className="mt-1 text-sm text-slate-600">Configure the form visitors use in Lead capture. View contacts from every quiz on the overall Contacts page.</p></div>
+      <button type="button" className="hq-secondary" onClick={onOpenCapture}>Edit lead capture</button>
     </section>
 
     <section className="min-w-0 overflow-hidden rounded-2xl border border-stone-200 bg-white" aria-label="Contact directory" aria-busy={loading}>

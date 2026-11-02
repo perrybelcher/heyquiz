@@ -18,7 +18,7 @@ function fixture(initial = {}, save = async () => true, confirm = () => true) {
   effect(); return {state, run: () => guard(), get error() {return error;}, get prompts() {return prompts;}, get saves() {return saves;}};
 }
 (async () => {
-  for (const section of ['edit', 'contacts', 'marketing', 'integrate', 'share', 'results']) assert.equal(editorSection(section), section);
+  for (const section of ['edit', 'capture', 'contacts', 'marketing', 'integrate', 'share', 'results']) assert.equal(editorSection(section), section);
   for (const invalid of [undefined, null, ['results'], 'results&other=1', '//example.test', 'unknown']) assert.equal(editorSection(invalid), 'edit');
   let app = fixture(); assert.equal(await app.run(), true); assert.equal(app.saves, 1);
   app = fixture({}, async () => false); assert.equal(await app.run(), false); assert.equal(app.prompts, 0);

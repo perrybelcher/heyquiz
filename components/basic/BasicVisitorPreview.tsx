@@ -52,7 +52,7 @@ function PreviewContent({ form, step, questionId, resultId }: { form: FormSchema
   const tierCtaLabel = tier?.ctaText || form.endingPage?.buttonText || "Continue";
   const theme = quizThemeStyle(form.theme);
   const resultPreview = step === 2;
-  const welcomePreview = step === 0 || step === 3 || step === 4;
+  const welcomePreview = step === 0 || step === 3 || step === 5;
   const quietAction = () => setMessage("Appearance preview only. Use the header Preview button to test the complete journey.");
   return <div className="basic-preview-frame">
     <p className="basic-help">{resultPreview ? "Appearance preview · this does not demonstrate a matching answer path." : "Visitor preview · answers stay in this panel and are not saved."}</p>

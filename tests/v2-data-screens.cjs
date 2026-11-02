@@ -23,7 +23,11 @@ for (const version of ['v1', 'v2']) {
   for (const expected of ['Alex First','Alex Again','Readiness','sample@example.test','quiz%2Fone','Manage quiz contacts','25 per page']) assert.ok(html.includes(expected), `${version}: ${expected}`);
   assert.ok(!html.includes('100%'), 'unscored contacts must not display a fabricated score');
   assert.equal(html.includes('<table'), version === 'v2');
-  const empty = render(version, Contacts, {contacts:[],quizzes:[]}); assert.ok(empty.includes('No contacts yet'));
+  const empty = render(version, Contacts, {contacts:[],quizzes:[]}); assert.ok(empty.includes('No contacts yet')); assert.ok(empty.includes('href="/create"')); assert.ok(empty.includes('Create a quiz'));
+  const setup = render(version, Contacts, { contacts: [], quizzes: [{id:'quiz/one',title:'Readiness'}] });
+  for (const expected of ['Quiz to set up', 'Set up lead capture', '/editor/quiz%2Fone?section=capture', 'Preview does not save contacts']) assert.ok(setup.includes(expected), `${version}: ${expected}`);
+  const filtered = render(version, Contacts, { contacts: [contact('attempt-1', 'Alex First', false)], quizzes: [{id:'quiz/one',title:'Readiness'},{id:'quiz/two',title:'Empty quiz'}], initialQuiz:'quiz/two' });
+  assert.ok(filtered.includes('No contacts match these filters')); assert.ok(filtered.includes('Clear filters')); assert.ok(filtered.includes('Edit this quiz’s lead capture')); assert.ok(filtered.includes('/editor/quiz%2Ftwo?section=capture'));
   const report = render(version, Reports, {quizzes:[{id:'quiz/one',title:'Readiness',responseCount:0},{id:'quiz/two',title:'Unavailable',responseCount:undefined}]});
   assert.ok(report.includes('Readiness')); assert.ok(report.includes('Unavailable')); assert.ok(report.includes('/reports/quiz%2Fone'));
   assert.equal(report.includes('<table'), version === 'v2');

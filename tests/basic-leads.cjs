@@ -20,5 +20,5 @@ assert.equal(parseContact(config,{email:'synthetic@example.test',name:'Synthetic
 const before={...config};change('Collect contact details',false);change('Collect contact details',true);assert.deepEqual(config,before);
 const markup=renderToStaticMarkup(React.createElement(Settings,{config,onChange:()=>{},children:null}));
 assert.match(markup,/<fieldset disabled=""/);assert.doesNotMatch(markup,/checked=""[^>]*type="checkbox"[^>]*required/);assert.match(markup,/Preview only/);assert.match(markup,/Skip for now/);
-const preview=nodes(tree()).find(n=>typeof n.type==='function'&&n.type.name==='LeadCapture');assert.ok(preview);assert.equal(preview.props.config.marketingEnabled,true);assert.equal(changes>8,true);
+const preview=nodes(require('../components/BasicLeadCaptureSettings.tsx').LeadCapturePreview({config})).find(n=>typeof n.type==='function'&&n.type.name==='LeadCapture');assert.ok(preview);assert.equal(preview.props.config.marketingEnabled,true);assert.equal(changes>8,true);
 console.log('PASS Basic lead settings: capture timing/optional invariant, fields, custom copy preservation, unchanged consent defaults, disable/re-enable retention and disabled respondent-form preview.');

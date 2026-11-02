@@ -192,3 +192,5 @@ body:has(.basic-builder) aside[aria-label="Pippi support"]{bottom:170px!importan
 body:has(.basic-builder) aside[aria-label="Pippi support"]{display:none}
 .basic-builder .basic-question-editor{gap:14px}.basic-builder .basic-association>.basic-field input{min-height:44px}.basic-builder .basic-answer{position:relative;padding:12px}.basic-builder .basic-answer-actions{justify-content:flex-end}.basic-builder .basic-answer>.basic-field{margin-bottom:10px}.basic-builder .basic-question-editor>.basic-hint{line-height:1.4}
 @media(max-width:767px){.basic-builder-actions .editor-mode-switch{flex:1 0 100%;width:100%;min-width:0}.basic-builder-actions .editor-mode-switch>button{flex:1 1 50%;min-width:0}.basic-builder-actions>.basic-button{flex:1 1 0%;min-width:0}.basic-builder .basic-question-pagination>span{order:3;width:100%;text-align:center}}
+
+.basic-capture-preview{min-width:0;padding:0 16px 20px;background:var(--basic-canvas)}
