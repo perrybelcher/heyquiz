@@ -46,7 +46,7 @@ const inputClass =
   "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50";
-export default function IntegrationStudio({ form, onChange }: { form: FormSchemaType; onChange: (form: FormSchemaType) => void }) {
+export default function IntegrationStudio({ form, onChange, onOpenCapture }: { form: FormSchemaType; onChange: (form: FormSchemaType) => void; onOpenCapture: () => void }) {
   const [data, setData] = useState<Data | null>(null),
     [draft, setDraft] = useState<IntegrationDraft | null>(null);
   const [busy, setBusy] = useState(false),
@@ -210,10 +210,7 @@ export default function IntegrationStudio({ form, onChange }: { form: FormSchema
         </p>
       )}
       {!form.capture?.enabled && (
-        <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-          Enable lead capture in Contacts to collect the email and consent
-          needed for delivery.
-        </p>
+        <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>Turn on lead capture for this quiz to collect contact details for delivery. Marketing consent stays optional.</p><button type="button" className="mt-2 font-semibold underline" onClick={onOpenCapture}>Edit lead capture</button></div>
       )}
       {data && !data.deliveryAllowed && (
         <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
@@ -221,7 +218,7 @@ export default function IntegrationStudio({ form, onChange }: { form: FormSchema
           or the production app.
         </p>
       )}
-      <MetaStudio form={form} onChange={onChange} />
+      <MetaStudio form={form} onChange={onChange} onOpenCapture={onOpenCapture} />
       <p className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-slate-600">Setup and a successful delivery test are required before relying on a connector. Authorization alone does not verify contact delivery. <a href="/help/integrations" target="_blank" rel="noopener" className="font-semibold underline">Connection setup guide ↗</a></p>
       <div className="grid sm:grid-cols-2 gap-4">
         {[

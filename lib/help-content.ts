@@ -40,7 +40,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         "title": "Basic or Advanced editing",
-        "body": "New unpublished quizzes open in Basic mode unless this browser has remembered Advanced for that quiz. Basic has five steps: Your quiz, Questions, Results, Design and Publish. Add single-choice, multi-select, short answer, long answer or email fields; choose Cards or Form; edit result wording and pick an accent color. Scoring is optional and expandable. Switch to Advanced mode for branching, landing-page layouts, PDF/email customization, integrations and detailed design. Switch back with Basic mode. This changes the editing interface, not the saved quiz or its existing rules. Published quizzes without a saved mode preference keep the Advanced editor."
+        "body": "New unpublished quizzes open in Basic mode unless this browser has remembered Advanced for that quiz. Basic has six steps: Your quiz, Questions, Results, Design, Lead capture and Publish. Add single-choice, multi-select, short answer, long answer or email fields; choose Cards or Form; edit result wording and pick an accent color. Scoring is optional and expandable. Switch to Advanced mode for branching, landing-page layouts, PDF/email customization, integrations and detailed design. Switch back with Basic mode. This changes the editing interface, not the saved quiz or its existing rules. Published quizzes without a saved mode preference keep the Advanced editor."
       }
     ]
   },
@@ -288,11 +288,11 @@ export const helpArticles: HelpArticle[] = [
     "sections": [
       {
         "title": "Capture details",
-        "body": "Configure the lead capture step and its placement. Ask only for information needed for the next step. Explain how details will be used and configure the available consent settings."
+        "body": "Open Lead capture in the quiz editor and turn on Collect contact details. Choose its placement and publish your changes. Contacts from all your quizzes appear on the overall Contacts page. Preview does not save contacts. Adding an email question alone does not create a captured contact. Ask only for information needed for the next step. Explain how details will be used and configure the available consent settings."
       },
       {
         "title": "Find responses",
-        "body": "Open the quiz’s Contacts and Results sections. A captured lead and a quiz visit are different records; not every visitor submits or supplies contact details. Use available filters to investigate segments."
+        "body": "Open Results, then Contacts inside the quiz. A captured lead and a quiz visit are different records; not every visitor submits or supplies contact details. Use available filters to investigate segments."
       },
       {
         "title": "Export carefully",

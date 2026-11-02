@@ -1,4 +1,5 @@
 "use client";
+import { useAddedItemFeedback } from "./useAddedItemFeedback";
 import { useState, useMemo } from "react";
 import { ShoppingBag, Users, ChartColumn, Plus, Trash2, RotateCcw, ArrowRight } from "lucide-react";
 import { nanoid } from "nanoid";
@@ -60,6 +61,7 @@ export default function MarketingStudio({
   form: FormSchemaType;
   onChange: (form: FormSchemaType) => void;
 }) {
+  const { attachRoot: ruleRoot, added: ruleAdded, feedback: ruleNotice } = useAddedItemFeedback();
   const [testAnswers, setTestAnswers] = useState<Answers>({});
   const m = form.marketing;
   const diagnostics = useMemo(()=>scoringDiagnostics(form),[form]);
@@ -87,7 +89,7 @@ export default function MarketingStudio({
       outcomes: m!.outcomes.map((o) => (o.id === id ? { ...o, ...patch } : o)),
     });
   return (
-    <main className="flex-1 overflow-y-auto bg-slate-50 p-5 sm:p-8">
+    <main ref={ruleRoot} className="flex-1 overflow-y-auto bg-slate-50 p-5 sm:p-8">{ruleNotice}
       <div className="max-w-6xl mx-auto">
         <div className="mb-7">
           <p className="text-xs text-indigo-600 uppercase tracking-widest font-semibold">
@@ -372,22 +374,11 @@ export default function MarketingStudio({
                     <button
                       disabled={!targets.length || !choices.length}
                       className="hq-secondary"
-                      onClick={() =>
-                        change({
-                          rules: [
-                            ...m.rules,
-                            {
-                              id: `rule-${nanoid(8)}`,
-                              questionId: choices[0].id,
-                              answerId: choices[0].options![0].id,
-                              targetId: targets[0].id,
-                              effect: "add",
-                              points: 1,
-                              reason: "",
-                            },
-                          ],
-                        })
-                      }
+                      onClick={() => {
+                        const id = `rule-${nanoid(8)}`;
+                        change({ rules: [...m.rules, { id, questionId: choices[0].id, answerId: choices[0].options![0].id, targetId: targets[0].id, effect: "add", points: 1, reason: "" }] });
+                        ruleAdded(`[data-answer-rule="${id}"]`);
+                      }}
                     >
                       <Plus size={14} aria-hidden="true" className="inline-block mr-1" /> Add rule
                     </button>
@@ -413,6 +404,7 @@ export default function MarketingStudio({
                       <details
                         className="border border-slate-200 rounded-xl p-4 space-y-3"
                         key={r.id}
+                        data-answer-rule={r.id}
                       >
                         <summary className="cursor-pointer text-sm font-medium">
                           {q?.options?.find((o) => o.id === r.answerId)
