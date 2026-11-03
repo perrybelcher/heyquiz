@@ -5,6 +5,12 @@ const {generateMarketingQuiz}=require('../lib/marketing-agent.ts');
 const {generateQuizWithAgent}=require('../lib/agent-generator.ts');
 const {evaluateMarketing}=require('../lib/marketing.ts');
 const {gradeQuizSubmission}=require('../lib/scoring.ts');
+function checkAiCapture(form) {
+  assert.equal(form.capture.enabled, true);
+  assert.equal(form.capture.placement, 'before_results');
+  assert.equal(form.capture.required, false);
+  assert.equal(form.capture.marketingEnabled, false);
+}
 (async()=>{
  const prior=global.fetch,key=process.env.GEMINI_API_KEY;
  try {
@@ -17,13 +23,18 @@ const {gradeQuizSubmission}=require('../lib/scoring.ts');
    const result=compileMarketingDraft(input,output);assert.equal(result.form.quizType,quizType);
    assert.equal(gradeQuizSubmission(result.form,{}).quizType,quizType);
    global.fetch=async()=>new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(output)}]}}]}));
-   assert.equal((await generateMarketingQuiz(input)).form.quizType,quizType);
+   const generated = (await generateMarketingQuiz(input)).form;
+   assert.equal(generated.quizType,quizType);
+   checkAiCapture(generated);
    const starter=createMarketingStarter({...input,numQuestions:12});assert.equal(starter.form.quizType,quizType);
+   checkAiCapture(starter.form);
    if(kind==='qualification') {assert.equal(starter.form.marketing.rules.length,0);assert.equal(evaluateMarketing(starter.form,{'question-0':'answer-1'}).outcomeId,'target-1');assert.equal(evaluateMarketing(starter.form,{}).status,'no_match');}
    if(kind!=='scorecard') assert.equal(marketingDraftSchema(kind).safeParse(output).success,true);
   }
   global.fetch=async()=>new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify({title:'Facts',description:'Learn',questions:[{type:'multiple_choice',title:'One?',options:[{label:'True',isCorrect:true},{label:'False',isCorrect:false}]},{type:'multiple_choice',title:'Two?',options:[{label:'True',isCorrect:true},{label:'False',isCorrect:false}]}]})}]}}]}));
-  assert.equal((await generateQuizWithAgent({topic:'Basic facts',numQuestions:2,quizType:'knowledge'})).quizType,'knowledge');
+  const knowledge = await generateQuizWithAgent({topic:'Basic facts',numQuestions:2,quizType:'knowledge'});
+  assert.equal(knowledge.quizType,'knowledge');
+  checkAiCapture(knowledge);
   assert.throws(()=>compileMarketingDraft({...brief,quizType:'personality',kind:'product_finder'},fixture));
   assert.throws(()=>compileMarketingDraft({...brief,kind:'qualification',quizType:'qualification'},fixture));
   console.log('PASS all six type-specific AI paths with mocked transport; no-score schemas, explicit route rules, 12-question starters and frozen identity');

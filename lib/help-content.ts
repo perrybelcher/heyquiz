@@ -288,7 +288,7 @@ export const helpArticles: HelpArticle[] = [
     "sections": [
       {
         "title": "Capture details",
-        "body": "Open Lead capture in the quiz editor and turn on Collect contact details. Choose its placement and publish your changes. Contacts from all your quizzes appear on the overall Contacts page. Preview does not save contacts. Adding an email question alone does not create a captured contact. Ask only for information needed for the next step. Explain how details will be used and configure the available consent settings."
+        "body": "New quizzes ask for contact details before showing results. Visitors can skip this step, and you can turn it off in Lead capture. Open Lead capture in the quiz editor to review your settings. Choose its placement and publish your changes. Contacts from all your quizzes appear on the overall Contacts page. Preview does not save contacts. Adding an email question alone does not create a captured contact. Ask only for information needed for the next step. Explain how details will be used and configure the available consent settings."
       },
       {
         "title": "Find responses",

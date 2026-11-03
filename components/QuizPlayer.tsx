@@ -106,6 +106,14 @@ export default function QuizPlayer({
   const screenQuestions = screens[screenIndex] || [];
   const grouped = active.settings.presentation === "page";
   const lastScreen = screenIndex === screens.length - 1;
+  const capturesBeforeResults = active.capture?.enabled && active.capture.placement === "before_results";
+  const finishLabel = capturesBeforeResults ? "Continue to contact details" : "Submit response";
+  let singleChoiceHint = "Choose an answer to continue automatically. You can go back to change it.";
+  if (lastScreen && !active.settings.showReviewBeforeSubmit && active.settings.feedbackMode !== "immediate") {
+    singleChoiceHint = capturesBeforeResults
+      ? "After your final answer, you’ll continue to contact details."
+      : "Choosing an answer submits your response.";
+  }
   const savedSession = useSyncExternalStore(
     () => () => {},
     () => { try { return sessionStorage.getItem(storageKey); } catch { return null; } },
@@ -488,7 +496,7 @@ export default function QuizPlayer({
               disabled={busy}
               onClick={() => void submit()}
             >
-              {busy ? "Saving…" : "Submit response"}
+              {busy ? "Saving…" : finishLabel}
               <Send size={16} />
             </button>
           </section>
@@ -577,7 +585,7 @@ export default function QuizPlayer({
                       }
                     }} />}
                   </div>; })}
-                  {!grouped && singleTypes.has(q.type) && !feedback && <p className="mt-4 text-xs text-slate-500" role="status">{lastScreen && !active.settings.showReviewBeforeSubmit ? "Choosing an answer submits your response." : "Choose an answer to continue automatically. You can go back to change it."}</p>}
+                  {!grouped && singleTypes.has(q.type) && !feedback && <p className="mt-4 text-xs text-slate-500" role="status">{singleChoiceHint}</p>}
                   {feedback && (
                     <div
                       role="status"
@@ -622,7 +630,7 @@ export default function QuizPlayer({
                           : lastScreen
                             ? active.settings.showReviewBeforeSubmit
                               ? "Review answers"
-                              : "Submit response"
+                              : finishLabel
                             : "Next"}
                       {lastScreen ? (
                         <Check size={17} />

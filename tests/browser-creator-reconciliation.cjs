@@ -60,6 +60,7 @@ function childOf(row) { return row.owner_id === ownerId && ids.includes(row.payl
     const stored = await readRecord('forms', id); assert.equal(stored?.owner_id, ownerId, 'Server and local assertions use the same synthetic data'); return id;
   }
   async function play(p, form, preview, capture) {
+    const finishLabel = form.capture?.enabled && form.capture.placement === 'before_results' ? 'Continue to contact details' : 'Submit response';
     activePage = p; await p.getByRole('heading', { name: form.coverPage?.title || form.title, exact: true }).waitFor();
     const starting = guardedWait(p.waitForResponse(r => r.url() === base + `/api/forms/${form.id}/start` && r.request().method() === 'POST'));
     await p.getByRole('button', { name: form.coverPage?.buttonText || 'Let’s begin', exact: true }).first().click();
@@ -71,13 +72,13 @@ function childOf(row) { return row.owner_id === ownerId && ids.includes(row.payl
       const answer = form.marketing ? question.options.find(o => o.id === 'a0') : question.options[0]; assert.ok(answer, 'Literal chosen answer exists');
       await p.getByRole('radio', { name: answer.label, exact: true }).check();
       assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Question fits viewport');
-      await p.getByRole('button', { name: index + 1 < form.questions.length ? 'Continue' : form.settings.showReviewBeforeSubmit ? 'Review answers' : 'Submit response', exact: true }).click();
+      await p.getByRole('button', { name: index + 1 < form.questions.length ? 'Continue' : form.settings.showReviewBeforeSubmit ? 'Review answers' : finishLabel, exact: true }).click();
     }
-    if (form.settings.showReviewBeforeSubmit) await p.getByRole('button', { name: 'Submit response', exact: true }).click();
+    if (form.settings.showReviewBeforeSubmit) await p.getByRole('button', { name: finishLabel, exact: true }).click();
     if (form.capture?.enabled) {
       await p.getByRole('heading', { name: form.capture.title, exact: true }).waitFor();
       if (capture) { await p.getByRole('textbox', { name: 'Name (optional)', exact: true }).fill('Synthetic reconciliation'); await p.getByRole('textbox', { name: 'Email', exact: true }).fill('reconciliation@example.test'); assert.equal(await p.getByRole('checkbox').count(), 0, 'Marketing opt-in is not offered'); await p.getByRole('button', { name: form.capture.buttonText, exact: true }).click(); }
-      else await p.getByRole('button', { name: 'Skip for now', exact: true }).click();
+      else await p.getByRole('button', { name: 'Skip and see my results', exact: true }).click();
     }
     const result = await json(await submitting);
     if (form.marketing) { assert.equal(result.marketing.status, 'matched'); assert.equal(result.marketing.outcomeId, 'path0'); assert.equal(result.marketing.title, 'Build a rotating menu'); assert.equal(result.marketing.overallScore ?? null, null); assert.deepEqual(result.marketing.categories, []); assert.deepEqual(result.marketing.resultSections.map(x => x.id), ['campaign-path0', 'campaign-reflection', 'campaign-result-faq']); await p.getByRole('heading', { name: 'Build a rotating menu', exact: true }).waitFor(); }

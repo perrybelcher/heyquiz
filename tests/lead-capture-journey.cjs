@@ -56,6 +56,21 @@ async function contacts(id) { return (await ok(`/api/forms/${id}/contacts`)).con
     const emailOnly = await create('email-question', undefined, [{ id: 'email', type: 'email', title: 'Email', required: true }]);
     await submit(emailOnly, null, { answers: { email: 'answer-only@example.test' } });
     assert.equal((await contacts(emailOnly)).length, 0, 'An email question alone is not dedicated capture');
+    const savedSource = await ok(`/api/forms/${before}`);
+    for (const [label, capture] of Object.entries({
+      legacy: undefined, off: { ...config, enabled: false },
+      required: { ...config, required: true }, after: { ...config, placement: 'after_results' }
+    })) {
+      const id = `lead-copy-${label}-${suffix}`;
+      ids.push(id);
+      const copy = { ...savedSource, id, revision: 0, capture };
+      await ok('/api/forms', 'POST', copy);
+      const reloaded = await ok(`/api/forms/${id}`);
+      assert.deepEqual(reloaded.capture, capture, label + ' survives duplication');
+      const imported = JSON.parse(JSON.stringify(copy));
+      await ok(`/api/forms/${id}`, 'PUT', { ...imported, revision: reloaded.revision });
+      assert.deepEqual((await ok(`/api/forms/${id}`)).capture, capture, label + ' survives JSON round trip');
+    }
     const legacy = await fetch(`${base}/editor/${after}?section=contacts`, { headers: { Cookie: cookie } });
     assert.equal(legacy.status, 200); assert.ok((await legacy.text()).includes('Edit lead capture'));
     const settings = await fetch(`${base}/editor/${after}?section=capture`, { headers: { Cookie: cookie } });

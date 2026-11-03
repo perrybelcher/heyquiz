@@ -4,15 +4,29 @@ const {templateLibraryItems:items,filterTemplateLibrary:filter}=require('../lib/
 const {authoredTemplates}=require('../lib/authored-templates.ts');
 const {launchTemplates,launchTemplate}=require('../lib/launch-templates.ts');
 const {createQuizTemplate}=require('../lib/template-factory.ts');
+const {CaptureSchema}=require('../lib/contacts.ts');
+const {outcomeTemplate}=require('../lib/outcome-templates.ts');
 assert.equal(items.length,61);assert.equal(new Set(items.map(t=>t.id)).size,61);
 assert.deepEqual(new Set(items.map(t=>t.id)),new Set([...authoredTemplates,...launchTemplates].map(t=>t.id)));
 for(const item of items){
  const form=createQuizTemplate(item.id,'sample');assert.equal(item.questionCount,form.questions.length);assert.ok(item.title&&item.summary&&item.industry&&item.imageAlt);assert.match(item.image,/^(\/|https?:\/\/)/);assert.match(item.focalPoint,/^\d+% \d+%$/);
  const expected=form.quizType??({segmentation:'personality',product_finder:'product_finder',scorecard:'scorecard',qualification:'qualification'}[form.marketing?.kind]??'knowledge');assert.equal(item.quizType,expected);
+ const capture = CaptureSchema.parse(form.capture);
+ assert.equal(capture.enabled, true, item.id);
+ assert.equal(capture.placement, 'before_results', item.id);
+ assert.equal(capture.required, false, item.id);
+ assert.equal(capture.name, 'optional', item.id);
+ assert.equal(capture.phone, 'off', item.id);
+ assert.equal(capture.marketingEnabled, false, item.id);
  const other=createQuizTemplate(item.id,'other');form.questions[0].title='Edited instance';assert.notEqual(other.questions[0].title,'Edited instance');
+ form.capture.enabled = false;
+ assert.equal(other.capture.enabled, true, item.id);
 }
 for(const t of launchTemplates)assert.deepEqual(createQuizTemplate(t.id,'legacy'),launchTemplate(t.id,'legacy'),'Legacy content unchanged');
 for(const type of ['personality','product_finder','diagnostic','qualification','knowledge','scorecard']){
+ const guided = outcomeTemplate(type, 'guided-instance');
+ assert.equal(guided.capture.enabled, true, type);
+ assert.equal(guided.capture.placement, 'before_results', type);
  const newIds=new Set(authoredTemplates.filter(t=>t.quizType===type).map(t=>t.id));assert.equal(filter(items,{quizType:type}).filter(t=>newIds.has(t.id)).length,3);
 }
 assert.equal(filter(items,{length:'comprehensive'}).length,6);

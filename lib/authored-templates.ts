@@ -5,6 +5,7 @@ import { qualificationTemplates } from "./authored-templates/qualification";
 import { knowledgeTemplates } from "./authored-templates/knowledge";
 import { scorecardTemplates } from "./authored-templates/scorecard";
 import { FormSchema } from "./schema";
+import { newQuizCapture } from "./contacts";
 import { validateQuizType, type QuizType } from "./quiz-types";
 
 const definitions = [...personalityTemplates, ...productFinderTemplates, ...diagnosticTemplates, ...qualificationTemplates, ...knowledgeTemplates, ...scorecardTemplates];
@@ -17,7 +18,7 @@ export const authoredTemplates = definitions.map(({build, ...metadata}) => ({
 export function authoredTemplate(templateId: string, id: string) {
   const definition = definitions.find(template => template.id === templateId);
   if (!definition) throw new Error("Unknown authored quiz template");
-  const form = FormSchema.parse(definition.build(id));
+  const form = FormSchema.parse({ ...definition.build(id), capture: newQuizCapture() });
   form.id = id;
   delete form.publishedAt;
   delete form.revision;

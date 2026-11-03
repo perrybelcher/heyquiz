@@ -17,6 +17,6 @@ export default function LeadCapture({ config, busy, error, onSubmit, onSkip }: {
     {config.marketingEnabled && <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={consent} onChange={e => setConsent(e.target.checked)}/><span>{config.marketingLabel}<span className="block text-slate-500 mt-1">Optional. Your results do not depend on this choice.</span></span></label>}
     {config.privacyUrl && <a className="text-sm underline" target="_blank" rel="noreferrer" href={config.privacyUrl}>Privacy policy</a>}
     {error && <p role="alert" className="hq-error">{error}</p>}
-    <div className="flex gap-3"><button disabled={busy} className="hq-primary" type="submit">{busy ? "Saving…" : config.buttonText}</button>{onSkip && <button type="button" className="hq-secondary" disabled={busy} onClick={onSkip}>Skip for now</button>}</div>
+    <div className="flex gap-3"><button disabled={busy} className="hq-primary" type="submit">{busy ? "Saving…" : config.buttonText}</button>{onSkip && <button type="button" className="hq-secondary" disabled={busy} onClick={onSkip}>{config.placement === "before_results" ? "Skip and see my results" : "Skip for now"}</button>}</div>
   </form>;
 }
