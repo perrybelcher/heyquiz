@@ -162,7 +162,7 @@ import {
 import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
 import { publicationFingerprint, parsePublicationReceipt, PUBLICATION_CONFIRMATION_ERROR } from "@/lib/publication";
-import AnswerScoring, { ScoringMode } from "./AnswerScoring";
+import AnswerScoring, { ScoringMode, ImageAnswerScoring } from "./AnswerScoring";
 import { clarityEvent, stopClarity } from "@/lib/clarity";
 import ThemeEditor from "./ThemeEditor";
 import BuilderWalkthrough from "./BuilderWalkthrough";
@@ -2120,7 +2120,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                               totalQuestions={displayedQuestions.length}
                               isSelected={isSelected}
                               mode={form.marketing ? "survey" : form.mode}
-                              scoring={form.marketing ? <AnswerScoring form={form} q={q} onLabelChange={(id,label)=>updateOption(q.id,id,{label})} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
+                              optionScoring={form.marketing ? answerId => <ImageAnswerScoring q={q} answerId={answerId} form={form} onChange={marketing => setForm(current => ({...current, marketing}))}/> : undefined}
+                              scoring={form.marketing ? <AnswerScoring inlineOptions={["picture_choice","image_multiselect"].includes(q.type)} form={form} q={q} onLabelChange={(id,label)=>updateOption(q.id,id,{label})} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
                               hasLogic={hasLogic}
                               onSelect={() => setSelectedQuestionId(q.id)}
                               onMoveQuestion={moveQuestion}
@@ -2167,7 +2168,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                                   totalQuestions={displayedQuestions.length}
                                   isSelected={isSelected}
                                   mode={form.marketing ? "survey" : form.mode}
-                              scoring={form.marketing ? <AnswerScoring form={form} q={q} onLabelChange={(id,label)=>updateOption(q.id,id,{label})} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
+                              optionScoring={form.marketing ? answerId => <ImageAnswerScoring q={q} answerId={answerId} form={form} onChange={marketing => setForm(current => ({...current, marketing}))}/> : undefined}
+                              scoring={form.marketing ? <AnswerScoring inlineOptions={["picture_choice","image_multiselect"].includes(q.type)} form={form} q={q} onLabelChange={(id,label)=>updateOption(q.id,id,{label})} marketing={form.marketing} onChange={marketing => setForm(current => ({...current, marketing}))} /> : undefined}
                                   hasLogic={hasLogic}
                                   onSelect={() => setSelectedQuestionId(q.id)}
                                   onMoveQuestion={moveQuestion}
@@ -3656,7 +3658,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       <DndContext id="v2-focused-question" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={[focusedQuestion.id]} strategy={verticalListSortingStrategy}>
           <SortableQuestionCard key={focusedQuestion.id} q={focusedQuestion} idx={form.questions.findIndex(q=>q.id===focusedQuestion.id)} totalQuestions={form.questions.length} isSelected mode={form.marketing?"survey":form.mode}
-            scoring={form.marketing?<AnswerScoring form={form} q={focusedQuestion} onLabelChange={(id,label)=>updateOption(focusedQuestion.id,id,{label})} marketing={form.marketing} onChange={marketing=>setForm(current=>({...current,marketing}))}/>:undefined}
+            optionScoring={form.marketing ? answerId => <ImageAnswerScoring q={focusedQuestion} answerId={answerId} form={form} onChange={marketing => setForm(current => ({...current, marketing}))}/> : undefined}
+            scoring={form.marketing?<AnswerScoring inlineOptions={["picture_choice","image_multiselect"].includes(focusedQuestion.type)} form={form} q={focusedQuestion} onLabelChange={(id,label)=>updateOption(focusedQuestion.id,id,{label})} marketing={form.marketing} onChange={marketing=>setForm(current=>({...current,marketing}))}/>:undefined}
             hasLogic={Boolean(form.logicRules?.some(rule=>rule.sourceQuestionId===focusedQuestion.id || rule.targetQuestionId===focusedQuestion.id))}
             onSelect={()=>setSelectedQuestionId(focusedQuestion.id)} onMoveQuestion={moveQuestion} onDuplicateQuestion={duplicateQuestion} onDeleteQuestion={deleteQuestion} onUpdateQuestion={updateQuestion} onUpdateOption={updateOption} onDeleteOption={deleteOption} onAddOption={addOption} onMoveOption={moveOption}/>
         </SortableContext>
