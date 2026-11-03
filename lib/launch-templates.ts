@@ -4,6 +4,7 @@ import { FormSchema, type Question } from "./schema";
 import { MarketingSchema } from "./marketing";
 import { catalogTemplate, catalogTemplates } from "./template-catalog";
 import { marketingTemplate } from "./marketing-templates";
+import { newQuizCapture } from "./contacts";
 
 export const launchTemplates = [
   { id: "product_finder", name: "Everyday carry finder", industry: "Retail & gifts", goal: "Product finder", summary: "Help shoppers choose a bag around their real day, with fit exclusions and three personalized recommendations.", detail: "5 questions · 3 products · fit checks" },
@@ -21,7 +22,13 @@ export function launchTemplate(kind: LaunchTemplateId, id: string) {
   const f = marketingTemplate(legacyKind === "consultation" ? "segmentation" : legacyKind, id);
   const m = f.marketing!;
   f.theme = { ...f.theme, primaryColor: "#a9232b", backgroundColor: "#faf8f4" };
-  f.capture = { enabled: true, placement: "before_results", required: false, name: "optional", phone: "off", title: "Your next step is ready", description: "Share your details if you would like the quiz owner to follow up, or skip to see your results.", buttonText: "See my results", marketingEnabled: false, marketingLabel: "Yes, I would like marketing emails.", privacyUrl: "" };
+  f.capture = {
+    ...newQuizCapture(),
+    title: "Your next step is ready",
+    description: "Share your details if you would like the quiz owner to follow up, or skip to see your results.",
+    buttonText: "See my results",
+    marketingLabel: "Yes, I would like marketing emails.",
+  };
   if (kind === "product_finder") {
     f.questions.splice(2, 0,
       question("routine", "Where will your bag spend most of its time?", ["Quick errands and walks", "Commuting and workdays", "Overnight stays and weekends", "My routine varies"]),

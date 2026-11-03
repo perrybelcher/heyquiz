@@ -3746,7 +3746,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
         onPublish={requestPublish} onPause={openPausePublication} publicationBusy={publishing || pausing || publicationUncertain}
         activeSection={activeNavTab}
         sections={[
-          ...(["edit", "capture", "integrate", "results", "share"] as const).map(tab => ({ id: tab, label: { edit: "Build", capture: "Lead capture", integrate: "Connect", results: "Results", share: "Share" }[tab], onClick: () => { if (guestDraft && tab !== "edit") { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } })),
+          ...(["edit", "capture", "integrate", "results", "share"] as const).map(tab => ({ id: tab, label: { edit: "Build", capture: "Lead capture", integrate: "Connect", results: "Results", share: "Share" }[tab], onClick: () => { if (guestDraft && tab !== "edit" && tab !== "capture") { void saveNow(); return; } setMobilePanel(null); setActiveNavTab(tab); } })),
           ...(activeNavTab === "results" || activeNavTab === "contacts" ? [{ id: "contacts", label: "Contacts", onClick: () => setActiveNavTab("contacts") }] : []),
           ...(guestDraft || activeNavTab === "integrate" || activeNavTab === "marketing" ? [{ id: "marketing", label: "Marketing", onClick: () => setActiveNavTab("marketing") }] : []),
         ]}
@@ -3789,7 +3789,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
           <nav aria-label="Quiz workspace" className="studio-tabs flex flex-wrap items-center gap-1 rounded-xl border border-gray-200/60 bg-gray-100 p-1">
             {([{ id: "edit", label: "Build" }, { id: "design", label: "Design" }, { id: "capture", label: "Lead capture" }, { id: "integrate", label: "Connect" }, { id: "results", label: "Results" }, { id: "share", label: "Share" }] as const).map(tab => {
               const active = tab.id === activeNavTab || (tab.id === "results" && activeNavTab === "contacts") || (tab.id === "integrate" && activeNavTab === "marketing");
-              return <button key={tab.id} type="button" aria-current={active ? "page" : undefined} className={`rounded-lg px-3.5 py-1 text-xs font-medium ${active ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`} onClick={() => { if (tab.id === "design") { setShowThemeModal(true); return; } if (guestDraft && !["edit"].includes(tab.id)) { void saveNow(); return; } setActiveNavTab(tab.id); }}>{tab.label}</button>;
+              return <button key={tab.id} type="button" aria-current={active ? "page" : undefined} className={`rounded-lg px-3.5 py-1 text-xs font-medium ${active ? "bg-white text-gray-900 shadow-xs" : "text-gray-600"}`} onClick={() => { if (tab.id === "design") { setShowThemeModal(true); return; } if (guestDraft && !["edit", "capture"].includes(tab.id)) { void saveNow(); return; } setActiveNavTab(tab.id); }}>{tab.label}</button>;
             })}
             {guestDraft && <button type="button" className="rounded-lg px-3.5 py-1 text-xs font-medium" onClick={() => setActiveNavTab("marketing")}>Marketing</button>}
           </nav>

@@ -1,6 +1,7 @@
 import { FormSchema, type Question } from './schema';
 import { MarketingSchema } from './marketing';
 import { marketingTemplate } from './marketing-templates';
+import { newQuizCapture } from './contacts';
 
 // The three answer positions correspond to the three result paths. Unknown answers
 // deliberately have no scoring rule. Content stays independent of any owner's brand.
@@ -134,7 +135,13 @@ export function catalogTemplate(templateId:string,id:string) {
   f.title=item.name;
   f.description=item.summary+' Answer a few questions to find a useful next step.';
   f.theme={...f.theme,primaryColor:'#a9232b',backgroundColor:'#faf8f4'};
-  f.capture={enabled:true,placement:'before_results',required:false,name:'optional',phone:'off',title:'Your results are ready',description:'Leave your details if you would like follow-up, or skip to view your results.',buttonText:'See my results',marketingEnabled:false,marketingLabel:'Yes, I would like marketing emails.',privacyUrl:''};
+  f.capture = {
+    ...newQuizCapture(),
+    title: 'Your results are ready',
+    description: 'Leave your details if you would like follow-up, or skip to view your results.',
+    buttonText: 'See my results',
+    marketingLabel: 'Yes, I would like marketing emails.',
+  };
   if(match){
     f.questions=match.prompts.map(([title,...labels],i)=>question(`q${i}`,title,[...labels,'I’m not sure yet']));
     f.questions.push(question('next','Would you like to explore a next step?',['Yes, show me my match','Just exploring—show me ideas','Not right now']));

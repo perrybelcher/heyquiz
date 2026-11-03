@@ -3,7 +3,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { FormSchema } from "./schema";
 import { MarketingSchema, validateMarketing, evaluateMarketing } from "./marketing";
-import { defaultCapture } from "./contacts";
+import { newQuizCapture } from "./contacts";
 
 const destination = z.string().trim().max(2000).refine(v => {
   if (!v) return true;
@@ -109,7 +109,7 @@ export function compileMarketingDraft(input: unknown, output: unknown) {
   const form = FormSchema.parse({...(brief.quizType ? {quizType:brief.quizType} : {}),id:`quiz-${nanoid(10)}`, title:draft.title,description:draft.description,mode:"survey",questions,
     theme:{primaryColor:"#a61b29",backgroundColor:"#faf8f5",layout:"step"},
     settings:{showProgressBar:true,showReviewBeforeSubmit:true,showAnswerKeyOnFinish:false,allowRetake:true},
-    capture:{...defaultCapture,enabled:true,required:false,marketingEnabled:false},marketing:m,outcomeTiers:[]});
+    capture:newQuizCapture(),marketing:m,outcomeTiers:[]});
   validateMarketing(form,brief.kind !== "qualification");
   // Prove a concrete path for each generated outcome. This conservative witness
   // favors target points, then fewer competing points; ambiguous drafts are retried,

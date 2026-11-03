@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { FormSchemaType } from "@/lib/schema";
 import { blankQuiz } from "@/lib/blank-quiz";
+import { newQuizCapture } from "@/lib/contacts";
 import { marketingTemplate } from "@/lib/marketing-templates";
 import type { MarketingConfig } from "@/lib/marketing";
 import WorkspaceHeader from "./WorkspaceHeader";
@@ -77,7 +78,7 @@ export default function Dashboard({
     setError("");
     const id = `quiz-${nanoid(10)}`;
     const form: FormSchemaType = kind
-      ? marketingTemplate(kind, id)
+      ? { ...marketingTemplate(kind, id), capture: newQuizCapture() }
       : copy
         ? {
             ...copy,

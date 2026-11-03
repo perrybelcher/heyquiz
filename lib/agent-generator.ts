@@ -2,6 +2,7 @@ import { QuizTypeSchema } from "./quiz-types";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { FormSchema, type FormSchemaType } from "./schema";
+import { newQuizCapture } from "./contacts";
 import { HttpError } from "./auth";
 export const GenerateRequest = z.object({
   quizType: QuizTypeSchema.extract(["knowledge"]).optional(),
@@ -162,6 +163,7 @@ export async function generateQuizWithAgent(
     title: data.title,
     description: data.description,
     mode: req.mode,
+    capture: newQuizCapture(),
     theme: {
       primaryColor: "#4f46e5",
       backgroundColor: "#f6f7fb",

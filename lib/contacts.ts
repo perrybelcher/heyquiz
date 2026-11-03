@@ -11,6 +11,11 @@ export const CaptureSchema = z.object({
 }).refine(v => !(v.placement === "after_results" && v.required), "Capture after results must be optional.");
 export type CaptureConfig = z.infer<typeof CaptureSchema>;
 export const defaultCapture: CaptureConfig = { enabled: false, placement: "before_results", required: false, name: "optional", phone: "off", title: "Your next step is ready", description: "Share your details to connect your results with you.", buttonText: "See my results", marketingEnabled: true, marketingLabel: "Yes, I would like to receive marketing emails.", privacyUrl: "" };
+// Use only when creating a fresh quiz. Older quizzes may have no capture configuration.
+export function newQuizCapture(): CaptureConfig {
+    return { ...defaultCapture, enabled: true, marketingEnabled: false };
+}
+
 export interface ContactInput {
     email: string;
     name?: string;

@@ -98,13 +98,13 @@ async function until(check, description) {
         for (const [questionIndex, question] of form.questions.entries()) {
           await publicPage.getByRole('heading', { name: question.title, exact: true }).waitFor();
           await publicPage.getByRole('radio', { name: question.options.find(option => option.id === answers[question.id]).label, exact: true }).check();
-          const name = questionIndex < form.questions.length - 1 ? 'Continue' : form.settings.showReviewBeforeSubmit ? 'Review answers' : 'Submit response';
+          const name = questionIndex < form.questions.length - 1 ? 'Continue' : form.settings.showReviewBeforeSubmit ? 'Review answers' : 'Continue to contact details';
           await publicPage.getByRole('button', { name, exact: true }).click();
         }
-        if (form.settings.showReviewBeforeSubmit) await publicPage.getByRole('button', { name: 'Submit response', exact: true }).click();
-        await publicPage.getByRole('button', { name: 'Skip for now', exact: true }).waitFor();
+        if (form.settings.showReviewBeforeSubmit) await publicPage.getByRole('button', { name: 'Continue to contact details', exact: true }).click();
+        await publicPage.getByRole('button', { name: 'Skip and see my results', exact: true }).waitFor();
         const submitResponse = publicPage.waitForResponse(response => response.url().endsWith(`/api/forms/${id}/submit`) && response.request().method() === 'POST');
-        await publicPage.getByRole('button', { name: 'Skip for now', exact: true }).click();
+        await publicPage.getByRole('button', { name: 'Skip and see my results', exact: true }).click();
         submission = await json(await submitResponse, 200);
         await publicPage.getByRole('heading', { name: expectedResult.title, level: 1, exact: true }).waitFor();
         assert.deepEqual(await publicPage.locator('[data-result-section]').evaluateAll(elements => elements.map(element => element.getAttribute('data-result-section'))), expected.resultSectionIds);

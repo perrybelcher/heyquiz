@@ -46,10 +46,11 @@ async function stored(page){return page.evaluate(()=>{const id=localStorage.getI
     await page.getByRole('heading',{name:q.title,exact:true}).waitFor();
     const answer=fixture.answers[q.id];
     if(q.options?.length){const option=q.options.find(a=>a.id===answer);assert.ok(option,`${t.id}/${q.id} fixture choice exists`);await page.getByRole('radio',{name:option.label,exact:true}).check();
-     if(f.settings.feedbackMode==='immediate'){await page.getByText(/^(Correct!|Not quite\.)$/).waitFor();await page.getByRole('button',{name:index===f.questions.length-1?(f.settings.showReviewBeforeSubmit?'Review answers':'Submit response'):'Next',exact:true}).click();}
-    }else{await page.getByRole('spinbutton').fill(String(answer));await page.getByRole('button',{name:index===f.questions.length-1?(f.settings.showReviewBeforeSubmit?'Review answers':'Submit response'):'Next',exact:true}).click();}
+     if(f.settings.feedbackMode==='immediate'){await page.getByText(/^(Correct!|Not quite\.)$/).waitFor();await page.getByRole('button',{name:index===f.questions.length-1?(f.settings.showReviewBeforeSubmit?'Review answers':'Continue to contact details'):'Next',exact:true}).click();}
+    }else{await page.getByRole('spinbutton').fill(String(answer));await page.getByRole('button',{name:index===f.questions.length-1?(f.settings.showReviewBeforeSubmit?'Review answers':'Continue to contact details'):'Next',exact:true}).click();}
    }
-   if(f.settings.showReviewBeforeSubmit)await page.getByRole('button',{name:'Submit response',exact:true}).click();
+   if(f.settings.showReviewBeforeSubmit)await page.getByRole('button',{name:'Continue to contact details',exact:true}).click();
+   await page.getByRole('button',{name:'Skip and see my results',exact:true}).click();
    const result=await json(await completed);assert.equal(result.quizType,t.quizType);
    if(fixture.outcomeId!==undefined)assert.equal(result.marketing.outcomeId,fixture.outcomeId,t.id);
    if(fixture.overallScore!==undefined)assert.equal(result.marketing.overallScore,fixture.overallScore,t.id);
