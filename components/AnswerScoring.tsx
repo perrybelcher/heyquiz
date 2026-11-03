@@ -3,7 +3,7 @@ import { useState } from "react";
 import { nanoid } from "nanoid";
 import type { Question, FormSchemaType } from "@/lib/schema";
 import { MarketingSchema, evaluateMarketing, type MarketingConfig } from "@/lib/marketing";
-import { multiTypes, resolvePath } from "@/lib/engine";
+import { singleTypes, multiTypes, displayTypes, resolvePath } from "@/lib/engine";
 import { clarityEvent } from "@/lib/clarity";
 
 export function ScoringMode({form,onChange}:{form:FormSchemaType;onChange:(form:FormSchemaType)=>void}) {
@@ -28,7 +28,38 @@ export function ScoringMode({form,onChange}:{form:FormSchemaType;onChange:(form:
   </div></details></div>;
 }
 
-export default function AnswerScoring({q,marketing,onChange,onLabelChange,form}:{q:Question;form:FormSchemaType;marketing:MarketingConfig;onChange:(m:MarketingConfig)=>void; onLabelChange?:(id:string,label:string)=>void}) {
+// Points and exclusions may coexist for a result. Keep their IDs and reasons
+// separate so removing an exclusion restores the original points association.
+function setAnswerRule(marketing:MarketingConfig, questionId:string, answerId:string,targetId:string,value:string,exclusionToggle=false):MarketingConfig {
+  if(value!=="" && value!=="exclude" && !Number.isFinite(Number(value)))return marketing;
+  const effect=exclusionToggle?"exclude":"add";
+  const existing=marketing.rules.find(r=>r.questionId===questionId&&r.answerId===answerId&&r.targetId===targetId&&r.effect===effect);
+  const rules=marketing.rules.filter(r=>r!==existing);
+  if(value!=="")rules.push({...existing,id:existing?.id||nanoid(10),questionId,answerId,targetId,effect,points:exclusionToggle?0:Math.min(100,Math.max(0,Number(value))),reason:existing?.reason||""});
+  return {...marketing,rules};
+}
+function visibleAnswerRule(marketing:MarketingConfig,questionId:string,answerId:string,targetId:string) {
+  const matches=marketing.rules.filter(r=>r.questionId===questionId&&r.answerId===answerId&&r.targetId===targetId);
+  return matches.find(r=>r.effect==="exclude")||matches.find(r=>r.effect==="add");
+}
+
+export function ImageAnswerScoring({q,answerId,form,onChange}:{q:Question;answerId:string;form:FormSchemaType;onChange:(m:MarketingConfig)=>void}) {
+  const m=form.marketing;
+  if(!m || m.kind==="qualification")return null;
+  const answer=q.options?.find(a=>a.id===answerId);
+  if(!answer)return null;
+  const targets=m.kind==="scorecard"?m.categories:m.outcomes;
+  return <fieldset aria-label={`Scoring for ${answer.label || "image answer"}`} className="min-w-0 border-t border-gray-200 p-2.5 space-y-2" onClick={e=>e.stopPropagation()}>
+    <legend className="text-xs font-semibold">{m.kind==="scorecard"?"Scorecard points":"Answer matching"}</legend>
+    {!targets.length && <p className="text-xs text-gray-500">Add {m.kind==="scorecard"?"a category":"a result"} in Answer scoring below to assign points.</p>}
+    {targets.map(target=>{const rule=visibleAnswerRule(m,q.id,answerId,target.id);return <div key={target.id} className="space-y-1">
+      <label className="flex flex-wrap items-center justify-between gap-1 text-xs"><span className="min-w-0 break-words">{target.title}</span><input aria-label={`${answer.label}: ${target.title} points`} className="w-20 rounded border border-gray-300 p-1.5" type="number" min={0} max={100} step="any" placeholder="—" disabled={rule?.effect==="exclude"} value={rule?.effect==="add"?rule.points:""} onChange={e=>onChange(setAnswerRule(m,q.id,answerId,target.id,e.target.value))}/></label>
+      {m.kind!=="scorecard"&&(!form.quizType||form.quizType==="product_finder")&&<label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={rule?.effect==="exclude"} onChange={e=>onChange(setAnswerRule(m,q.id,answerId,target.id,e.target.checked?"exclude":"",true))}/>Exclude</label>}
+    </div>;})}
+  </fieldset>;
+}
+
+export default function AnswerScoring({q,marketing,onChange,onLabelChange,form,inlineOptions=false}:{inlineOptions?:boolean;q:Question;form:FormSchemaType;marketing:MarketingConfig;onChange:(m:MarketingConfig)=>void; onLabelChange?:(id:string,label:string)=>void}) {
   const [name,setName]=useState("");
   const [examples,setExamples]=useState<string[]>([]);
   const selected = examples.filter(id => q.options?.some(option => option.id === id));
@@ -39,16 +70,12 @@ export default function AnswerScoring({q,marketing,onChange,onLabelChange,form}:
   let result;
   try { result=selected.length && reachable ? evaluateMarketing(form,answers) : undefined; } catch {}
   if(marketing.kind==="qualification")return <p className="text-sm text-slate-600">Configure ordered route conditions in Results.</p>;
-  if(!q.options?.length || !["multiple_choice","multiselect","dropdown","picture_choice","image_multiselect","checkboxes","segmented","switch","thumbs","like_dislike"].includes(q.type))return null;
+  if(displayTypes.has(q.type))return null;
+  if(!(singleTypes.has(q.type)||multiTypes.has(q.type)))return <p className="mt-4 border-t border-gray-200 pt-4 text-xs text-gray-600">This field does not support answer points or result matching. Use a choice field, including image choices, to connect answers to scores or results.</p>;
+  if(!q.options?.length)return null;
   const scorecard=marketing.kind==="scorecard";
   const targets=scorecard?marketing.categories:marketing.outcomes;
   const targetLabel=scorecard?"category":marketing.kind==="product_finder"?"product":"segment";
-  function setRule(answerId:string,targetId:string,value:string) {
-    const existing=marketing.rules.find(r=>r.questionId===q.id&&r.answerId===answerId&&r.targetId===targetId);
-    const rules=marketing.rules.filter(r=>r!==existing);
-    if(value!=="") rules.push({...existing,id:existing?.id||nanoid(10),questionId:q.id,answerId,targetId,effect:value==="exclude"?"exclude":"add",points:value==="exclude"?0:Math.min(100,Math.max(0,Number(value))),reason:existing?.reason||""});
-    onChange({...marketing,rules});
-  }
   function addTarget() {
     if(!name.trim())return;
     const id=nanoid(10), title=name.trim();
@@ -56,10 +83,10 @@ export default function AnswerScoring({q,marketing,onChange,onLabelChange,form}:
   }
   return <section aria-label="Answer scoring" className="mt-4 border-t border-gray-200 pt-4 space-y-3" onClick={e=>e.stopPropagation()}>
     <div><h4 className="text-sm font-semibold">{scorecard?"Scorecard points":"Answer matching"}</h4><p className="mt-1 text-xs text-gray-500">{scorecard?"Give each answer 0–100 points per category. Blank means not scored; zero is a scored answer.":"Give each answer points toward a result. The highest eligible total wins. Exclusion overrides points."}</p></div>
-    {targets.map(target=><fieldset key={target.id} className="rounded-lg border border-gray-200 p-3 space-y-2"><legend className="px-1 text-xs font-semibold">{target.title}</legend>
-      {q.options!.map(answer=>{const rule=marketing.rules.find(r=>r.questionId===q.id&&r.answerId===answer.id&&r.targetId===target.id);return <div key={answer.id} className="flex flex-wrap items-center justify-between gap-2"><input aria-label={`${target.title} answer text ${answer.id}`} value={answer.label} onChange={e=>onLabelChange?.(answer.id,e.target.value)} className="text-xs min-w-0 flex-1 rounded border border-gray-200 p-1.5" /><div className="flex items-center gap-2">
-        <input aria-label={`${answer.label}: ${target.title} points`} type="number" min={0} max={100} step="any" disabled={rule?.effect==="exclude"} value={rule?.effect==="add"?rule.points:""} placeholder="—" onChange={e=>setRule(answer.id,target.id,e.target.value)} className="w-20 rounded border border-gray-300 p-1.5 text-xs"/><span className="text-xs text-gray-500">pts</span>
-        {!scorecard&&(!form.quizType||form.quizType==="product_finder")&&<label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={rule?.effect==="exclude"} onChange={e=>setRule(answer.id,target.id,e.target.checked?"exclude":"")} />Exclude</label>}
+    {!inlineOptions && targets.map(target=><fieldset key={target.id} className="rounded-lg border border-gray-200 p-3 space-y-2"><legend className="px-1 text-xs font-semibold">{target.title}</legend>
+      {q.options!.map(answer=>{const rule=visibleAnswerRule(marketing,q.id,answer.id,target.id);return <div key={answer.id} className="flex flex-wrap items-center justify-between gap-2"><input aria-label={`${target.title} answer text ${answer.id}`} value={answer.label} onChange={e=>onLabelChange?.(answer.id,e.target.value)} className="text-xs min-w-0 flex-1 rounded border border-gray-200 p-1.5" /><div className="flex items-center gap-2">
+        <input aria-label={`${answer.label}: ${target.title} points`} type="number" min={0} max={100} step="any" disabled={rule?.effect==="exclude"} value={rule?.effect==="add"?rule.points:""} placeholder="—" onChange={e=>onChange(setAnswerRule(marketing,q.id,answer.id,target.id,e.target.value))} className="w-20 rounded border border-gray-300 p-1.5 text-xs"/><span className="text-xs text-gray-500">pts</span>
+        {!scorecard&&(!form.quizType||form.quizType==="product_finder")&&<label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={rule?.effect==="exclude"} onChange={e=>onChange(setAnswerRule(marketing,q.id,answer.id,target.id,e.target.checked?"exclude":"",true))} />Exclude</label>}
       </div></div>})}
     </fieldset>)}
     <div className="flex gap-2"><input aria-label={`New ${targetLabel} name`} placeholder={`Add a ${targetLabel}`} maxLength={200} value={name} onChange={e=>setName(e.target.value)} className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs"/><button type="button" disabled={!name.trim()||targets.length>=(scorecard?20:30)} onClick={addTarget} className="rounded border border-gray-300 px-3 py-1.5 text-xs disabled:opacity-40">Add {targetLabel}</button></div>

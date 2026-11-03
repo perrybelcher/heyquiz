@@ -51,6 +51,7 @@ import {
 
 export interface SortableQuestionCardProps {
   scoring?: React.ReactNode;
+  optionScoring?: (answerId: string) => React.ReactNode;
   q: Question;
   idx: number;
   totalQuestions: number;
@@ -75,6 +76,7 @@ export interface SortableQuestionCardProps {
 export function SortableQuestionCard({
   q,
   scoring,
+  optionScoring,
   idx,
   totalQuestions,
   isSelected,
@@ -460,6 +462,7 @@ export function SortableQuestionCard({
                     onChange={(e) =>
                       onUpdateOption(q.id, opt.id, { label: e.target.value })
                     }
+                    aria-label={`Question ${idx + 1}, answer ${optIdx + 1}`}
                     placeholder={`Picture label ${optIdx + 1}`}
                     className="w-full text-xs font-semibold text-gray-900 bg-transparent outline-none placeholder:text-gray-300"
                   />
@@ -477,6 +480,7 @@ export function SortableQuestionCard({
                     </button>
                   </div>
                 </div>
+                {optionScoring?.(opt.id)}
               </Reorder.Item>
             ))}
 
@@ -507,17 +511,14 @@ export function SortableQuestionCard({
           ).map((opt) => (
             <div
               key={opt.id}
-              onClick={() =>
-                onUpdateOption(q.id, opt.id, { isCorrect: !opt.isCorrect })
-              }
-              className={`p-3 rounded-xl border text-center cursor-pointer transition flex items-center justify-between ${
-                opt.isCorrect
+              className={`p-3 rounded-xl border text-center transition flex items-center justify-between ${
+                mode === "quiz" && opt.isCorrect
                   ? "bg-emerald-50 border-emerald-400 text-emerald-800 font-semibold"
                   : "bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300"
               }`}
             >
               <span className="text-xs font-semibold">{opt.label}</span>
-              {opt.isCorrect && (
+              {mode === "quiz" && opt.isCorrect && (
                 <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">
                   Correct
                 </span>
@@ -525,6 +526,16 @@ export function SortableQuestionCard({
             </div>
           ))}
         </div>
+      )}
+
+      {mode === "quiz" && ["segmented", "switch", "thumbs", "like_dislike"].includes(q.type) && (
+        <fieldset className="space-y-2 rounded-lg border border-gray-200 p-3">
+          <legend className="px-1 text-xs font-semibold">Correct answers</legend>
+          {q.options?.map((option, index) => <label key={option.id} className="flex items-center gap-2 text-xs">
+            <input type="checkbox" aria-label={`Correct answer ${index + 1}: ${option.label}`} checked={Boolean(option.isCorrect)} onChange={e=>onUpdateOption(q.id,option.id,{isCorrect:e.target.checked})}/>
+            {option.label}
+          </label>)}
+        </fieldset>
       )}
 
       {/* Single Checkbox */}
