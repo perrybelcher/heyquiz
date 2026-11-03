@@ -31,12 +31,17 @@ const fixture=(title='Pending',revision=0)=>FormSchema.parse({id:'reliability',t
  const server=fixture('Original',4),changed={...server,title:'Latest'};let puts=0;let stored=server;app=harness({initial:server,fetcher:async(_url,init)=>{if(init?.method==='PUT'){puts++;stored={...changed,revision:5};throw Error('response lost')}return Response.json(stored)}});await app.settle();app.edit(changed);await app.settle();assert.equal(await app.value.saveNow(changed),true);await app.settle();assert.equal(puts,1);assert.equal(app.value.status,'saved');assert.equal([...app.localStorage.rows.keys()].filter(key=>key.startsWith('pippi-draft:')).length,0);app.dispose();groups++;
  // Expiry pauses mutations; wrong-account sign-in cannot write the draft.
  let identity={state:'authenticated',accountKey:'account-a',expiresAt:Date.now()+100000};puts=0;app=harness({initial:server,session:()=>identity,fetcher:async(_url,init)=>{if(init?.method==='PUT'){puts++;return Response.json({...changed,revision:5})}return Response.json(server)}});await app.settle();app.edit(changed);await app.settle();identity={state:'reauth_required'};app.window.dispatchEvent(new Event('focus'));await app.settle();assert.equal(app.value.authRequired,true);assert.equal(app.value.canEdit(),false);identity={state:'authenticated',accountKey:'account-b',expiresAt:Date.now()+100000};await app.value.afterSignIn();await app.settle();assert.equal(app.value.accountMismatch,true);assert.equal(puts,0);identity={state:'authenticated',accountKey:'account-a',expiresAt:Date.now()+100000};await app.value.afterSignIn();await app.settle();assert.equal(app.value.authRequired,false);assert.equal(puts,1);app.dispose();groups++;
+ // Expiry of a clean editor must not invent an unsynced device draft.
+ let cleanSession={state:'authenticated',accountKey:'account-a',expiresAt:Date.now()+100000};
+ app=harness({initial:server,session:()=>cleanSession,fetcher:async()=>{throw Error('A clean expired draft must not write')}});await app.settle();
+ assert.equal(app.value.hasPendingChanges,false);cleanSession={state:'reauth_required'};app.window.dispatchEvent(new Event('pageshow'));await app.settle();
+ assert.equal(app.value.authRequired,true);assert.equal(app.value.hasPendingChanges,false);assert.equal(app.localStorage.length,0);app.dispose();groups++;
  // A timer scheduled while visible cannot write after the browser is hidden.
  puts=0;app=harness({initial:server,fetcher:async(_url,init)=>{if(init?.method==='PUT'){puts++;return Response.json({error:'unavailable'},{status:503})}return Response.json(server)}});await app.settle();app.edit(changed);await app.settle();await app.value.saveNow(changed);await app.settle();const retry=[...app.timers.values()].find(timer=>timer.ms===2000);assert.ok(retry);app.document.visibilityState='hidden';retry.fn();await app.settle();assert.equal(puts,1);app.dispose();groups++;
  // location.assign is recorded without destroying this document: model a user
  // cancelling beforeunload after guest claim. Immediate refresh stays suppressed,
  // but focus, real activity and a cross-tab auth notice must restore protection.
- for(const trigger of ['focus','pointerdown','storage']) {
+ for(const trigger of ['focus','pageshow','pippi-session-check','pointerdown','storage']) {
   let sessionChecks=0,sessionState={state:'authenticated',accountKey:'account-a',expiresAt:Date.now()+100000};
   app=harness({guest:true,initial:draft,session:()=>{sessionChecks++;return sessionState},fetcher:async()=>Response.json({...draft,revision:1})});
   await app.settle();await app.value.saveNow(draft);await app.settle();

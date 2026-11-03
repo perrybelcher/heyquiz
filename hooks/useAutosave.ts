@@ -81,13 +81,13 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
   }, [form, guest, backupNow]);
   const checkSession = useCallback(async () => {
     const session = await checkEditorSession();
-    if (session.state === "reauth_required") { markAuth(true); return false; }
+    if (session.state === "reauth_required") { if (draftFingerprint(latest.current) !== saved.current) backupNow(latest.current); markAuth(true); return false; }
     if (session.state === "unavailable") { if (mounted.current) setError(session.error || "Account service is temporarily unavailable."); return false; }
-    if ((scopeRef.current || claimAccount.current) && session.accountKey !== (scopeRef.current || claimAccount.current)) { markAuth(true, true); return false; }
+    if ((scopeRef.current || claimAccount.current) && session.accountKey !== (scopeRef.current || claimAccount.current)) { if (draftFingerprint(latest.current) !== saved.current) backupNow(latest.current); markAuth(true, true); return false; }
     if (guest && !claimedId.current) claimAccount.current = session.accountKey;
     if (paused.current) { retryable.current = true; retries.current = 0; }
     markAuth(false); return true;
-  }, [markAuth, guest]);
+  }, [markAuth, guest, backupNow]);
   const clearSnapshot = useCallback((snapshot: FormSchemaType) => {
     for (const getStore of [() => sessionStorage, () => localStorage]) {
       try {
@@ -232,7 +232,7 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
     const activity = () => { if (leavingClaimedDraft.current || Date.now() - lastActivityCheck >= 300000) { leavingClaimedDraft.current = false; lastActivityCheck = Date.now(); void resume(); } };
     const notice = (event: StorageEvent) => { if (event.key === "pippi-auth-notice") void resume(event); };
     void resume();
-    for (const name of ["online", "focus", "pippi-auth-change"]) window.addEventListener(name, resume);
+    for (const name of ["online", "focus", "pageshow", "pippi-auth-change", "pippi-session-check"]) window.addEventListener(name, resume);
     document.addEventListener("visibilitychange", resume);
     for (const name of ["pointerdown", "keydown", "input"]) document.addEventListener(name, activity, { passive: true });
     window.addEventListener("storage", notice);
@@ -242,7 +242,7 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
       const copy = backupNow(latest.current), savedOk = await saveNow();
       return { dirty, saved: savedOk, persistent: copy.persistent };
     });
-    return () => { cancelled = true; unregister(); for (const name of ["online", "focus", "pippi-auth-change"]) window.removeEventListener(name, resume); document.removeEventListener("visibilitychange", resume); for (const name of ["pointerdown", "keydown", "input"]) document.removeEventListener(name, activity); window.removeEventListener("storage", notice); };
+    return () => { cancelled = true; unregister(); for (const name of ["online", "focus", "pageshow", "pippi-auth-change", "pippi-session-check"]) window.removeEventListener(name, resume); document.removeEventListener("visibilitychange", resume); for (const name of ["pointerdown", "keydown", "input"]) document.removeEventListener(name, activity); window.removeEventListener("storage", notice); };
   }, [guest, claimed, checkSession, saveNow, backupNow, recoveryCopies.length, recoveryDismissed]);
   useEffect(() => {
     const checkpoint = () => { if (draftFingerprint(latest.current) !== saved.current) backupNow(latest.current); };
@@ -253,6 +253,7 @@ export function useAutosave(form: FormSchemaType, guest = false, options: Option
   return {
     status: status === "saved" && draftFingerprint(form) !== savedFingerprint ? "unsaved" as const : status,
     error, authRequired, accountMismatch, claimed, storageWarning,
+    hasPendingChanges: draftFingerprint(form) !== savedFingerprint,
     backedUp: backupFingerprint === draftFingerprint(form), tabBackedUp: tabBackupFingerprint === draftFingerprint(form),
     saveNow, afterSignIn, canEdit: useCallback(() => (guest && !claimedId.current) || !paused.current, [guest]),
     recovery: recoveryDismissed ? null : recoveryCopies[0]?.form ?? null,

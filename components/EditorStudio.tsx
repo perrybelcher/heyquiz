@@ -205,7 +205,7 @@ function PausePublicationDialog({ busy, onClose, onConfirm }: { busy: boolean; o
   </dialog>;
 }
 
-export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "", accountKey, localSession = false, initialSection = "edit" }: EditorStudioProps) {
+export default function EditorStudio({ initialForm, guest = false, initiallyPublished = false, publishedFingerprint = "", accountKey, initialSection = "edit" }: EditorStudioProps) {
   const v2 = useInterfaceVersion() === "v2";
   const navigationPending = useSyncExternalStore(subscribeWorkspaceNavigation, workspaceNavigationPending, () => false);
   const storedEditorMode = useSyncExternalStore(
@@ -277,6 +277,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
     claimed,
     accountMismatch,
     tabBackedUp,
+    hasPendingChanges,
     afterSignIn,
     canEdit,
     storageWarning,
@@ -3686,7 +3687,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
       {publicationUncertain && <p ref={publicationStatusNotice} tabIndex={-1} role="status" className="bg-amber-50 px-5 py-3 text-sm text-amber-950">Publication may have completed. Keep editing and saving your draft; refresh this editor to check its live version before publishing again.</p>}
       {publicationNotice && <div role="status" className="bg-stone-100 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><span>{publicationNotice}</span><button className="underline font-semibold" onClick={() => setPublicationNotice("")}>Dismiss notice</button></div>}
       {storageWarning && saveStatus !== "saved" && <p role="alert" className="bg-amber-50 text-amber-950 px-5 py-3 text-sm">Browser backup is unavailable. Keep this tab open until your changes show Saved to your account. <button type="button" className="underline font-semibold" onClick={exportDraft}>Export draft</button></p>}
-      {authRequired && (!accountPromptDismissed || !guestDraft) && <QuizAccountPrompt guest={guestDraft} backedUp={backedUp} tabBackedUp={tabBackedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} accountMismatch={accountMismatch} local={localSession} sessionError={saveError} onExportDraft={exportDraft} onExportReportDesign={reportDesignDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-report-design",draft:reportDesignDraft}, "pippi-unapplied-report-design") : undefined} onExportEmailCopy={emailCopyDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-email-copy",draft:emailCopyDraft}, "pippi-unapplied-email-copy") : undefined} onAuthenticated={afterSignIn} onClose={closeAccountPrompt} onRetry={() => void saveNow(form)} /> }
+      {authRequired && (!accountPromptDismissed || !guestDraft) && <QuizAccountPrompt hasPendingChanges={hasPendingChanges} guest={guestDraft} backedUp={backedUp} tabBackedUp={tabBackedUp} busy={saveStatus === "saving"} intent={accountPromptIntent} accountMismatch={accountMismatch} sessionError={saveError} onExportDraft={exportDraft} onExportReportDesign={reportDesignDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-report-design",draft:reportDesignDraft}, "pippi-unapplied-report-design") : undefined} onExportEmailCopy={emailCopyDraft ? () => exportRecovery({version:1,quizId:form.id,kind:"unapplied-email-copy",draft:emailCopyDraft}, "pippi-unapplied-email-copy") : undefined} onAuthenticated={afterSignIn} onClose={closeAccountPrompt} onRetry={() => void saveNow(form)} /> }
       {((saveError && !authRequired) || actionError) && (
         <div
           role="alert"

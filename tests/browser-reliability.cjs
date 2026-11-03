@@ -39,6 +39,7 @@ async function fixture(label, extra = {}) {
   await page.addInitScript(id => localStorage.setItem('pippi-editor-mode:' + id, 'advanced'), id);
   await page.goto(`${base}/editor/${id}`);
   await title(page).waitFor();
+  await page.locator('[data-session-state=authenticated]').waitFor();
   return { id, page };
 }
 async function check(name, fn) { await fn(); checks++; console.log('PASS', name); }
@@ -58,12 +59,12 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     const { id, page } = await fixture('expired');
     await context.clearCookies();
     await title(page).fill('Edits before authentication recovery');
-    const dialog = page.getByRole('dialog').filter({ hasText: 'Sign in to continue editing' });
+    const dialog = page.getByRole('dialog').filter({ hasText: 'Please sign in again' });
     await dialog.waitFor();
     assert.equal(await page.locator('[aria-label="Quiz editor"]').getAttribute('inert'), '');
     assert.ok(await page.evaluate(id => Object.keys(localStorage).some(key => key.startsWith('pippi-draft:v2:') && key.includes(id)), id));
     await page.screenshot({ path: path.join(artifacts, 'paused-sign-in.png'), fullPage: false });
-    await dialog.getByRole('button', { name: 'Open local workspace', exact: true }).click();
+    await login(); await page.evaluate(() => window.dispatchEvent(new Event('pippi-auth-change')));
     await waitSaved(id, 'Edits before authentication recovery');
     await dialog.waitFor({ state: 'hidden' });
     assert.equal(page.url(), `${base}/editor/${id}`);
@@ -78,7 +79,7 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     });
     await title(page).fill('Protected during outage');
     await page.getByText('Synthetic storage outage', { exact: false }).first().waitFor();
-    assert.equal(await page.getByRole('heading', { name: 'Sign in to continue editing' }).count(), 0);
+    assert.equal(await page.getByRole('heading', { name: 'Please sign in again' }).count(), 0);
     await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
     const before = writes; await pause(2500); assert.equal(writes, before);
     await page.screenshot({ path: path.join(artifacts, 'protected-storage-outage.png'), fullPage: false });
@@ -130,7 +131,7 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     await page.getByText('A different account is signed in.', { exact: false }).waitFor();
     assert.equal(writes, 0); assert.equal((await read(id)).title, 'Original account');
     await page.unroute('**/api/auth/session');
-    await page.getByRole('button', { name: 'Check sign-in again', exact: true }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await waitSaved(id, 'Original account pending draft'); await page.close();
   });
   await check('unavailable persistent storage is reported and draft export remains available', async () => {
@@ -142,7 +143,7 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     await page.getByRole('button', { name: /Export.*draft/i }).waitFor();
     await context.clearCookies();
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    const dialog = page.getByRole('dialog').filter({ hasText: 'Sign in to continue editing' });
+    const dialog = page.getByRole('dialog').filter({ hasText: 'Please sign in again' });
     await dialog.waitFor();
     const downloadPromise = page.waitForEvent('download');
     await dialog.getByRole('button', { name: 'Export draft', exact: true }).click();
@@ -177,10 +178,10 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
     await choice.getByRole('button', { name: 'Sign out and retain the device draft', exact: true }).click();
     await dashboard.waitForURL(base + '/login');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    const auth = page.getByRole('dialog').filter({ hasText: 'Sign in to continue editing' }); await auth.waitFor();
+    const auth = page.getByRole('dialog').filter({ hasText: 'Please sign in again' }); await auth.waitFor();
     assert.ok(await page.evaluate(id => Object.keys(localStorage).some(key => key.startsWith('pippi-draft:v2:') && key.includes(id)), id));
     await page.unroute(`**/api/forms/${id}`);
-    await auth.getByRole('button', { name: 'Open local workspace', exact: true }).click(); await waitSaved(id, 'Retained through explicit logout');
+    await login(); await page.evaluate(() => window.dispatchEvent(new Event('pippi-auth-change'))); await waitSaved(id, 'Retained through explicit logout');
     await page.close(); await dashboard.close();
   });
   await check('logout retry finishes saving before clearing authentication', async () => {
@@ -213,11 +214,11 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS', name)
   await check('guest drafts remain device-only and survive reload without a false account save', async () => {
     await context.close(); context = await browser.newContext(); context.setDefaultTimeout(12000);
     const page = await context.newPage(); page.on('dialog', dialog => dialog.accept());
-    await page.goto(base + '/create/blank'); await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+    await page.goto(base + '/create/blank?quizType=personality'); await page.getByRole('button', { name: 'Advanced', exact: true }).click();
     await title(page).fill('Guest device recovery');
     await page.getByText('Saved on this device · Not synced', { exact: false }).filter({visible:true}).first().waitFor();
     assert.equal(await page.getByText(/^Saved to your account/).count(), 0);
-    await page.reload(); await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+    await page.reload();
     await title(page).waitFor(); assert.equal(await title(page).inputValue(), 'Guest device recovery');
     assert.equal(await page.getByText(/^Saved to your account/).count(), 0); await page.close();
   });
