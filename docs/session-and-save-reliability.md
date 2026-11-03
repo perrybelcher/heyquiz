@@ -57,3 +57,36 @@ The initial validation identified npm advisories for Next.js 16.4.0 (critical) a
 The full npm audit, including production and development dependencies, now reports **zero vulnerabilities**. The patched production build passes without the former advisory. Regression, reliability, account-auth, scoring/analytics, publication-receipt, PDF-model, lint and TypeScript checks pass. All 13 compiled browser recovery journeys and five hosted-style journeys were rerun successfully, including concurrent renewal across two independent app instances.
 
 Patch verification artifacts: `/private/tmp/pippi-dependency-qa-X348lw/artifacts` and `/private/tmp/pippi-hosted-sessions-PoxOKY`. No push, deployment, live configuration change, or real-provider test occurred. A clean audit is a dependency-advisory result, not a claim of exhaustive application security certification.
+
+## Return-to-work session UX — 3 November 2026
+
+Authenticated creator surfaces now share a session gate through `CreatorInterface`.
+It checks on entry, navigation, tab visibility/focus, restored `pageshow`, reconnect,
+auth changes in another tab, and known session expiry. The workspace stays mounted
+and is inert during verification. Public quiz players and anonymous creation remain
+outside this account gate. Valid renewable sessions continue without an unnecessary
+password prompt; definite expiry requires sign-in, while connectivity/provider
+failures show a retry message.
+
+The expired-session dialog uses email/password and **Sign in and continue**. It no
+longer offers **Open local workspace** or a manual sign-in recheck. The local-only
+login page remains a developer entry point. Sign-in happens in the existing page;
+there is no recovery redirect or router refresh that could discard editor or panel
+buffers. Returning to an already open sign-in form retains the entered credentials.
+
+The editor retains its ownership checks, verified device recovery, export fallback,
+and automatic same-account save. It checkpoints pending edits before showing expiry
+or account mismatch, and distinguishes a clean quiz from unsynced edits. Cross-tab
+session coordination starts on workspace entry, including tabs that have not saved
+or signed in since opening. Browser storage rejection, clearing browser data and
+device failure remain recovery limits; no persistent-backup claim is made without
+a verified write.
+
+Verification uses isolated loopback records and a synthetic hosted auth provider,
+with outbound provider traffic blocked. Coverage includes overnight expiry without
+an edit, delayed verification with an inert workspace, restored pages, foreground
+expiry without interaction, mobile keyboard login, typed credential retention,
+wrong-account rejection, cross-tab logout, connectivity recovery, blocked browser
+storage/export, closed/reopened drafts, and full-expiry reload recovery. Compiled
+Chrome acceptance covers eight hosted-session journeys and thirteen local recovery
+journeys. These checks do not establish a deployment or real-provider acceptance.

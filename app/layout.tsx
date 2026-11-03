@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SupportWidget from "@/components/SupportWidget";
 import BehaviorAnalytics from "@/components/BehaviorAnalytics";
-import SessionActivity from "@/components/SessionActivity";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.pippiapp.com"),
@@ -18,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased" data-clarity-mask="true">
-      <body className="min-h-full flex flex-col">{children}<SessionActivity /><BehaviorAnalytics /><SupportWidget /></body>
+      <body className="min-h-full flex flex-col">{children}<BehaviorAnalytics /><SupportWidget /></body>
     </html>
   );
 }

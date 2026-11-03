@@ -124,11 +124,11 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   const created=await page.evaluate(async form=>{const response=await fetch('/api/forms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});return response.status;},fixture(id));assert.equal(created,201);
   await page.goto(`${base}/editor/${id}`);
   const field=page.getByLabel('Quiz title',{exact:true});await field.waitFor();
-  await poll('initial foreground session check',async()=>!(await page.getByRole('heading',{name:'Sign in to continue editing',exact:true}).isVisible()));
+  await poll('initial foreground session check',async()=>await page.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
   const beforeRefresh=refreshCalls;expireAccess();await field.fill('Saved after idle access expiry');
   await poll('idle-expiry save reaches cloud adapter',()=>titleInStore(id)==='Saved after idle access expiry');
   await page.getByText(/^Saved to your account(?: ·|$)/).filter({visible:true}).first().waitFor();
-  assert.equal(refreshCalls,beforeRefresh+1);assert.equal(await page.getByRole('heading',{name:'Sign in to continue editing',exact:true}).isVisible(),false);assert.equal(page.url(),`${base}/editor/${id}`);
+  assert.equal(refreshCalls,beforeRefresh+1);assert.equal(await page.getByRole('heading',{name:'Please sign in again',exact:true}).isVisible(),false);assert.equal(page.url(),`${base}/editor/${id}`);
   await page.screenshot({path:path.join(artifacts,'hosted-idle-renewal.png'),fullPage:false});
   console.log('PASS compiled hosted flow: idle access expiry renews once and saves without sign-in interruption');
 
@@ -146,7 +146,7 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
 
   authUnavailable=true;await field.fill('Pending during authentication outage');
   await page.getByText('Account service is temporarily unavailable.',{exact:false}).first().waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Sign in to continue editing',exact:true}).isVisible(),false);assert.equal(titleInStore(id),'Saved after idle access expiry');
+  assert.equal(await page.getByRole('heading',{name:'Please sign in again',exact:true}).isVisible(),false);assert.equal(titleInStore(id),'Saved after idle access expiry');
   await poll('persistent outage recovery copy',()=>pendingStored(page,'Pending during authentication outage'));
   authUnavailable=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await poll('auth service recovery sync',()=>titleInStore(id)==='Pending during authentication outage');
   console.log('PASS compiled hosted flow: provider503 preserves draft, avoids false sign-out, and recovers');
@@ -157,20 +157,87 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   console.log('PASS compiled hosted flow: actual records adapter maps provider storage outage to503 and retries safely');
 
   expireAccess();refresh.clear();await field.fill('Pending across fresh sign-in');
-  const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Sign in to continue editing',exact:true})});await dialog.waitFor();
+  const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Please sign in again',exact:true})});await dialog.waitFor();
   assert.notEqual(await page.locator('[aria-label="Quiz editor"]').getAttribute('inert'),null);assert.equal(titleInStore(id),'Pending during storage outage');await poll('persistent reauthentication copy',()=>pendingStored(page,'Pending across fresh sign-in'));
   await page.screenshot({path:path.join(artifacts,'hosted-inline-reauthentication.png'),fullPage:false});
-  await dialog.getByLabel('Email',{exact:true}).fill('other@example.test');await dialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await dialog.getByRole('button',{name:'Sign in and resume saving',exact:true}).click();
+  await dialog.getByLabel('Email',{exact:true}).fill('other@example.test');await dialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await dialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();
   await dialog.getByText('A different account is signed in.',{exact:false}).waitFor();assert.equal(titleInStore(id),'Pending during storage outage');
-  await dialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await dialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await dialog.getByRole('button',{name:'Sign in and resume saving',exact:true}).click();
+  await dialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await dialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await dialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();
   await poll('original account pending draft sync',()=>titleInStore(id)==='Pending across fresh sign-in');await dialog.waitFor({state:'hidden'});assert.equal(page.url(),`${base}/editor/${id}`);
   await page.getByText(/^Saved to your account(?: ·|$)/).filter({visible:true}).first().waitFor();
+  // Returning to a tab must detect expiry without any edit or save attempt.
+  // Hold the response to prove the stale screen is blocked during verification.
+  let releaseCheck;const heldCheck=new Promise(resolve=>releaseCheck=resolve);
+  await page.route('**/api/auth/session',async route=>{await heldCheck;await route.continue();});
+  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+  await page.getByRole('heading',{name:'Checking your session…',exact:true}).waitFor();
+  assert.equal(await page.locator('[data-session-state]').getAttribute('inert'),'');
+  releaseCheck();
+  await poll('return check releases editor',async()=>await page.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
+  await page.unroute('**/api/auth/session');
+  // Keep an unsynced draft, then model an overnight expiry in the durable store.
+  storageUnavailable=true;await field.fill('Retained after overnight return');
+  await poll('overnight pending copy',()=>pendingStored(page,'Retained after overnight return'));
+  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
+  for(const row of store.values())if(row.kind==='account_sessions')row.payload.expiresAt=Date.now()-1000;
+  storageUnavailable=false;
+  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));});
+  await dialog.waitFor();assert.equal(await dialog.getByRole('button',{name:'Open local workspace',exact:true}).count(),0);
+  assert.equal(await dialog.getByRole('button',{name:'Check sign-in again',exact:true}).count(),0);
+  assert.equal(await field.inputValue(),'Retained after overnight return');
+  await dialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await dialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await dialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();
+  await poll('overnight draft saves after inline login',()=>titleInStore(id)==='Retained after overnight return');await dialog.waitFor({state:'hidden'});
+  console.log('PASS compiled return flow: restored-page checks block stale editing; overnight expiry prompts before editing and retains pending draft');
+
+  // A foreground tab also notices its known expiry without a click or focus event.
+  const timed=await context.newPage();await timed.goto(base+'/');
+  await poll('foreground fixture ready',async()=>await timed.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
+  for(const row of store.values())if(row.kind==='account_sessions')row.payload.expiresAt=Date.now()-1000;
+  let timedChecks=0;
+  await timed.route('**/api/auth/session',route=>route.fulfill(++timedChecks===1?{status:200,json:{state:'authenticated',accountKey:expectedSession.accountKey,expiresAt:Date.now()+800}}:{status:401,json:{state:'reauth_required'}}));
+  await timed.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  const timedDialog=timed.getByRole('dialog').filter({has:timed.getByRole('heading',{name:'Please sign in again',exact:true})});await timedDialog.waitFor();
+  assert.ok(timedChecks>=2,'Known expiry should recheck without any user interaction');
+  await timed.unroute('**/api/auth/session');
+  await timed.setViewportSize({width:390,height:844});
+  await timedDialog.getByLabel('Email',{exact:true}).focus();await timed.keyboard.press('Tab');
+  assert.equal(await timed.evaluate(()=>document.activeElement?.getAttribute('name')),'password');
+  await timed.keyboard.press('Tab');assert.equal(await timed.evaluate(()=>document.activeElement?.textContent),'Sign in and continue');
+  assert.ok(await timed.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Mobile sign-in must fit the viewport');
+  await timed.screenshot({path:path.join(artifacts,'mobile-session-expired.png'),fullPage:false});
+  await timedDialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await timedDialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');const rechecked=timed.waitForResponse(response=>response.url()===base+'/api/auth/session');await timed.evaluate(()=>window.dispatchEvent(new Event('focus')));await rechecked;assert.equal(await timedDialog.getByLabel('Password',{exact:true}).inputValue(),'synthetic-password-2026');await timedDialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();await timedDialog.waitFor({state:'hidden'});await timed.close();
+  console.log('PASS compiled foreground expiry: no-click expiry detection, mobile layout and keyboard sign-in');
+
+  // Workspace pages share the same guard, including contacts and profile.
+  // Do not wait for the next write before showing an expired session.
+  const dashboard=await context.newPage();dashboard.on('pageerror',error=>clientErrors.push(error.message));
+  await dashboard.goto(base+'/');await poll('dashboard initial session check',async()=>await dashboard.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
+  await context.clearCookies();
+  await dashboard.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  const workspaceDialog=dashboard.getByRole('dialog').filter({has:dashboard.getByRole('heading',{name:'Please sign in again',exact:true})});await workspaceDialog.waitFor();
+  assert.equal(await dashboard.locator('[data-session-state]').getAttribute('inert'),'');
+  await workspaceDialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await workspaceDialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await workspaceDialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();
+  await workspaceDialog.waitFor({state:'hidden'});assert.equal(dashboard.url(),base+'/');
+  await dashboard.goto(base+'/contacts');await poll('contacts session verified',async()=>await dashboard.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
+  await dashboard.route('**/api/auth/session',route=>route.fulfill({status:503,json:{state:'unavailable'}}));
+  await dashboard.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await dashboard.getByRole('heading',{name:'We couldn’t check your connection',exact:true}).waitFor();
+  assert.equal(await dashboard.getByRole('heading',{name:'Please sign in again',exact:true}).count(),0);
+  await dashboard.unroute('**/api/auth/session');await dashboard.getByRole('button',{name:'Try again',exact:true}).click();
+  await poll('contacts connectivity recovery',async()=>await dashboard.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
+  const profileTab=await context.newPage();await profileTab.goto(base+'/profile');await poll('untouched profile session verified',async()=>await profileTab.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
+  // Explicit logout in another tab is broadcast while the current tab is open.
+  await dashboard.evaluate(async()=>{await fetch('/api/auth',{method:'DELETE'});const channel=new BroadcastChannel('pippi-session-events-v1');channel.postMessage({type:'auth'});channel.close();});
+  await dialog.waitFor();await profileTab.getByRole('heading',{name:'Please sign in again',exact:true}).waitFor();assert.equal(await field.inputValue(),'Retained after overnight return');
+  await page.screenshot({path:path.join(artifacts,'returned-tab-sign-in.png'),fullPage:false});
+  await dashboard.close();await profileTab.close();
+  console.log('PASS compiled workspace flow: immediate expiry on focus, inline login, contacts coverage, outage distinction and cross-tab logout');
   assert.equal(store.get(`forms:${id}`).owner_id,'owner-a');assert.equal(store.has(`published:${id}`),false);assert.equal(forbidden.length,0);assert.deepEqual(unexpected,[]);assert.deepEqual(external,[]);assert.deepEqual(clientErrors,[]);assert.equal(fs.existsSync(blockedFile),false);
   const sessions=[...store.values()].filter(row=>row.kind==='account_sessions');assert.ok(sessions.length>=3);assert.ok(sessions.every(row=>!JSON.stringify(row).includes('synthetic-access-')&&!JSON.stringify(row).includes('synthetic-refresh-')));
   await page.screenshot({path:path.join(artifacts,'hosted-reauthentication-saved.png'),fullPage:false});
-  fs.writeFileSync(path.join(artifacts,'hosted-session-summary.json'),JSON.stringify({passed:true,groups:5,compiledInstances:2,crossInstanceRotations,refreshCalls,encryptedSessionRecords:sessions.length,formRevision:store.get(`forms:${id}`).version,unexpectedProviderRequests:unexpected.length,externalBrowserRequests:external.length,consequentialRequests:forbidden.length},null,2));
+  fs.writeFileSync(path.join(artifacts,'hosted-session-summary.json'),JSON.stringify({passed:true,groups:8,compiledInstances:2,crossInstanceRotations,refreshCalls,encryptedSessionRecords:sessions.length,formRevision:store.get(`forms:${id}`).version,unexpectedProviderRequests:unexpected.length,externalBrowserRequests:external.length,consequentialRequests:forbidden.length},null,2));
   console.log('PASS compiled hosted flow: inline reauthentication pauses editing, rejects wrong-account sync, resumes original draft, and never publishes');
-  console.log(`PASS 5 hosted session reliability journeys; artifacts: ${artifacts}`);
+  console.log(`PASS 8 hosted session reliability journeys; artifacts: ${artifacts}`);
 })().catch(async error=>{
   console.error(error.message);fs.writeFileSync(path.join(artifacts,'server.log'),escapedLog());process.exitCode=1;
   if(browser)try{const pages=browser.contexts().flatMap(context=>context.pages());if(pages[0])await pages[0].screenshot({path:path.join(artifacts,'hosted-session-failure.png')});}catch{}

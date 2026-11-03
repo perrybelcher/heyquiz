@@ -37,6 +37,8 @@ function coordination() {
     };
   } catch { channel = null; }
 }
+/** Subscribe on workspace entry, even before this tab saves or signs in. */
+export function startSessionCoordination() { coordination(); }
 export function publishAuthChange() {
   coordination();
   channel?.postMessage({ type: "auth" });
