@@ -166,12 +166,14 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   await poll('original account pending draft sync',()=>titleInStore(id)==='Pending across fresh sign-in');await dialog.waitFor({state:'hidden'});assert.equal(page.url(),`${base}/editor/${id}`);
   await page.getByText(/^Saved to your account(?: ·|$)/).filter({visible:true}).first().waitFor();
   // Returning to a tab must detect expiry without any edit or save attempt.
-  // Hold the response to prove the stale screen is blocked during verification.
+  // Hold the response to prove routine verification leaves the workspace usable.
   let releaseCheck;const heldCheck=new Promise(resolve=>releaseCheck=resolve);
   await page.route('**/api/auth/session',async route=>{await heldCheck;await route.continue();});
-  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
-  await page.getByRole('heading',{name:'Checking your session…',exact:true}).waitFor();
-  assert.equal(await page.locator('[data-session-state]').getAttribute('inert'),'');
+  const backgroundCheck=page.waitForRequest(request=>request.url()===base+'/api/auth/session');
+  await page.evaluate(()=>window.dispatchEvent(new Event('pippi-session-check')));
+  await backgroundCheck;
+  assert.equal(await page.getByRole('heading',{name:'Checking your session…',exact:true}).count(),0);
+  assert.equal(await page.locator('[data-session-state]').getAttribute('inert'),null);
   releaseCheck();
   await poll('return check releases editor',async()=>await page.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
   await page.unroute('**/api/auth/session');
@@ -181,13 +183,13 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
   for(const row of store.values())if(row.kind==='account_sessions')row.payload.expiresAt=Date.now()-1000;
   storageUnavailable=false;
-  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));});
+  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('pippi-session-check'));});
   await dialog.waitFor();assert.equal(await dialog.getByRole('button',{name:'Open local workspace',exact:true}).count(),0);
   assert.equal(await dialog.getByRole('button',{name:'Check sign-in again',exact:true}).count(),0);
   assert.equal(await field.inputValue(),'Retained after overnight return');
   await dialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await dialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await dialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();
   await poll('overnight draft saves after inline login',()=>titleInStore(id)==='Retained after overnight return');await dialog.waitFor({state:'hidden'});
-  console.log('PASS compiled return flow: restored-page checks block stale editing; overnight expiry prompts before editing and retains pending draft');
+  console.log('PASS compiled return flow: routine checks leave editing usable; confirmed expiry prompts and retains pending draft');
 
   // A foreground tab also notices its known expiry without a click or focus event.
   const timed=await context.newPage();await timed.goto(base+'/');
@@ -195,7 +197,7 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   for(const row of store.values())if(row.kind==='account_sessions')row.payload.expiresAt=Date.now()-1000;
   let timedChecks=0;
   await timed.route('**/api/auth/session',route=>route.fulfill(++timedChecks===1?{status:200,json:{state:'authenticated',accountKey:expectedSession.accountKey,expiresAt:Date.now()+800}}:{status:401,json:{state:'reauth_required'}}));
-  await timed.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await timed.evaluate(()=>window.dispatchEvent(new Event('pippi-session-check')));
   const timedDialog=timed.getByRole('dialog').filter({has:timed.getByRole('heading',{name:'Please sign in again',exact:true})});await timedDialog.waitFor();
   assert.ok(timedChecks>=2,'Known expiry should recheck without any user interaction');
   await timed.unroute('**/api/auth/session');
@@ -205,7 +207,7 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   await timed.keyboard.press('Tab');assert.equal(await timed.evaluate(()=>document.activeElement?.textContent),'Sign in and continue');
   assert.ok(await timed.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Mobile sign-in must fit the viewport');
   await timed.screenshot({path:path.join(artifacts,'mobile-session-expired.png'),fullPage:false});
-  await timedDialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await timedDialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');const rechecked=timed.waitForResponse(response=>response.url()===base+'/api/auth/session');await timed.evaluate(()=>window.dispatchEvent(new Event('focus')));await rechecked;assert.equal(await timedDialog.getByLabel('Password',{exact:true}).inputValue(),'synthetic-password-2026');await timedDialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();await timedDialog.waitFor({state:'hidden'});await timed.close();
+  await timedDialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await timedDialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');const rechecked=timed.waitForResponse(response=>response.url()===base+'/api/auth/session');await timed.evaluate(()=>window.dispatchEvent(new Event('pippi-session-check')));await rechecked;assert.equal(await timedDialog.getByLabel('Password',{exact:true}).inputValue(),'synthetic-password-2026');await timedDialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();await timedDialog.waitFor({state:'hidden'});await timed.close();
   console.log('PASS compiled foreground expiry: no-click expiry detection, mobile layout and keyboard sign-in');
 
   // Workspace pages share the same guard, including contacts and profile.
@@ -213,7 +215,7 @@ const escapedLog = () => serverLog.replace(/synthetic-(?:access|refresh)-\d+/g,'
   const dashboard=await context.newPage();dashboard.on('pageerror',error=>clientErrors.push(error.message));
   await dashboard.goto(base+'/');await poll('dashboard initial session check',async()=>await dashboard.locator('[data-session-state]').getAttribute('data-session-state')==='authenticated');
   await context.clearCookies();
-  await dashboard.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await dashboard.evaluate(()=>window.dispatchEvent(new Event('pippi-auth-change')));
   const workspaceDialog=dashboard.getByRole('dialog').filter({has:dashboard.getByRole('heading',{name:'Please sign in again',exact:true})});await workspaceDialog.waitFor();
   assert.equal(await dashboard.locator('[data-session-state]').getAttribute('inert'),'');
   await workspaceDialog.getByLabel('Email',{exact:true}).fill('owner@example.test');await workspaceDialog.getByLabel('Password',{exact:true}).fill('synthetic-password-2026');await workspaceDialog.getByRole('button',{name:'Sign in and continue',exact:true}).click();

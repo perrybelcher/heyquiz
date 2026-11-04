@@ -63,7 +63,10 @@ Patch verification artifacts: `/private/tmp/pippi-dependency-qa-X348lw/artifacts
 Authenticated creator surfaces now share a session gate through `CreatorInterface`.
 It checks on entry, navigation, tab visibility/focus, restored `pageshow`, reconnect,
 auth changes in another tab, and known session expiry. The workspace stays mounted
-and is inert during verification. Public quiz players and anonymous creation remain
+and remains usable during routine background verification. Focus and visibility
+checks reuse a successful check for five minutes, unless the known session expiry
+has passed. Hiding a tab does not block it. Explicit account-change notifications
+still block immediately until the account is verified. Public quiz players and anonymous creation remain
 outside this account gate. Valid renewable sessions continue without an unnecessary
 password prompt; definite expiry requires sign-in, while connectivity/provider
 failures show a retry message.
@@ -84,9 +87,13 @@ a verified write.
 
 Verification uses isolated loopback records and a synthetic hosted auth provider,
 with outbound provider traffic blocked. Coverage includes overnight expiry without
-an edit, delayed verification with an inert workspace, restored pages, foreground
+an edit, delayed verification with a usable workspace, restored pages, foreground
 expiry without interaction, mobile keyboard login, typed credential retention,
 wrong-account rejection, cross-tab logout, connectivity recovery, blocked browser
 storage/export, closed/reopened drafts, and full-expiry reload recovery. Compiled
 Chrome acceptance covers eight hosted-session journeys and thirteen local recovery
 journeys. These checks do not establish a deployment or real-provider acceptance.
+
+4 November follow-up: `node tests/session-activity.cjs` exercises quiet entry, a
+one-second tab return, deferred background checks, definitive expiry, account
+mismatch, explicit identity changes, and service failure.

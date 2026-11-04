@@ -13,9 +13,10 @@ const recheckingState = (state: State): State => state === "reauth_required" || 
  * redirects or router refreshes here would destroy pending editor/panel buffers. */
 export default function SessionActivity({ accountKey, children }: { accountKey?: string; children: ReactNode }) {
   const pathname = usePathname();
-  const [state, setState] = useState<State>(accountKey ? "checking" : "authenticated");
+  const [state, setState] = useState<State>("authenticated");
   const dialog = useRef<HTMLDialogElement>(null);
   const lastCheck = useRef(0);
+  const expiresAt = useRef(0);
   const mounted = useRef(false);
   const currentCheck = useRef<Promise<boolean> | null>(null);
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -23,7 +24,8 @@ export default function SessionActivity({ accountKey, children }: { accountKey?:
   const check = useCallback((): Promise<boolean> => {
     if (!accountKey) return Promise.resolve(true);
     if (currentCheck.current) return currentCheck.current;
-    setState(recheckingState);
+    // Keep the server-authenticated page usable during routine verification.
+    // Existing recovery states remain blocked until verification succeeds.
     currentCheck.current = (async () => {
       const session = await checkEditorSession();
       const next = session.state === "authenticated" && session.accountKey !== accountKey ? "mismatch" : session.state;
@@ -31,6 +33,7 @@ export default function SessionActivity({ accountKey, children }: { accountKey?:
         setState(next);
         if (expiryTimer.current) clearTimeout(expiryTimer.current);
         if (session.state === "authenticated" && next === "authenticated") {
+          expiresAt.current = session.expiresAt;
           // Check at actual session expiry, never on a background renewal loop.
           // Thirty days exceeds the browser's maximum single timeout duration.
           const atExpiry = () => {
@@ -39,7 +42,7 @@ export default function SessionActivity({ accountKey, children }: { accountKey?:
               expiryTimer.current = setTimeout(atExpiry, Math.min(remaining + 50, 2147483647));
               return;
             }
-            if (document.visibilityState !== "visible") { setState(recheckingState); return; }
+            if (document.visibilityState !== "visible") return;
             window.dispatchEvent(new Event("pippi-session-check"));
           };
           expiryTimer.current = setTimeout(atExpiry, Math.min(Math.max(100, session.expiresAt - Date.now() + 50), 2147483647));
@@ -58,24 +61,26 @@ export default function SessionActivity({ accountKey, children }: { accountKey?:
     if (!accountKey) return () => { mounted.current = false; };
     startSessionCoordination();
     const resume = () => {
-      if (document.visibilityState === "visible") void check();
-      else setState(recheckingState);
+      if (document.visibilityState === "visible" && (Date.now() >= expiresAt.current || Date.now() - lastCheck.current >= 300000)) void check();
     };
+    // Explicit identity changes must bypass the routine check interval.
+    const reconcile = () => { void check(); };
+    const authChanged = () => { setState(recheckingState); void check(); };
     const activity = () => { if (document.visibilityState === "visible" && Date.now() - lastCheck.current >= 300000) void check(); };
-    const notice = (event: StorageEvent) => { if (event.key === "pippi-auth-notice") resume(); };
+    const notice = (event: StorageEvent) => { if (event.key === "pippi-auth-notice") authChanged(); };
     void check();
-    for (const event of ["focus", "pageshow", "online", "offline", "pippi-auth-change", "pippi-session-check"]) window.addEventListener(event, resume);
+    for (const event of ["focus", "pageshow"]) window.addEventListener(event, resume);
+    for (const event of ["online", "offline", "pippi-session-check"]) window.addEventListener(event, reconcile);
+    window.addEventListener("pippi-auth-change", authChanged);
     document.addEventListener("visibilitychange", resume);
-    // Freeze the stale screen before a sleeping tab becomes interactive again.
-    const suspend = () => { setState(recheckingState); };
-    window.addEventListener("pagehide", suspend);
     window.addEventListener("storage", notice);
     for (const event of ["pointerdown", "keydown", "input"]) document.addEventListener(event, activity, { passive: true });
     return () => {
       mounted.current = false;
-      for (const event of ["focus", "pageshow", "online", "offline", "pippi-auth-change", "pippi-session-check"]) window.removeEventListener(event, resume);
+      for (const event of ["focus", "pageshow"]) window.removeEventListener(event, resume);
+      for (const event of ["online", "offline", "pippi-session-check"]) window.removeEventListener(event, reconcile);
+      window.removeEventListener("pippi-auth-change", authChanged);
       document.removeEventListener("visibilitychange", resume);
-      window.removeEventListener("pagehide", suspend);
       if (expiryTimer.current) clearTimeout(expiryTimer.current);
       window.removeEventListener("storage", notice);
       for (const event of ["pointerdown", "keydown", "input"]) document.removeEventListener(event, activity);
