@@ -4,8 +4,8 @@ import { QualificationRuleSchema, validateQualification, matchingQualificationRu
 import { ValidationError } from "./errors";
 import { z } from "zod";
 import { resultVideoEmbed } from "./result-video";
-import type { FormSchemaType } from "./schema";
-import { resolvePath, type Answers } from "./engine";
+import type { FormSchemaType, Question } from "./schema";
+import { multiTypes, resolvePath, singleTypes, validationError, type Answers } from "./engine";
 const id = z
   .string()
   .min(1)
@@ -38,6 +38,7 @@ export const ScorecardPresentationSchema = z.object({
 });
 // Structured content only: no arbitrary HTML or executable embeds in result pages.
 export const ResultSectionConditionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("answer"), questionId: id.or(z.literal("")), optionId: id.or(z.literal("")) }),
   z.object({ type: z.literal("outcome"), outcomeId: id }),
   z.object({ type: z.literal("score"), categoryId: id.optional(), min: z.number().int().min(0).max(100), max: z.number().int().min(0).max(100) }),
 ]);
@@ -53,7 +54,19 @@ export const ResultSectionSchema = z.object({
 export type ResultSection = z.infer<typeof ResultSectionSchema>;
 export const ResultPresentationSchema = z.object({
   layout: z.enum(["stacked", "score_overview", "action_plan"]).default("stacked"),
+  showOverallScore: z.boolean().optional(),
+  showCategoryScores: z.boolean().optional(),
+  showScoringCoverage: z.boolean().optional(),
 });
+export const scoreVisibilityControls = {
+  showOverallScore: "Overall score",
+  showCategoryScores: "Category scores",
+  showScoringCoverage: "Scoring coverage",
+} as const;
+
+export function supportsResultAnswer(question: Question) {
+  return (singleTypes.has(question.type) || multiTypes.has(question.type)) && Boolean(question.options?.length);
+}
 export type ResultPresentation = z.infer<typeof ResultPresentationSchema>;
 export const MarketingSchema = z.object({
   kind: z.enum(["product_finder", "segmentation", "scorecard", "qualification"]),
@@ -160,6 +173,9 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
     if (["image", "cta", "video"].includes(section.type) && !section.url.trim()) throw new ValidationError(`${name}: add a URL.`);
     if (section.type === "video" && !resultVideoEmbed(section.url)) throw new ValidationError(`${name}: use an HTTPS YouTube or Vimeo video link.`);
     const condition = section.condition;
+    if (condition?.type === "answer" && !form.questions.some(question =>
+      question.id === condition.questionId && supportsResultAnswer(question) && question.options?.some(option => option.id === condition.optionId),
+    )) throw new ValidationError(`${name}: choose an existing question and answer.`);
     if (condition?.type === "outcome" && (m.kind === "scorecard" || !m.outcomes.some(o => o.id === condition.outcomeId))) throw new ValidationError(`${name}: choose an existing result.`);
     if (condition?.type === "score") {
       if (m.kind !== "scorecard") throw new ValidationError(`${name}: score conditions require a scorecard.`);
@@ -239,10 +255,22 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
 export function evaluateMarketing(form: FormSchemaType, answers: Answers): MarketingResult | undefined {
   const result = evaluateMarketingCore(form, answers);
   if (!result) return;
+  const answerQuestions = result.resultSections?.some(section => section.condition?.type === "answer")
+    ? new Map(resolvePath(form, answers).questions.map(question => [question.id, question]))
+    : undefined;
   if (result.resultSections) result.resultSections = result.resultSections.filter(section => {
     const condition = section.condition;
     if (!condition) return true;
     if (condition.type === "outcome") return result.status === "matched" && result.outcomeId === condition.outcomeId;
+    if (condition.type === "answer") {
+      const question = answerQuestions?.get(condition.questionId);
+      const value = answers[condition.questionId];
+      return Boolean(question && supportsResultAnswer(question) &&
+        question.options?.some(option => option.id === condition.optionId) &&
+        !validationError(question, value) &&
+        (!Array.isArray(value) || value.every(entry => typeof entry === "string")) &&
+        (Array.isArray(value) ? value.includes(condition.optionId) : value === condition.optionId));
+    }
     const score = condition.categoryId ? result.categories.find(c => c.id === condition.categoryId)?.score : result.overallScore;
     return typeof score === "number" && score >= condition.min && score <= condition.max;
   }).map(({ condition: _condition, ...section }) => section);
@@ -289,7 +317,7 @@ function evaluateMarketingCore(
   const { matches, visible, selected } = selectedMarketingRules(form, answers);
   const base: MarketingResult = {
     ...(form.quizType ? { quizType: form.quizType } : {}),
-    presentation: { layout: m.presentation?.layout ?? "stacked" },
+    presentation: { layout: "stacked", ...m.presentation },
     resultSections: m.resultSections,
     kind: m.kind,
     status: "no_match",

@@ -72,6 +72,43 @@ function targetKey(form: FormSchemaType, d: FlowDestination): string | undefined
         return q ? screenKey(form, q) : d.id;
     }
 }
+
+/** Structural reachability: a source can be on any path into the target. */
+export function flowConditionSources(form: FormSchemaType, target: string, includeTarget: boolean): Question[] {
+    if (!form.routing) return [];
+    const edges = new Map<string, string[]>(), parents = new Map<string, string[]>();
+    for (const [from, route] of Object.entries(form.routing.routes)) {
+        const next = [...route.rules.map(rule => rule.destination), ...(route.default ? [route.default] : [])]
+            .flatMap(destination => targetKey(form, destination) ?? []);
+        edges.set(from, next);
+        for (const to of new Set(next)) {
+            const incoming = parents.get(to);
+            if (incoming) incoming.push(from);
+            else parents.set(to, [from]);
+        }
+    }
+    const walk = (start: string, graph: Map<string, string[]>) => {
+        const seen = new Set<string>(), pending = [start];
+        while (pending.length) {
+            const key = pending.pop()!;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            for (const next of graph.get(key) ?? []) pending.push(next);
+        }
+        return seen;
+    };
+    const entry = targetKey(form, form.routing.entry);
+    const reachable = entry ? walk(entry, edges) : new Set<string>();
+    const ancestors = walk(target, parents);
+    return orderedQuestions(form).filter(question => {
+        const key = screenKey(form, question);
+        return key === target ? includeTarget : ancestors.has(key) && reachable.has(key);
+    });
+}
+
+export function flowVisibilitySources(form: FormSchemaType, question: Question) {
+    return flowConditionSources(form, screenKey(form, question), false);
+}
 export function flowConditionsMatch(form: FormSchemaType, conditions: FlowCondition[], match: 'all' | 'any', known: Answers): boolean {
     const check = (c: FlowCondition) => {
         const q = form.questions.find(q => q.id === c.questionId), v = known[c.questionId];
@@ -165,6 +202,9 @@ export function validateFlowRouting(form: FormSchemaType, publishing = false): v
         const q = form.questions.find(q => q.id === c.questionId);
         if (!q)
             throw new ValidationError('A flow condition refers to a deleted question.');
+        if (publishing && q.options?.length && ['equals', 'not_equals'].includes(c.operator)
+            && !q.options.some(option => option.id === c.value))
+            throw new ValidationError('Choose an available answer in each flow condition.');
         if (['greater_than', 'less_than'].includes(c.operator) && ((publishing && !c.value?.trim()) || (!!c.value?.trim() && !Number.isFinite(Number(c.value)))))
             throw new ValidationError('Numeric flow conditions require a finite value.');
     };
@@ -213,6 +253,26 @@ export function validateFlowRouting(form: FormSchemaType, publishing = false): v
     const start = targetKey(form, r.entry);
     if (start && keys.has(start))
         visit(start);
+    if (publishing) {
+        const reachable = new Set(visited);
+        for (const key of reachable) {
+            const route = r.routes[key];
+            if (route?.rules.length) {
+                const sources = new Set(flowConditionSources(form, key, true).map(q => q.id));
+                if (route.rules.some(rule => rule.conditions.some(c => !sources.has(c.questionId))))
+                    throw new ValidationError('Page and question routes can only use answers from this screen or a reachable earlier screen.');
+            }
+            if (form.settings.presentation === 'page' && !route?.default)
+                throw new ValidationError('Every reachable page needs a default destination.');
+        }
+        for (const question of form.questions) {
+            const rules = r.visibility?.[question.id];
+            if (!rules?.length || !reachable.has(screenKey(form, question))) continue;
+            const sources = new Set(flowVisibilitySources(form, question).map(q => q.id));
+            if (rules.some(rule => !rule.conditions.length || rule.conditions.some(c => !sources.has(c.questionId))))
+                throw new ValidationError('Element visibility requires a condition from a reachable earlier screen.');
+        }
+    }
     keys.forEach(key => visit(key, false));
 }
 export function migrateLegacyRouting(form: FormSchemaType): {

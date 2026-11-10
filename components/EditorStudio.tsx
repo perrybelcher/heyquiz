@@ -4534,7 +4534,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
               {selectedSubmission.marketing && (
                 <div className="mb-6 border-b border-slate-200 pb-6">
-                  <MarketingResultCard result={selectedSubmission.marketing} />
+                  <MarketingResultCard result={selectedSubmission.marketing} creatorView />
                 </div>
               )}
               {selectedSubmission.grading?.map((g, idx) => (

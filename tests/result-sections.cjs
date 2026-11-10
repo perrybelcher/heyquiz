@@ -3,6 +3,7 @@ require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f
 const {MarketingSchema,evaluateMarketing,validateMarketing}=require('../lib/marketing.ts');
 const {marketingTemplate}=require('../lib/marketing-templates.ts');
 const {publicForm}=require('../lib/engine.ts');
+const {evaluateJourneyCase}=require('../lib/journey-testing.ts');
 for(const kind of ['scorecard','segmentation','product_finder']) {
  const f=marketingTemplate(kind,'sections');
  f.marketing=MarketingSchema.parse({...f.marketing,resultSections:[{id:'faq',type:'faq',title:'Next?',body:'Your next step'},{id:'action',type:'cta',url:'https://example.com',label:'Explore'}]});
@@ -46,3 +47,31 @@ assert.equal(evaluateMarketing(boundary,{capture:'a1',followup:'a1',measure:'a1'
 boundary.marketing.resultSections[0].condition.max=49;assert.equal(evaluateMarketing(boundary,{capture:'a1',followup:'a1',measure:'a1'}).resultSections.length,0);
 boundary.marketing.resultSections[0].condition={type:'score',min:100,max:100};assert.equal(evaluateMarketing(boundary,{capture:'a0',followup:'a0',measure:'a0'}).resultSections.length,1);
 boundary.marketing.resultSections[0].condition.categoryId='deleted';assert.throws(()=>validateMarketing(boundary,true),/available score category/);
+
+const answerForm=marketingTemplate('scorecard','answer-sections');
+const source=answerForm.questions[1];
+const option=source.options[0];
+answerForm.marketing.resultSections=MarketingSchema.parse({...answerForm.marketing,resultSections:[
+  {id:'selected',type:'text',body:'Specific guidance',condition:{type:'answer',questionId:source.id,optionId:option.id}},
+]}).resultSections;
+const selected=answers=>evaluateMarketing(answerForm,answers).resultSections.map(section=>section.id);
+validateMarketing(answerForm,true);
+assert.deepEqual(evaluateJourneyCase(answerForm,{capture:'a0',followup:option.id,measure:'a0'}).resultSectionIds,['selected']);
+assert.deepEqual(selected({[source.id]:option.id}),['selected']);
+assert.deepEqual(selected({[source.id]:source.options[1].id}),[]);
+assert.deepEqual(selected({}),[]);
+assert.deepEqual(selected({[source.id]:[option.id]}),[]);
+option.label='New label';
+assert.deepEqual(selected({[source.id]:option.id}),['selected']);
+source.type='multiselect';
+assert.deepEqual(selected({[source.id]:[option.id,source.options[1].id]}),['selected']);
+assert.deepEqual(selected({[source.id]:[option.id,'deleted']}),[]);
+assert.deepEqual(selected({[source.id]:[option.id,42]}),[]);
+const first=answerForm.questions[0];
+answerForm.logicRules=[{id:'skip',sourceQuestionId:first.id,operator:'equals',value:first.options[0].id,
+  action:'jump_to_question',targetQuestionId:answerForm.questions[2].id}];
+assert.deepEqual(selected({[first.id]:first.options[0].id,[source.id]:[option.id]}),[]);
+answerForm.marketing.resultSections[0].condition.optionId='deleted';
+assert.throws(()=>validateMarketing(answerForm,true),/existing question and answer/);
+validateMarketing(answerForm);
+console.log('PASS answer conditions: stable IDs, valid single and multiple answers, skipped fields, and repair on deletion');

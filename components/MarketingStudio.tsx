@@ -174,7 +174,7 @@ export default function MarketingStudio({
             <div className="grid xl:grid-cols-[1.3fr_1fr] gap-7">
               <div className="space-y-6">
                 <ResultLayoutEditor marketing={m} onChange={presentation => change({ presentation })} />
-                <ResultSectionsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />
+                <ResultSectionsEditor marketing={m} questions={form.questions} onChange={marketing => onChange({...form, marketing})} />
                 {m.kind === "scorecard" && <ScorecardResultsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />}
                 {form.quizType && m.kind!=="scorecard" ? <OutcomesEditor form={form} onChange={onChange}/> : <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
                   <div className="flex items-center justify-between">

@@ -1,6 +1,6 @@
 "use client";
 import { AlignVerticalJustifyStart, ChartNoAxesCombined, ListChecks } from "lucide-react";
-import type { MarketingConfig, ResultPresentation } from "@/lib/marketing";
+import { scoreVisibilityControls, type MarketingConfig, type ResultPresentation } from "@/lib/marketing";
 
 const layouts = [
   { value: "stacked", title: "Stacked", description: "A clear story: introduction, scores, priorities and supporting details.", icon: AlignVerticalJustifyStart },
@@ -15,12 +15,20 @@ export default function ResultLayoutEditor({ marketing, onChange }: { marketing:
     <fieldset className="space-y-3">
       <legend className="sr-only">Result layout</legend>
       {layouts.map(({ value, title, description, icon: Icon }) => <label key={value} className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${selected === value ? "border-red-800 bg-red-50/50" : "border-slate-200 hover:border-slate-400"}`}>
-        <input type="radio" name="result-layout" value={value} checked={selected === value} onChange={() => onChange({ layout: value })} className="mt-1 shrink-0 accent-red-800" />
+        <input type="radio" name="result-layout" value={value} checked={selected === value} onChange={() => onChange({ ...marketing.presentation, layout: value })} className="mt-1 shrink-0 accent-red-800" />
         <Icon className="mt-0.5 text-slate-500 shrink-0" size={18} aria-hidden="true" />
         <span><span className="block text-sm font-semibold">{title}</span><span className="mt-1 block text-sm leading-relaxed text-slate-600">{description}</span></span>
       </label>)}
     </fieldset>
-    <p className="text-xs leading-relaxed text-slate-500">Layouts never change scores, result rules or answer coverage. All categories remain visible. Use the answer-combination simulator to see this draft with real calculated results.</p>
+    {marketing.kind === "scorecard" && <fieldset className="space-y-2">
+      <legend className="text-sm font-semibold">Show on web results</legend>
+      {(Object.keys(scoreVisibilityControls) as (keyof typeof scoreVisibilityControls)[]).map(key => <label key={key} className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={marketing.presentation?.[key] !== false}
+          onChange={event => onChange({ layout: selected, ...marketing.presentation, [key]: event.target.checked })} />
+        {scoreVisibilityControls[key]}
+      </label>)}
+    </fieldset>}
+    <p className="text-xs leading-relaxed text-slate-500">Display settings leave scores, result rules and answer coverage intact. Use the simulator to see the result with calculated scores.</p>
     {marketing.kind !== "scorecard" && <p className="text-xs leading-relaxed text-slate-500">For recommendations, Score overview leads with the matching reasons. It does not add scores or categories to your result.</p>}
   </section>;
 }

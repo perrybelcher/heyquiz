@@ -1,6 +1,6 @@
 "use client";
 import type { FormSchemaType, LogicOperator } from "@/lib/schema";
-import type { FlowVisibility } from "@/lib/flow-routing";
+import { flowVisibilitySources, type FlowVisibility } from "@/lib/flow-routing";
 
 type Props = {
   form: FormSchemaType;
@@ -13,6 +13,9 @@ export default function VisibilityEditor({
   onChange,
 }: Props) {
   if (!form.routing) return null;
+  const target = form.questions.find(question => question.id === questionId);
+  if (!target) return null;
+  const sources = flowVisibilitySources(form, target);
   const rules = form.routing.visibility?.[questionId] || [];
   const change = (next: FlowVisibility[]) =>
     onChange({
@@ -26,11 +29,12 @@ export default function VisibilityEditor({
     change(rules.map((r, i) => (i === index ? { ...r, ...value } : r)));
   return (
     <details>
-      <summary>Question visibility ({rules.length})</summary>
+      <summary>Show or hide this element · {target.title || "Untitled element"} ({rules.length})</summary>
       <p>
         Visibility uses valid answers from previously visited screens. Hidden
         questions follow their Otherwise connection.
       </p>
+      {!sources.length && <p>Connect an earlier screen to use its answers for visibility.</p>}
       {rules.map((rule, index) => (
         <section className="flow-rule" key={index}>
           <label>
@@ -77,9 +81,8 @@ export default function VisibilityEditor({
                       update({ questionId: e.target.value, value: undefined })
                     }
                   >
-                    {form.questions
-                      .filter((q) => q.id !== questionId)
-                      .map((q) => (
+                    {!sources.some(source => source.id === condition.questionId) && <option value={condition.questionId}>Choose a reachable earlier question</option>}
+                    {sources.map((q) => (
                         <option value={q.id} key={q.id}>
                           {q.title}
                         </option>
@@ -148,14 +151,14 @@ export default function VisibilityEditor({
             );
           })}
           <button
+            disabled={!sources.length}
             onClick={() =>
               patch(index, {
                 conditions: [
                   ...rule.conditions,
                   {
                     questionId:
-                      form.questions.find((q) => q.id !== questionId)?.id ||
-                      questionId,
+                      sources[0].id,
                     operator: "is_answered",
                   },
                 ],
@@ -170,6 +173,7 @@ export default function VisibilityEditor({
         </section>
       ))}
       <button
+        disabled={!sources.length}
         onClick={() =>
           change([
             ...rules,
@@ -179,8 +183,7 @@ export default function VisibilityEditor({
               conditions: [
                 {
                   questionId:
-                    form.questions.find((q) => q.id !== questionId)?.id ||
-                    questionId,
+                    sources[0].id,
                   operator: "is_answered",
                 },
               ],

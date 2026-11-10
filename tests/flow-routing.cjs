@@ -4,6 +4,34 @@ const { FormSchema } = require('../lib/schema.ts');
 const { resolvePath, publicForm } = require('../lib/engine.ts');
 const { migrateLegacyRouting, validateFlowRouting } = require('../lib/flow-routing.ts');
 const { evaluateMarketing, validateMarketing } = require('../lib/marketing.ts');
+
+const page = id => ({kind:'page',id});
+const groupedVisibility = FormSchema.parse({
+  id:'visibility-pages',title:'Grouped visibility',mode:'survey',settings:{presentation:'page'},
+  pages:[{id:'start',title:'Start',questionIds:['entry']},{id:'extra',title:'Extra',questionIds:['hidden-detail']},{id:'end',title:'End',questionIds:['ending']}],
+  questions:[
+    {id:'entry',pageId:'start',title:'Choose',type:'multiple_choice',options:[{id:'yes',label:'Yes'},{id:'no',label:'No'}]},
+    {id:'hidden-detail',pageId:'extra',title:'Details',type:'short_answer',required:true},
+    {id:'ending',pageId:'end',title:'End',type:'heading'},
+  ],
+  routing:{version:1,entry:page('start'),routes:{
+    start:{rules:[],default:page('extra')},extra:{rules:[],default:page('end')},end:{rules:[],default:{kind:'automatic'}},
+  },visibility:{'hidden-detail':[{effect:'show',match:'all',conditions:[{questionId:'entry',operator:'equals',value:'yes'}]}]}},
+});
+validateFlowRouting(groupedVisibility,true);
+assert.deepEqual(resolvePath(groupedVisibility,{entry:'yes'}).questions.map(q=>q.id),['entry','hidden-detail','ending']);
+assert.deepEqual(resolvePath(groupedVisibility,{entry:'no','hidden-detail':'Abandoned'}).questions.map(q=>q.id),['entry','ending']);
+const predicate=groupedVisibility.routing.visibility['hidden-detail'][0].conditions[0];
+for(const questionId of ['hidden-detail','ending']) {
+  Object.assign(predicate,{questionId,operator:'is_answered'});
+  assert.throws(()=>validateFlowRouting(groupedVisibility,true),/reachable earlier screen/);
+}
+Object.assign(predicate,{questionId:'entry',operator:'equals',value:'deleted'});
+assert.throws(()=>validateFlowRouting(groupedVisibility,true),/available answer/);
+predicate.value='yes';
+groupedVisibility.routing.routes.start.rules.push({id:'future',match:'all',conditions:[{questionId:'hidden-detail',operator:'is_answered'}],destination:page('end')});
+assert.throws(()=>validateFlowRouting(groupedVisibility,true),/reachable earlier screen/);
+
 const base = FormSchema.parse({ id: 'flow-test', title: 'Flow', mode: 'survey', questions: [{ id: 'q1', title: 'Choose', type: 'multiple_choice', required: true, options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }, { id: 'd', label: 'D' }] }, { id: 'q2', title: 'More', type: 'short_answer' }, { id: 'q3', title: 'Other', type: 'short_answer' }], logicRules: [{ id: 'branch', sourceQuestionId: 'q1', operator: 'equals', value: 'd', action: 'jump_to_question', targetQuestionId: 'q3' }] });
 const migrated = migrateLegacyRouting(base);
 assert.deepEqual(migrated.issues, []);

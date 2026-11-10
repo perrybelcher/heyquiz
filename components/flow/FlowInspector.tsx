@@ -7,7 +7,7 @@ import { singleTypes, multiTypes } from "@/lib/engine";
 import { removeGuidedAnswer } from "@/lib/guided-editing";
 import { nanoid } from "nanoid";
 import type { FormSchemaType, LogicOperator, QuestionType } from "@/lib/schema";
-import type { FlowDestination, FlowTransition } from "@/lib/flow-routing";
+import { flowConditionSources, type FlowDestination, type FlowTransition } from "@/lib/flow-routing";
 import {
   connectAnswer,
   destinationChoices,
@@ -56,6 +56,11 @@ export default function FlowInspector({
   const owner = id.startsWith("page:") ? id.slice(5) : routeOwner(form, id),
     route = form.routing?.routes[owner] || { rules: [] },
     choices = destinationChoices(form);
+  const routeSources = flowConditionSources(form, owner, true);
+  const defaultSource = q?.id || routeSources.find(question => routeOwner(form, question.id) === owner)?.id || routeSources[0]?.id;
+  const visibilityTargets = id.startsWith("page:")
+    ? form.questions.filter(question => routeOwner(form, question.id) === owner)
+    : q ? [q] : [];
   const choiceQuestion = !!q && (singleTypes.has(q.type) || multiTypes.has(q.type));
   // Keep the answer representation stable when changing an existing block.
   // Other types are available when adding a new question.
@@ -457,10 +462,11 @@ export default function FlowInspector({
                           <select
                             value={c.questionId}
                             onChange={(e) =>
-                              update({ questionId: e.target.value })
+                              update({ questionId: e.target.value, value: undefined })
                             }
                           >
-                            {form.questions.map((n) => (
+                            {!routeSources.some(source => source.id === c.questionId) && <option value={c.questionId}>Choose a reachable question</option>}
+                            {routeSources.map((n) => (
                               <option value={n.id} key={n.id}>
                                 {n.title}
                               </option>
@@ -535,12 +541,13 @@ export default function FlowInspector({
                     );
                   })}
                   <button
+                    disabled={!defaultSource}
                     onClick={() =>
                       patch(index, {
                         conditions: [
                           ...r.conditions,
                           {
-                            questionId: q?.id || form.questions[0]?.id || "",
+                            questionId: defaultSource!,
                             operator: "is_answered",
                           },
                         ],
@@ -569,6 +576,7 @@ export default function FlowInspector({
                 </section>
               ))}
               <button
+                disabled={!defaultSource}
                 onClick={() =>
                   rules([
                     ...route.rules,
@@ -576,7 +584,7 @@ export default function FlowInspector({
                       id: nanoid(12),
                       conditions: [
                         {
-                          questionId: q?.id || form.questions[0]?.id || "",
+                          questionId: defaultSource!,
                           operator: "is_answered",
                         },
                       ],
@@ -589,7 +597,7 @@ export default function FlowInspector({
                 Add rule
               </button>
             </details>
-            {q && <VisibilityEditor form={form} questionId={q.id} onChange={onChange} />}
+            {visibilityTargets.map(question => <VisibilityEditor key={question.id} form={form} questionId={question.id} onChange={onChange} />)}
             <details className="flow-quiz-settings">
               <summary>Quiz settings</summary>
               <p>The entry is the first screen shown when someone starts this quiz.</p>

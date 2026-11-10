@@ -30,6 +30,19 @@ draft.marketing.presentation.layout='action_plan';draft.marketing.categories[0].
 assert.equal(JSON.stringify(saved),frozen,'snapshot cannot change with later in-memory draft edits');
 assert.equal(JSON.parse(frozen).presentation.layout,'score_overview','layout survives persistence serialization');
 const legacy=scorecardForm('legacy');delete legacy.marketing.presentation;assert.equal(evaluateMarketing(legacy,scoredAnswers[0]).presentation.layout,'stacked');
+for(const layout of layouts){
+  const form=scorecardForm('display-test',layout);
+  const baseline=evaluateMarketing(form,scoredAnswers[2]);
+  const keys=['showOverallScore','showCategoryScores','showScoringCoverage'];
+  for(const hidden of [...keys.map(key=>[key]),keys]){
+    form.marketing.presentation={layout,...Object.fromEntries(hidden.map(key=>[key,false]))};
+    const result=evaluateMarketing(FormSchema.parse(form),scoredAnswers[2]);
+    assert.deepEqual(withoutPresentation(result),withoutPresentation(baseline));
+    assert.deepEqual(result.presentation,form.marketing.presentation);
+    form.marketing.presentation[hidden[0]]=true;
+    assert.equal(result.presentation[hidden[0]],false);
+  }
+}
 assert.equal(MarketingSchema.safeParse({...legacy.marketing,presentation:{layout:'javascript:alert(1)'}}).success,false);
 for(const kind of ['product_finder','segmentation'])for(const answers of [{}, {use:'a0',priority:'a0',fit:'a1'}, {goal:'a0',stage:'a0'}]){
   const form=marketingTemplate(kind,'matching-layout');const baseline=evaluateMarketing(form,answers);
