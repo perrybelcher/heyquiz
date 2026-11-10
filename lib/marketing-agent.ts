@@ -1,8 +1,9 @@
+import { marketingSystemPrompt, persuasiveQuizPrompt } from "./marketing-system-prompt";
 import { aiProviderError } from "./ai-provider-error";
 import { z } from "zod";
 import { HttpError } from "./auth";
 import { ValidationError } from "./errors";
-import { MarketingBriefSchema, marketingDraftSchema, compileMarketingDraft, marketingSystemPrompt } from "./marketing-brief";
+import { MarketingBriefSchema, marketingDraftSchema, compileMarketingDraft } from "./marketing-brief";
 
 // One fresh retry for malformed/invalid drafts; never retry configuration or quota errors.
 // Both attempts share a deadline below the route's 90-second execution limit.
@@ -19,7 +20,7 @@ export async function generateMarketingQuiz(input: unknown) {
         method: "POST",
         headers: {"Content-Type":"application/json", "x-goog-api-key":process.env.GEMINI_API_KEY},
         body: JSON.stringify({
-          systemInstruction:{parts:[{text:marketingSystemPrompt + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema) + repair}]},
+          systemInstruction:{parts:[{text:marketingSystemPrompt + (brief.persuasive ? "\n" + persuasiveQuizPrompt : "") + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema) + repair}]},
           contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],
           generationConfig:{responseMimeType:"application/json",temperature:0.4,maxOutputTokens:16384},
         }),
