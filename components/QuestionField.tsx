@@ -19,6 +19,7 @@ import {
 import { calculate } from "@/lib/calculation";
 import AttachmentField from "./AttachmentField";
 import Challenge from "./Challenge";
+import { RichText } from "./RichText";
 export default function QuestionField({
   q,
   value,
@@ -87,7 +88,9 @@ export default function QuestionField({
     return (
       <div
         className={
-          picture ? "grid grid-cols-2 sm:grid-cols-3 gap-3" : "grid gap-3"
+          picture
+            ? `grid grid-cols-2 gap-3 ${q.pictureColumns === 2 ? "" : q.pictureColumns === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`
+            : q.type === "segmented" ? "flex flex-wrap gap-2" : "grid gap-3"
         }
         role="group"
         aria-label={q.title}
@@ -106,7 +109,7 @@ export default function QuestionField({
                   className={`w-full object-cover ${q.pictureAspectRatio === "portrait" ? "aspect-[3/4]" : q.pictureAspectRatio === "landscape" ? "aspect-video" : "aspect-square"}`}
                 />
               )}
-              <span className="flex items-center gap-3 p-4">
+              <span className={q.type === "segmented" ? "flex items-center gap-2 px-3 py-2" : "flex items-center gap-3 p-4"}>
                 <input
                   type={multi ? "checkbox" : "radio"}
                   name={q.id}
@@ -418,19 +421,7 @@ export default function QuestionField({
     case "subheading":
       return <p className="text-lg text-slate-600">{q.subheadingText}</p>;
     case "rich_text":
-      return (
-        <div className="space-y-3 leading-relaxed text-slate-600">
-          {q.richTextContent?.split("\n").map((line, i) =>
-            line.startsWith("#") ? (
-              <h3 key={i} className="text-xl font-semibold text-slate-900">
-                {line.replace(/^#+\s*/, "")}
-              </h3>
-            ) : (
-              <p key={i}>{line}</p>
-            ),
-          )}
-        </div>
-      );
+      return <RichText value={q.richTextContent ?? ""} />;
     case "image_display":
       return q.mediaUrl ? (
         <img

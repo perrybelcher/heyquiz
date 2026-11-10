@@ -21,7 +21,7 @@ const { singleTypes, multiTypes, displayTypes } = require("../lib/engine.ts");
 const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3130",
   results = [],
   created = [];
-const dir = require("node:path").resolve("../../outputs/browser-matrix");
+const dir = require("node:path").resolve(process.env.ARTIFACT_DIR || "../../outputs/browser-matrix");
 fs.mkdirSync(dir, { recursive: true });
 (async () => {
   const browser = await engine.launch({
@@ -196,14 +196,13 @@ fs.mkdirSync(dir, { recursive: true });
           () => document.documentElement.scrollWidth > innerWidth + 1,
         );
         assert.equal(overflow, false, "Mobile page overflows horizontally");
-        const review = p.getByRole("button", {
-          name: "Review answers",
-          exact: true,
-        });
-        if (await review.count()) await review.click();
-        await p
-          .getByRole("button", { name: "Submit response", exact: true })
-          .click();
+        // The one-question choice fixtures submit as soon as a choice is selected.
+        if (!singleTypes.has(type)) {
+          await p.getByRole("button", {
+            name: displayTypes.has(type) ? "Finish" : "Submit response",
+            exact: true,
+          }).click();
+        }
         await p
           .getByText("Your answers have been saved successfully.", {
             exact: true,

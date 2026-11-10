@@ -349,7 +349,7 @@ export const EndingPageConfigSchema: z.ZodType<EndingPageConfig> = z.object({
 export interface FormSettings {
   presentation?: "question" | "page";
   showProgressBar?: boolean;
-  progressBarMode?: "percentage" | "steps" | "pages" | "questions" | "none";
+  progressBarMode?: "percentage" | "bar_only" | "steps" | "pages" | "questions" | "none";
   enablePageJumps?: boolean;
   showReviewBeforeSubmit?: boolean;
   shuffleQuestions?: boolean;
@@ -365,7 +365,7 @@ export const FormSettingsSchema: z.ZodType<FormSettings> = z.object({
   presentation: z.enum(["question", "page"]).optional(),
   showProgressBar: z.boolean().optional(),
   progressBarMode: z
-    .enum(["percentage", "steps", "pages", "questions", "none"])
+    .enum(["percentage", "bar_only", "steps", "pages", "questions", "none"])
     .optional(),
   enablePageJumps: z.boolean().optional(),
   showReviewBeforeSubmit: z.boolean().optional(),

@@ -6,6 +6,7 @@ import { orderedQuestions, singleTypes } from "@/lib/engine";
 import { addGuidedAnswer, guidedChoiceTypes, moveGuidedAnswer, moveGuidedQuestion, removeGuidedAnswer, removeGuidedQuestion, renameGuidedAnswer, reviewGuidedRemoval } from "@/lib/guided-editing";
 import type { GuidedChecklistTarget } from "@/lib/guided-checklist";
 import { setBasicAssociation } from "@/lib/basic-editing";
+import { RichTextEditor } from "../RichText";
 
 type Props = { form: FormSchemaType; onChange: (form: FormSchemaType) => void; questionId: string; onAdvanced: () => void; onRoutes: () => void; onQuestionRemoved?: (id: string | null) => void; onFieldRef?: (target: GuidedChecklistTarget, element: HTMLInputElement | HTMLTextAreaElement | null) => void };
 export default function BasicQuestionEditor({ form, onChange, questionId, onAdvanced, onRoutes, onQuestionRemoved, onFieldRef }: Props) {
@@ -68,7 +69,7 @@ export default function BasicQuestionEditor({ form, onChange, questionId, onAdva
       {["image_display", "banner"].includes(q.type) && text("Image URL", "mediaUrl")}
       {q.type === "video_embed" && text("Video URL", "videoUrl")}
       {q.type === "subheading" && text("Supporting text", "subheadingText", true)}
-      {q.type === "rich_text" && text("Rich text content", "richTextContent", true)}
+      {q.type === "rich_text" && <RichTextEditor value={q.richTextContent ?? ""} onChange={richTextContent => update({ richTextContent })} />}
       {q.type === "terms" && <>{text("Terms text", "termsText", true)}{text("Terms URL", "termsUrl")}</>}
       {["short_answer", "paragraph", "email", "phone", "website", "number"].includes(q.type) && <p className="basic-hint">Validation follows this field type and its required setting. Email, website and numeric inputs use the existing participant validation.</p>}
       {["choice_matrix", "matrix_multiselect"].includes(q.type) && <><p>Matrix rows and columns can be changed in Advanced. Existing answer keys remain active.</p>{knowledge && q.rows?.map(row => <fieldset className="basic-card" key={row}><legend>Correct answer for {row}</legend>{q.columns?.map(column => { const key = q.matrixAnswerKey?.[row]; const selected = Array.isArray(key) ? key : key ? [key] : []; return <label className="basic-check" key={column}><input type={q.type === "choice_matrix" ? "radio" : "checkbox"} name={`matrix-key-${q.id}-${row}`} checked={selected.includes(column)} onChange={e => update({ matrixAnswerKey: { ...q.matrixAnswerKey, [row]: q.type === "choice_matrix" ? column : e.target.checked ? [...selected, column] : selected.filter(value => value !== column) } })}/>{column}</label>; })}</fieldset>)}</>}
