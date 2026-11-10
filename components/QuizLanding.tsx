@@ -36,7 +36,7 @@ export default function QuizLanding({ form, busy, error, onStart, resume }: Quiz
         {(cover?.subtitle || form.description) && <p className="mt-5 break-words whitespace-pre-line leading-relaxed opacity-75">{cover?.subtitle || form.description}</p>}
         <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm opacity-65">
           {cover?.showQuestionCount !== false && <span>{questionCount} {questionCount === 1 ? "question" : "questions"}</span>}
-          {Boolean(cover?.estimatedMinutes && cover.estimatedMinutes > 0) && <span>About {cover!.estimatedMinutes} minutes</span>}
+          {Boolean(cover?.estimatedMinutes && cover.estimatedMinutes > 0) && <span>About {cover!.estimatedMinutes} {cover!.estimatedMinutes === 1 ? "minute" : "minutes"}</span>}
         </div>
         {error && <p role="alert" className="hq-error mt-5">{error}</p>}
         {form.capture?.enabled && form.capture.required && <p className="mt-5 text-sm opacity-70">Contact details are required to view your results. Marketing emails are optional.</p>}

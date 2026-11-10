@@ -22,7 +22,7 @@ export default function V2ElementPicker({ sections, location, onSelect, onClose 
     const a = commonQuestions.indexOf(left.type), b = commonQuestions.indexOf(right.type);
     return (a < 0 ? commonQuestions.length : a) - (b < 0 ? commonQuestions.length : b);
   }), [sections]);
-  const filtered = items.filter(item => query.trim() ? `${item.label} ${item.type} ${descriptions[item.type] || ""}`.toLowerCase().includes(query.trim().toLowerCase()) : categoryFor(item.type) === category);
+  const filtered = items.filter(item => query.trim() ? `${item.label} ${item.type} ${descriptions[item.type] || ""} ${item.type === "slider" ? "numeric range" : ""}`.toLowerCase().includes(query.trim().toLowerCase()) : categoryFor(item.type) === category);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const element = dialog.current;

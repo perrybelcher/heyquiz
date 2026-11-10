@@ -106,6 +106,24 @@ export default function QuizPlayer({
   const screenQuestions = screens[screenIndex] || [];
   const grouped = active.settings.presentation === "page";
   const lastScreen = screenIndex === screens.length - 1;
+  const progressMode = active.settings.progressBarMode ?? "percentage";
+  const answerable = screens.map(screen => screen.filter(field => !displayTypes.has(field.type)).length);
+  const questionTotal = answerable.reduce((sum, count) => sum + count, 0);
+  const questionPosition = answerable.slice(0, screenIndex + 1).reduce((sum, count) => sum + count, 0);
+  const pageId = q?.pageId || active.pages?.[0]?.id;
+  const pagePosition = (active.pages?.findIndex(page => page.id === pageId) ?? -1) + 1;
+  const screenPercent = screens.length ? Math.round((screenIndex + 1) / screens.length * 100) : 0;
+  let progressPercent = screenPercent;
+  let progressLabel = `${screenPercent}%`;
+  if (progressMode === "questions") {
+    progressPercent = questionTotal ? Math.round(questionPosition / questionTotal * 100) : 0;
+    progressLabel = questionTotal ? `${questionPosition} of ${questionTotal}` : "";
+  } else if (progressMode === "pages" && active.pages?.length && pagePosition) {
+    progressPercent = Math.round(pagePosition / active.pages.length * 100);
+    progressLabel = `Page ${pagePosition} of ${active.pages.length}`;
+  } else if (progressMode === "steps" || progressMode === "pages") {
+    progressLabel = screens.length ? `${screenIndex + 1} of ${screens.length}` : "";
+  }
   const capturesBeforeResults = active.capture?.enabled && active.capture.placement === "before_results";
   const finishLabel = capturesBeforeResults ? "Continue to contact details" : "Submit response";
   let singleChoiceHint = "Choose an answer to continue automatically. You can go back to change it.";
@@ -505,34 +523,17 @@ export default function QuizPlayer({
             {active.settings.showProgressBar !== false &&
               active.settings.progressBarMode !== "none" && (
                 <div className="mb-8">
-                  <div className="flex justify-between text-xs text-slate-500 mb-3">
+                  {progressMode !== "bar_only" && <div className="flex justify-between text-xs text-slate-500 mb-3">
                     <span>
                       {active.pages?.find((p) => p.id === q?.pageId)?.title ||
                         active.title}
                     </span>
-                    <span>
-                      {active.settings.progressBarMode === "percentage" ||
-                      !active.settings.progressBarMode
-                        ? `${Math.round(((screenIndex + 1) / Math.max(screens.length, 1)) * 100)}%`
-                        : active.settings.progressBarMode === "pages" &&
-                            active.pages?.length
-                          ? `Page ${
-                              Math.max(
-                                0,
-                                active.pages.findIndex(
-                                  (p) => p.id === q?.pageId,
-                                ),
-                              ) + 1
-                            } of ${active.pages.length}`
-                          : `${screenIndex + 1} of ${screens.length}`}
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                    <span>{progressLabel}</span>
+                  </div>}
+                  <div role="progressbar" aria-label="Quiz progress" aria-valuenow={progressPercent} className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
                     <div
                       className="h-full bg-indigo-600 transition-all duration-300"
-                      style={{
-                        width: `${screens.length ? ((screenIndex + 1) / screens.length) * 100 : 0}%`,
-                      }}
+                      style={{ width: `${progressPercent}%` }}
                     />
                   </div>
                 </div>
@@ -572,7 +573,7 @@ export default function QuizPlayer({
               {q ? (
                 <>
                   {screenQuestions.map((field, fieldIndex) => { const Title = fieldIndex === 0 ? "h1" : "h2"; return <div key={field.id} className={fieldIndex ? "mt-8 pt-6 border-t border-slate-100" : ""}>
-                    {!displayTypes.has(field.type) && <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-3">{grouped ? "" : `Question ${index + 1}`}{field.required ? " · Required" : ""}</p>}
+                    {!displayTypes.has(field.type) && <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-3">{grouped ? "" : `Question ${questionPosition}`}{field.required ? " · Required" : ""}</p>}
                     <Title className="text-2xl font-semibold tracking-tight leading-tight mb-3">{field.title}</Title>
                     {field.description && <p className="text-slate-500 leading-relaxed mb-5">{field.description}</p>}
                     {!["heading", "banner"].includes(field.type) && <QuestionField q={field} value={answers[field.id]} answers={answers} token={session?.token || ""} onChange={value => {
@@ -624,6 +625,8 @@ export default function QuizPlayer({
                     >
                       {busy
                         ? "Saving…"
+                        : screenQuestions.every(field => displayTypes.has(field.type))
+                          ? lastScreen ? active.settings.showReviewBeforeSubmit ? "Review answers" : "Finish" : "Continue"
                         : !grouped && active.settings.feedbackMode === "immediate" &&
                             !feedback
                           ? "Check answer"

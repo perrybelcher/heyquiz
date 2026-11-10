@@ -46,6 +46,8 @@ search.props.onChange({target:{value:'CAPTCHA'}});
 assert.deepEqual(options(render()).map(node=>node.props['data-element-option']), ['captcha'], 'Search spans all categories');
 search.props.onChange({target:{value:'NO SUCH FIELD'}});
 assert.equal(options(render()).length, 0);
+search.props.onChange({target:{value:'range'}});
+assert.ok(options(render()).some(node => node.props['data-element-option'] === 'slider'));
 search.props.onChange({target:{value:'picture choice'}});
 tree = render(); const option = options(tree)[0];
 option.props.onClick(); option.props.onClick();

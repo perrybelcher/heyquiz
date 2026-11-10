@@ -161,6 +161,7 @@ import {
 } from "@/lib/engine";
 import ResultsChart from "./ResultsChart";
 import TrackingStudio from "./TrackingStudio";
+import { RichTextEditor } from "./RichText";
 import { publicationFingerprint, parsePublicationReceipt, PUBLICATION_CONFIRMATION_ERROR } from "@/lib/publication";
 import AnswerScoring, { ScoringMode, ImageAnswerScoring } from "./AnswerScoring";
 import { clarityEvent, stopClarity } from "@/lib/clarity";
@@ -3190,22 +3191,8 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
 
                 {/* Rich Text Block Settings */}
                 {selectedQuestion.type === "rich_text" && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                      Rich Text Markdown Content
-                    </label>
-                    <textarea
-                      rows={6}
-                      value={selectedQuestion.richTextContent || ""}
-                      onChange={(e) =>
-                        updateQuestion(selectedQuestion.id, {
-                          richTextContent: e.target.value,
-                        })
-                      }
-                      placeholder="Write instructions, markdown headings, bullets, or links..."
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs text-gray-900 outline-none resize-none font-mono"
-                    />
-                  </div>
+                  <RichTextEditor value={selectedQuestion.richTextContent ?? ""}
+                    onChange={richTextContent => updateQuestion(selectedQuestion.id, { richTextContent })} />
                 )}
 
                 {/* Accordion FAQ Items Settings */}
@@ -3514,6 +3501,7 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
                       Percentage Bar (Continuous)
                     </option>
                     <option value="steps">Step count</option>
+                    <option value="bar_only">Bar only</option>
                     <option value="pages">Page count</option>
                     <option value="questions">Question count</option>
                     <option value="none">Hidden (No progress indicator)</option>
@@ -3647,9 +3635,12 @@ export default function EditorStudio({ initialForm, guest = false, initiallyPubl
   );
   const focusedQuestion = displayedQuestions.find(q => q.id === selectedQuestionId) || displayedQuestions[0];
   const focusedCanvas = canvasView !== "page" ? editorCanvas : <div className="v2-focused-canvas">
-    <details className="v2-page-options"><summary>Page and presentation settings</summary><div className="space-y-4 p-4">
-      <label className="block">Quiz description<textarea className="hq-input mt-2" value={form.description || ""} onChange={e=>setForm({...form,description:e.target.value})}/></label>
+    <div className="space-y-2 pb-4">
       <label className="block">Presentation<select aria-label="Quiz presentation" className="hq-input mt-2" value={form.settings.presentation || "question"} onChange={e=>setForm({...form,settings:{...form.settings,presentation:e.target.value as "question"|"page"}})}><option value="question">One question at a time</option><option value="page">Fields together by page</option></select></label>
+      <p className="text-xs text-slate-600">One question at a time shows each element on its own screen. Fields together by page shows headings, text, and questions on the same screen when they share a page.</p>
+    </div>
+    <details className="v2-page-options"><summary>Page settings</summary><div className="space-y-4 p-4">
+      <label className="block">Quiz description<textarea className="hq-input mt-2" value={form.description || ""} onChange={e=>setForm({...form,description:e.target.value})}/></label>
       <label className="block">Page name<input className="hq-input mt-2" value={formPages.find(p=>p.id===activePageId)?.title || ""} onChange={e=>renamePage(activePageId,e.target.value)}/></label>
       {formPages.length>1 && <button type="button" className="hq-secondary" onClick={()=>deletePage(activePageId)}>Delete page and move its questions</button>}
       <button type="button" className="hq-secondary" onClick={()=>setShowAgentModal(true)}>Generate questions with AI</button>

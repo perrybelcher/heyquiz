@@ -8,6 +8,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { Reorder } from "framer-motion";
 import MediaPickerModal from "./MediaPickerModal";
 import { singleTypes, multiTypes } from "@/lib/engine";
+import { RichTextEditor } from "./RichText";
 import {
   GripVertical,
   ChevronUp,
@@ -239,6 +240,7 @@ export function SortableQuestionCard({
       {(q.type === "multiple_choice" ||
         q.type === "multiselect" ||
         q.type === "dropdown" ||
+        q.type === "segmented" ||
         q.type === "checkboxes") && (
         <div className="space-y-2 pt-1">
           <div className="text-[11px] text-gray-600 flex items-center justify-between mb-1">
@@ -517,7 +519,9 @@ export function SortableQuestionCard({
                   : "bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300"
               }`}
             >
-              <span className="text-xs font-semibold">{opt.label}</span>
+              <input aria-label={`Answer label (${opt.id})`} value={opt.label}
+                onChange={event => onUpdateOption(q.id, opt.id, { label: event.target.value })}
+                className="hq-input min-w-0 w-full text-xs" />
               {mode === "quiz" && opt.isCorrect && (
                 <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">
                   Correct
@@ -528,7 +532,7 @@ export function SortableQuestionCard({
         </div>
       )}
 
-      {mode === "quiz" && ["segmented", "switch", "thumbs", "like_dislike"].includes(q.type) && (
+      {mode === "quiz" && ["switch", "thumbs", "like_dislike"].includes(q.type) && (
         <fieldset className="space-y-2 rounded-lg border border-gray-200 p-3">
           <legend className="px-1 text-xs font-semibold">Correct answers</legend>
           {q.options?.map((option, index) => <label key={option.id} className="flex items-center gap-2 text-xs">
@@ -552,33 +556,6 @@ export function SortableQuestionCard({
         </div>
       )}
 
-      {/* Segmented Control */}
-      {q.type === "segmented" && (
-        <div className="pt-1">
-          <div className="inline-flex p-1 bg-gray-100 rounded-xl border border-gray-200 gap-1 w-full overflow-x-auto">
-            {(q.options && q.options.length > 0
-              ? q.options
-              : [
-                  { id: "1", label: "Option 1" },
-                  { id: "2", label: "Option 2" },
-                  { id: "3", label: "Option 3" },
-                ]
-            ).map((opt, i) => (
-              <button
-                key={opt.id || i}
-                type="button"
-                className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-lg transition text-center truncate ${
-                  i === 0
-                    ? "bg-white text-gray-900 shadow-xs font-semibold"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Terms & Conditions */}
       {q.type === "terms" && (
@@ -1096,20 +1073,7 @@ export function SortableQuestionCard({
 
       {/* Rich Text / Markdown Block */}
       {q.type === "rich_text" && (
-        <div className="space-y-1.5 pt-1">
-          <textarea
-            rows={3}
-            value={q.richTextContent ?? ""}
-            onChange={(e) =>
-              onUpdateQuestion(q.id, { richTextContent: e.target.value })
-            }
-            placeholder="Enter markdown or formatted HTML content..."
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-xs text-gray-800 outline-none font-sans"
-          />
-          <div className="text-[10px] text-gray-400">
-            Supports **bold**, *italics*, bullet lists, and links.
-          </div>
-        </div>
+        <RichTextEditor value={q.richTextContent ?? ""} onChange={richTextContent => onUpdateQuestion(q.id, { richTextContent })} />
       )}
 
       {/* Accordion / FAQ Dropdown */}
