@@ -43,7 +43,7 @@ const headers = { Origin: base };
     await steps.getByRole("button", { name: /Results$/ }).click();
     const sections = editor.getByRole("region", { name: "Result page sections" });
     await sections.getByRole("button", { name: "Helpful advice", exact: true }).click();
-    const section = sections.locator("details").last();
+    const section = sections.locator(":scope > details").last();
     await section.getByLabel("Heading", { exact: true }).fill("Answer-specific guidance");
     await section.getByLabel("Content", { exact: true }).fill("Follow this specific next step.");
     const bodyField = section.getByLabel("Content", { exact: true });
@@ -100,6 +100,12 @@ const headers = { Origin: base };
       }
     }
     await report.close();
+    await editor.goto(`${base}/editor/${score.id}?section=marketing`);
+    const simulator = editor.getByRole("region", { name: "Simulated result" });
+    await editor.locator("aside").getByLabel(score.questions[0].title).selectOption("a2");
+    await simulator.getByText("Follow this specific next step. Not yet", { exact: true }).waitFor();
+    await editor.locator("aside").getByLabel(score.questions[0].title).selectOption("a0");
+    assert.equal(await simulator.locator(`[data-result-section="${conditioned.id}"]`).count(), 0);
 
     const flowId = "release-two-flow-" + Date.now();
     const page = id => ({ kind: "page", id });
@@ -174,7 +180,7 @@ const headers = { Origin: base };
     const submitted = live.waitForResponse(response => response.url().endsWith(`/api/forms/${flowId}/submit`));
     await live.getByRole("button", { name: "Finish", exact: true }).click();
     assert.deepEqual((await submitted).request().postDataJSON().answers, { source: "b" });
-    console.log("PASS Release 2: authoring and persistence, all score toggles and layouts, saved result links, grouped page routing, field visibility, and backtracking");
+    console.log("PASS result authoring, variables in the simulator and saved links, all score toggles and layouts, grouped page routing, visibility, and backtracking");
   } finally {
     try {
       for (const id of ids) await owner.request.delete(base + "/api/forms/" + id, { headers }).catch(() => {});
