@@ -3,6 +3,7 @@ require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f
 const {MarketingSchema,evaluateMarketing,validateMarketing}=require('../lib/marketing.ts');
 const {marketingTemplate}=require('../lib/marketing-templates.ts');
 const {publicForm}=require('../lib/engine.ts');
+const {evaluateJourneyCase}=require('../lib/journey-testing.ts');
 for(const kind of ['scorecard','segmentation','product_finder']) {
  const f=marketingTemplate(kind,'sections');
  f.marketing=MarketingSchema.parse({...f.marketing,resultSections:[{id:'faq',type:'faq',title:'Next?',body:'Your next step'},{id:'action',type:'cta',url:'https://example.com',label:'Explore'}]});
@@ -55,6 +56,7 @@ answerForm.marketing.resultSections=MarketingSchema.parse({...answerForm.marketi
 ]}).resultSections;
 const selected=answers=>evaluateMarketing(answerForm,answers).resultSections.map(section=>section.id);
 validateMarketing(answerForm,true);
+assert.deepEqual(evaluateJourneyCase(answerForm,{capture:'a0',followup:option.id,measure:'a0'}).resultSectionIds,['selected']);
 assert.deepEqual(selected({[source.id]:option.id}),['selected']);
 assert.deepEqual(selected({[source.id]:source.options[1].id}),[]);
 assert.deepEqual(selected({}),[]);

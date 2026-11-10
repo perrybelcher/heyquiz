@@ -117,6 +117,9 @@ export function reconcileFlowEdit(previous: FormSchemaType, next: FormSchemaType
     const q = questions.get(c.questionId);
     if (!q) return false;
     if (!["equals", "not_equals"].includes(c.operator) || (!singleTypes.has(q.type) && !multiTypes.has(q.type))) return true;
+    // Authors choose the operator before choosing its answer. Keep that
+    // incomplete condition editable until publication validates it.
+    if (!c.value) return true;
     // Preserve legacy label conditions until explicitly edited; avoid breaking
     // migrations or silently discarding rules during unrelated text changes.
     const old = previous.questions.find(item => item.id === q.id);

@@ -29,6 +29,14 @@ assert.equal(reconcileFlowEdit(original, withConnection), withConnection);
 assert.equal(original.routing.routes.q1.rules.length, 0);
 assert.equal(withConnection.routing.routes.q1.rules.length, 1);
 
+const pendingVisibility = structuredClone(original);
+pendingVisibility.routing.visibility = { q2: [{
+  effect: 'show', match: 'all', conditions: [{ questionId: 'q1', operator: 'equals' }],
+}] };
+assert.equal(reconcileFlowEdit(original, pendingVisibility), pendingVisibility);
+validateFlowRouting(pendingVisibility);
+assert.throws(() => validateFlowRouting(pendingVisibility, true), /available answer/);
+
 // Deleting a conditional target must NOT route A through the old q2 default.
 const before = JSON.stringify(withConnection);
 const removed = removeQuestion(withConnection, 'q3');
