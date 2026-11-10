@@ -43,9 +43,17 @@ const headers = { Origin: base };
     await steps.getByRole("button", { name: /Results$/ }).click();
     const sections = editor.getByRole("region", { name: "Result page sections" });
     await sections.getByRole("button", { name: "Helpful advice", exact: true }).click();
-    const section = sections.locator("details").last();
+    const section = sections.locator(":scope > details").last();
     await section.getByLabel("Heading", { exact: true }).fill("Answer-specific guidance");
     await section.getByLabel("Content", { exact: true }).fill("Follow this specific next step.");
+    const bodyField = section.getByLabel("Content", { exact: true });
+    await bodyField.press("End");
+    await bodyField.press("Space");
+    const variable = bodyField.locator("..");
+    await variable.getByText("Insert answer", { exact: true }).click();
+    await variable.getByRole("combobox").selectOption("capture");
+    await variable.getByLabel("Fallback wording").fill("Your next priority");
+    await variable.getByRole("button", { name: "Insert variable", exact: true }).click();
     await section.getByLabel("Show this section").selectOption("answer");
     const answerSelectors = section.getByRole("combobox");
     assert.equal(await answerSelectors.count(), 3, "The answer condition shows question and answer selectors");
@@ -87,10 +95,17 @@ const headers = { Origin: base };
           assert.equal((await visible.count()) > 0, !hide.includes(i), `${layout}: ${toggles[i][0]}`);
         }
         assert.equal(await card.locator(`[data-result-section="${conditioned.id}"]`).count(), 1);
+        assert.ok((await card.locator(`[data-result-section="${conditioned.id}"]`).textContent()).includes("Follow this specific next step. Not yet"));
         assert.equal(await card.getByText("Make this area easier to repeat.", { exact: true }).count(), 1);
       }
     }
     await report.close();
+    await editor.goto(`${base}/editor/${score.id}?section=marketing`);
+    const simulator = editor.getByRole("region", { name: "Simulated result" });
+    await editor.locator("aside").getByLabel(score.questions[0].title).selectOption("a2");
+    await simulator.getByText("Follow this specific next step. Not yet", { exact: true }).waitFor();
+    await editor.locator("aside").getByLabel(score.questions[0].title).selectOption("a0");
+    assert.equal(await simulator.locator(`[data-result-section="${conditioned.id}"]`).count(), 0);
 
     const flowId = "release-two-flow-" + Date.now();
     const page = id => ({ kind: "page", id });
@@ -165,7 +180,7 @@ const headers = { Origin: base };
     const submitted = live.waitForResponse(response => response.url().endsWith(`/api/forms/${flowId}/submit`));
     await live.getByRole("button", { name: "Finish", exact: true }).click();
     assert.deepEqual((await submitted).request().postDataJSON().answers, { source: "b" });
-    console.log("PASS Release 2: authoring and persistence, all score toggles and layouts, saved result links, grouped page routing, field visibility, and backtracking");
+    console.log("PASS result authoring, variables in the simulator and saved links, all score toggles and layouts, grouped page routing, visibility, and backtracking");
   } finally {
     try {
       for (const id of ids) await owner.request.delete(base + "/api/forms/" + id, { headers }).catch(() => {});

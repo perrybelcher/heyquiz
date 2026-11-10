@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { FormSchemaType } from "@/lib/schema";
-import type { MarketingResult } from "@/lib/marketing";
+import { resolveMarketingCopy, type MarketingResult } from "@/lib/marketing";
 import { orderedQuestions, type Answers } from "@/lib/engine";
 import { quizThemeStyle } from "@/lib/theme-style";
 import QuestionField from "../QuestionField";
@@ -16,7 +16,7 @@ export function appearanceResult(form: FormSchemaType, resultId?: string): Marke
   const outcome = marketing.outcomes.find(item => item.id === resultId) || marketing.outcomes[0];
   const category = marketing.categories.find(item => item.id === resultId);
   const band = marketing.scorecard?.bands.find(item => item.id === resultId);
-  return {
+  return resolveMarketingCopy({
     quizType: form.quizType,
     kind: marketing.kind,
     status: marketing.kind === "scorecard" ? "scored" : outcome ? "matched" : "no_match",
@@ -32,7 +32,7 @@ export function appearanceResult(form: FormSchemaType, resultId?: string): Marke
     categories: marketing.kind === "scorecard" ? (category ? [category] : marketing.categories).map(item => ({ id: item.id, title: item.title, description: item.description, score: null, answered: 0, applicable: new Set(marketing.rules.filter(rule => rule.targetId === item.id).map(rule => rule.questionId)).size, minAnswers: item.minAnswers })) : [],
     ...(marketing.kind === "scorecard" && marketing.scorecard ? { overallScore: null } : {}),
     resultSections: marketing.resultSections?.filter(section => !section.condition || (section.condition.type === "outcome" && section.condition.outcomeId === outcome?.id)),
-  };
+  }, [], {});
 }
 
 export default function BasicVisitorPreview(props: { form: FormSchemaType; step: number; questionId?: string; resultId?: string }) {

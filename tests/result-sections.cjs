@@ -75,3 +75,32 @@ answerForm.marketing.resultSections[0].condition.optionId='deleted';
 assert.throws(()=>validateMarketing(answerForm,true),/existing question and answer/);
 validateMarketing(answerForm);
 console.log('PASS answer conditions: stable IDs, valid single and multiple answers, skipped fields, and repair on deletion');
+
+const {answerVariable}=require('../lib/result-variables.ts');
+const personalized=marketingTemplate('scorecard','personalized-result');
+const detail=personalized.questions[1];
+const token=answerVariable(detail.id,'your next priority');
+personalized.marketing.fallbackMessage='Focus on '+token+'.';
+personalized.marketing.resultSections=MarketingSchema.parse({...personalized.marketing,resultSections:[
+  {id:'personalized',type:'text',title:'Focus on '+token,body:'Start with '+token+'.'},
+]}).resultSections;
+validateMarketing(personalized,true);
+const answer=detail.options[0];
+answer.label='A & <B>';
+const allAnswers={capture:'a0',followup:answer.id,measure:'a0'};
+const saved=evaluateMarketing(personalized,allAnswers);
+assert.equal(saved.resultSections[0].body,'Start with A & <B>.');
+assert.deepEqual(evaluateJourneyCase(personalized,allAnswers).resultSectionIds,['personalized']);
+detail.title='New question wording';
+answer.label='Renamed answer';
+assert.equal(evaluateMarketing(personalized,allAnswers).resultSections[0].body,'Start with Renamed answer.');
+assert.equal(saved.resultSections[0].body,'Start with A & <B>.');
+assert.equal(evaluateMarketing(personalized,{...allAnswers,followup:'invalid'}).resultSections[0].body,'Start with your next priority.');
+detail.type='multiselect';
+assert.equal(evaluateMarketing(personalized,{...allAnswers,followup:[detail.options[1].id,answer.id]}).resultSections[0].body,
+  'Start with Renamed answer and '+detail.options[1].label+'.');
+personalized.logicRules=[{id:'branch',sourceQuestionId:'capture',operator:'equals',value:'a0',action:'jump_to_question',targetQuestionId:'measure'}];
+assert.equal(evaluateMarketing(personalized,{...allAnswers,followup:[answer.id]}).resultSections[0].body,'Start with your next priority.');
+detail.type='short_answer';
+assert.throws(()=>validateMarketing(personalized,true),/deleted or unsupported question/);
+console.log('PASS result variables: frozen wording, renamed labels, multiple choices, skipped answers, and publication validation');

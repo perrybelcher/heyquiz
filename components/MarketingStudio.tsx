@@ -14,6 +14,7 @@ import { qualificationNumericTypes } from "@/lib/qualification";
 import { scoringDiagnostics } from "@/lib/scoring-diagnostics";
 import MarketingResultCard from "./MarketingResultCard";
 import ResultSectionsEditor from "./ResultSectionsEditor";
+import ResultVariableField from "./ResultVariableField";
 import ScorecardResultsEditor from "./ScorecardResultsEditor";
 import OutcomesEditor from "./OutcomesEditor";
 import ResultLayoutEditor from "./ResultLayoutEditor";
@@ -175,7 +176,7 @@ export default function MarketingStudio({
               <div className="space-y-6">
                 <ResultLayoutEditor marketing={m} onChange={presentation => change({ presentation })} />
                 <ResultSectionsEditor marketing={m} questions={form.questions} onChange={marketing => onChange({...form, marketing})} />
-                {m.kind === "scorecard" && <ScorecardResultsEditor marketing={m} onChange={marketing => onChange({...form, marketing})} />}
+                {m.kind === "scorecard" && <ScorecardResultsEditor questions={form.questions} marketing={m} onChange={marketing => onChange({...form, marketing})} />}
                 {form.quizType && m.kind!=="scorecard" ? <OutcomesEditor form={form} onChange={onChange}/> : <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold">
@@ -249,7 +250,7 @@ export default function MarketingStudio({
                           <Trash2 size={14} aria-hidden="true" className="inline-block mr-1" />Remove
                         </button>
                       </div>
-                      <Field
+                      <ResultVariableField questions={form.questions} maxLength={200}
                         label="Title"
                         value={target.title}
                         onChange={(title) =>
@@ -262,7 +263,7 @@ export default function MarketingStudio({
                             : updateOutcome(target.id, { title })
                         }
                       />
-                      <Field
+                      <ResultVariableField questions={form.questions} maxLength={m.kind === "scorecard" ? 2000 : 4000}
                         label={
                           m.kind === "scorecard"
                             ? "Explanation & practical advice"
@@ -319,7 +320,7 @@ export default function MarketingStudio({
                             )!;
                             return (
                               <>
-                                <Field
+                                <ResultVariableField questions={form.questions} maxLength={4000}
                                   label="Useful first step"
                                   multiline
                                   value={o.advice}
@@ -548,12 +549,12 @@ export default function MarketingStudio({
                   <h2 className="text-lg font-semibold">
                     Unsure or no-fit result
                   </h2>
-                  <Field
+                  <ResultVariableField questions={form.questions} maxLength={200}
                     label="Fallback title"
                     value={m.fallbackTitle}
                     onChange={(fallbackTitle) => change({ fallbackTitle })}
                   />
-                  <Field
+                  <ResultVariableField questions={form.questions} maxLength={4000}
                     label="Fallback message"
                     multiline
                     value={m.fallbackMessage}
