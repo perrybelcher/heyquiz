@@ -15,13 +15,13 @@ export default function MetaStudio({ form, onChange, onOpenCapture }: { form: Fo
   const { attachRoot: ruleRoot, added: ruleAdded, feedback: ruleNotice } = useAddedItemFeedback();
   const config = form.meta || defaultMeta;
   const [connection, setConnection] = useState<Connection | null>(null), [assets, setAssets] = useState<{ adAccounts: Asset[]; datasets: Asset[] } | null>(null);
-  const [configured, setConfigured] = useState(false), [allowed, setAllowed] = useState(false), [setup, setSetup] = useState<MetaSetup | null>(null), [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [allowed, setAllowed] = useState(false), [setup, setSetup] = useState<MetaSetup | null>(null), [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [account, setAccount] = useState(""), [dataset, setDataset] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [testCode, setTestCode] = useState("");
   const endpoint = `/api/forms/${form.id}/meta`;
   const refresh = useCallback(async () => {
     const [a, b] = await Promise.all([fetch("/api/meta/connect"), fetch(endpoint)]), c = await a.json(), details = await b.json();
     if (!a.ok || !b.ok) throw Error(c.error || details.error || "Meta setup could not be loaded.");
-    setConnection(c.connection); setConfigured(c.configured); setAllowed(c.allowed); setSetup(details.setup); setDeliveries(details.deliveries);
+    setConnection(c.connection); setAllowed(c.allowed === true); setSetup(details.setup); setDeliveries(details.deliveries);
     setAccount(current => current || c.connection?.adAccountId || ""); setDataset(current => current || c.connection?.datasetId || "");
   }, [endpoint]);
   useEffect(() => { const initial = setTimeout(() => void refresh().catch(e => setError(e.message)), 0); const timer = setInterval(() => void refresh().catch(() => {}), 15000); return () => { clearTimeout(initial); clearInterval(timer); }; }, [refresh]);
@@ -30,6 +30,8 @@ export default function MetaStudio({ form, onChange, onOpenCapture }: { form: Fo
   async function post(url: string, body: unknown) { const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const result = await response.json(); if (!response.ok) throw Error(result.error || "Meta request failed."); return result; }
   async function loadAssets() { const response = await fetch("/api/meta/connect?assets=1"), result = await response.json(); if (!response.ok) throw Error(result.error || "Could not load Meta assets."); setAssets(result.assets); setAccount(connection?.adAccountId || (result.assets.adAccounts.length === 1 ? result.assets.adAccounts[0].id : "")); setDataset(connection?.datasetId || (result.assets.datasets.length === 1 ? result.assets.datasets[0].id : "")); }
   function updateRule(index: number, rule: QualificationRule) { patch({ rules: config.rules.map((current, i) => i === index ? rule : current), enabled: false }); }
+  if (!allowed) return null;
+
   const questions = form.questions.filter(q => q.options?.length);
   const outcomes = metaOutcomeOptions(form);
   const scoreSources = metaScoreOptions(form);
@@ -43,7 +45,6 @@ export default function MetaStudio({ form, onChange, onOpenCapture }: { form: Fo
     {ruleNotice}
     {error && <p role="alert" className="rounded-xl bg-rose-50 text-rose-800 p-3 text-sm">{error}</p>}{notice && <p role="status" className="rounded-xl bg-emerald-50 text-emerald-800 p-3 text-sm">{notice}</p>}
     <p className="text-sm text-slate-600">Meta tracking is optional. You can collect contacts in Pippi without connecting Meta.</p>
-    {!configured && <p className="text-sm rounded-xl bg-amber-50 p-3">Your workspace administrator needs to finish the Meta app configuration before you can connect Meta.</p>}
     <div className="space-y-3"><h3 className="font-semibold">1. Connect your Meta account</h3><p className="text-sm text-slate-500">One business connection is shared across your quizzes. {connection?.businessName}</p>
       <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy || !allowed} onClick={() => void run(async () => { const result = await post("/api/meta/connect", { formId: form.id }); window.location.assign(result.url); })}>{connection ? "Reconnect Meta" : "Connect Meta"}</button>{connection && <><button type="button" className={button} disabled={busy || !allowed} onClick={() => void run(loadAssets)}>Choose ad account and dataset</button><button type="button" className={button} disabled={busy} onClick={() => void run(async () => { await post("/api/meta/connect", { action: "disconnect" }); patch({ enabled: false }); setAssets(null); await refresh(); })}>Disconnect</button></>}</div>
       {assets && <div className="grid sm:grid-cols-2 gap-3"><label className="text-sm">Ad account<select className={input} value={account} onChange={e => setAccount(e.target.value)}><option value="">Choose ad account</option>{assets.adAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label className="text-sm">Pixel / dataset<select className={input} value={dataset} onChange={e => setDataset(e.target.value)}><option value="">Choose dataset</option>{assets.datasets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><button type="button" className={button} disabled={busy || !account || !dataset} onClick={() => void run(async () => { const result = await post("/api/meta/connect", { action: "assets", adAccountId: account, datasetId: dataset }); setConnection(result.connection); patch({ connectionId: result.connection.id, datasetId: result.connection.datasetId, enabled: false }); setAssets(null); setNotice("Assets selected. Changing shared assets requires other quizzes to reconnect to this selection."); })}>Use these assets</button>{(!assets.adAccounts.length || !assets.datasets.length) && <p className="text-sm">Create or assign the missing assets in Meta Business Settings, then reload this list.</p>}</div>}
