@@ -5,7 +5,9 @@ import { ValidationError } from "./errors";
 import { z } from "zod";
 import { resultVideoEmbed } from "./result-video";
 import type { FormSchemaType, Question } from "./schema";
-import { multiTypes, resolvePath, singleTypes, validationError, type Answers } from "./engine";
+import { resolvePath, validationError, type Answers } from "./engine";
+import { resolveResultText, resultVariableIssue, supportsResultAnswer } from "./result-variables";
+export { supportsResultAnswer } from "./result-variables";
 const id = z
   .string()
   .min(1)
@@ -64,9 +66,6 @@ export const scoreVisibilityControls = {
   showScoringCoverage: "Scoring coverage",
 } as const;
 
-export function supportsResultAnswer(question: Question) {
-  return (singleTypes.has(question.type) || multiTypes.has(question.type)) && Boolean(question.options?.length);
-}
 export type ResultPresentation = z.infer<typeof ResultPresentationSchema>;
 export const MarketingSchema = z.object({
   kind: z.enum(["product_finder", "segmentation", "scorecard", "qualification"]),
@@ -168,6 +167,25 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
   if (!unique(targets.map((t) => t.id)) || !unique(m.rules.map((r) => r.id)))
     throw new ValidationError("Marketing IDs must be unique.");
   if (!unique((m.resultSections ?? []).map(s => s.id))) throw new ValidationError("Result section IDs must be unique.");
+  if (publishing) {
+    const check = (location: string, ...copy: string[]) => {
+      for (const value of copy) {
+        const issue = resultVariableIssue(value, form.questions);
+        if (issue) throw new ValidationError(`${location}: ${issue}`);
+      }
+    };
+    check("Fallback result", m.fallbackTitle, m.fallbackMessage);
+    m.outcomes.forEach((outcome, i) => check(`Result ${i + 1}`, outcome.title, outcome.description, outcome.advice));
+    if (m.scorecard) {
+      check("Scorecard", m.scorecard.title, m.scorecard.message);
+      m.scorecard.bands.forEach((band, i) => check(`Overall score band ${i + 1}`, band.title, band.advice));
+    }
+    m.categories.forEach((category, i) => {
+      check(`Category ${i + 1}`, category.title, category.description);
+      category.bands?.forEach((band, j) => check(`Category ${i + 1}, band ${j + 1}`, band.title, band.advice, band.action));
+    });
+    m.resultSections?.forEach((section, i) => check(`Result section ${i + 1}`, section.title, section.body));
+  }
   if (publishing) for (const [index, section] of (m.resultSections ?? []).entries()) {
     const name = `Result section ${index + 1}`;
     if (["image", "cta", "video"].includes(section.type) && !section.url.trim()) throw new ValidationError(`${name}: add a URL.`);
@@ -253,10 +271,12 @@ export function validateMarketing(form: FormSchemaType, publishing = false) {
 // Resolve visibility on the server, and retain the selected content in saved results.
 // Insufficient coverage is never treated as a zero score.
 export function evaluateMarketing(form: FormSchemaType, answers: Answers): MarketingResult | undefined {
-  const result = evaluateMarketingCore(form, answers);
+  if (!form.marketing) return;
+  const path = resolvePath(form, answers);
+  const result = evaluateMarketingCore(form, answers, path);
   if (!result) return;
   const answerQuestions = result.resultSections?.some(section => section.condition?.type === "answer")
-    ? new Map(resolvePath(form, answers).questions.map(question => [question.id, question]))
+    ? new Map(path.questions.map(question => [question.id, question]))
     : undefined;
   if (result.resultSections) result.resultSections = result.resultSections.filter(section => {
     const condition = section.condition;
@@ -274,11 +294,36 @@ export function evaluateMarketing(form: FormSchemaType, answers: Answers): Marke
     const score = condition.categoryId ? result.categories.find(c => c.id === condition.categoryId)?.score : result.overallScore;
     return typeof score === "number" && score >= condition.min && score <= condition.max;
   }).map(({ condition: _condition, ...section }) => section);
-  return result;
+  return resolveMarketingCopy(result, path.questions, answers);
 }
-function selectedMarketingRules(form: FormSchemaType, answers: Answers) {
+
+/** Freeze personalized wording using the same final path that selected the result. */
+export function resolveMarketingCopy(result: MarketingResult, questions: readonly Question[], answers: Answers): MarketingResult {
+  const copy = (value: string) => resolveResultText(value, questions, answers);
+  return {
+    ...result,
+    title: copy(result.title),
+    message: copy(result.message),
+    ...(result.advice !== undefined && { advice: copy(result.advice) }),
+    categories: result.categories.map(category => ({
+      ...category,
+      title: copy(category.title),
+      description: copy(category.description),
+      ...(category.bandTitle !== undefined && { bandTitle: copy(category.bandTitle) }),
+      ...(category.advice !== undefined && { advice: copy(category.advice) }),
+      ...(category.action !== undefined && { action: copy(category.action) }),
+    })),
+    ...(result.priorities && { priorities: result.priorities.map(priority => ({
+      ...priority, title: copy(priority.title), action: copy(priority.action),
+    })) }),
+    ...(result.resultSections && { resultSections: result.resultSections.map(section => ({
+      ...section, title: copy(section.title), body: copy(section.body),
+    })) }),
+  };
+}
+function selectedMarketingRules(form: FormSchemaType, answers: Answers, questions = resolvePath(form, answers).questions) {
   const visible = new Set(
-    resolvePath(form, answers).questions.map((q) => q.id),
+    questions.map((q) => q.id),
   );
   const selected = (qid: string, aid: string) =>
     visible.has(qid) &&
@@ -311,10 +356,11 @@ export function rankMarketingOutcomes(form: FormSchemaType, answers: Answers) {
 function evaluateMarketingCore(
   form: FormSchemaType,
   answers: Answers,
+  path: ReturnType<typeof resolvePath>,
 ): MarketingResult | undefined {
   const m = form.marketing;
   if (!m) return;
-  const { matches, visible, selected } = selectedMarketingRules(form, answers);
+  const { matches, visible, selected } = selectedMarketingRules(form, answers, path.questions);
   const base: MarketingResult = {
     ...(form.quizType ? { quizType: form.quizType } : {}),
     presentation: { layout: "stacked", ...m.presentation },
@@ -326,7 +372,7 @@ function evaluateMarketingCore(
     reasons: [],
     categories: [],
   };
-  const directId = form.routing ? resolvePath(form, answers).outcomeId : undefined;
+  const directId = form.routing ? path.outcomeId : undefined;
   const direct = m.kind !== "scorecard" ? m.outcomes.find(o => o.id === directId) : undefined;
   if (direct) return { ...base, status: "matched", outcomeId: direct.id, title: direct.title, message: direct.description, advice: direct.advice, ctaLabel: direct.ctaLabel, ctaUrl: direct.ctaUrl };
   if (m.kind === "qualification") {
