@@ -18,5 +18,14 @@ for(const kind of ['segmentation','product_finder']){const f=compileMarketingDra
 console.log('PASS marketing brief compilation: all 3 modes, scoring, neutral answers, safe URLs, private rationale, consent defaults and invalid model output');
 module.exports={brief,fixture};
 
-for(const kind of ['scorecard','segmentation','product_finder'])for(const numQuestions of [3,6,12])assert.equal(createMarketingStarter({...brief,kind,numQuestions}).form.questions.length,numQuestions);
+for(const kind of ['scorecard','segmentation','product_finder'])for(const numQuestions of [3,6,12,19,30])assert.equal(createMarketingStarter({...brief,kind,numQuestions}).form.questions.length,Math.min(numQuestions,12));
 console.log('PASS no-AI starters for all modes and question-count limits');
+
+const persuasiveDraft = createMarketingStarter({...brief, persuasive:true, numQuestions:19});
+assert.equal(persuasiveDraft.form.questions.length,12);
+const longFixture = structuredClone(fixture);
+longFixture.questions = Array.from({length:19},(_,i)=>({...fixture.questions[i%3],title:`Question ${i+1}`}));
+assert.equal(compileMarketingDraft({...brief,numQuestions:19,persuasive:true},longFixture).form.questions.length,19);
+assert.equal(persuasiveDraft.form.capture.placement,"after_results");
+assert.equal(persuasiveDraft.form.capture.required,false);
+assert.equal(MarketingBriefSchema.safeParse({...brief,numQuestions:31}).success,false);
