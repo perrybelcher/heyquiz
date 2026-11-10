@@ -44,29 +44,31 @@ function Advice({ result, prominent = false }: { result: MarketingResult; promin
   </section>;
 }
 
-function CategoryOverview({ categories }: { categories: Category[] }) {
-  if (!categories.length) return null;
-  return <section data-result-block="category-overview" aria-label="Category score overview" className="space-y-4">
-    <div><h2 className="font-semibold">Your scores at a glance</h2><p className="text-sm text-slate-600 mt-1">{categories.filter(category => category.score !== null).length} of {categories.length} categories have enough scored answers.</p></div>
+type CategoryVisibility = { scores: boolean; coverage: boolean };
+
+function CategoryOverview({ categories, scores, coverage }: { categories: Category[] } & CategoryVisibility) {
+  if (!categories.length || (!scores && !coverage)) return null;
+  return <section data-result-block="category-overview" aria-label={scores ? "Category score overview" : "Scoring coverage"} className="space-y-4">
+    <div><h2 className="font-semibold">{scores ? "Your scores at a glance" : "Scoring coverage"}</h2>{coverage && <p className="text-sm text-slate-600 mt-1">{categories.filter(category => category.score !== null).length} of {categories.length} categories have enough scored answers.</p>}</div>
     <div className="grid sm:grid-cols-2 gap-3">{categories.map(category => <div key={category.id} data-category-overview={category.id} className="min-w-0 rounded-2xl bg-slate-50 border border-slate-200 p-4">
       <h3 className="font-semibold break-words">{category.title}</h3>
-      <p className={`${category.score === null ? "text-base" : "text-3xl"} font-semibold text-indigo-600 mt-3 tabular-nums`}>{category.score === null ? "Not enough information" : `${category.score}%`}</p>
-      <Coverage category={category} />
+      {scores && <p className={`${category.score === null ? "text-base" : "text-3xl"} font-semibold text-indigo-600 mt-3 tabular-nums`}>{category.score === null ? "Not enough information" : `${category.score}%`}</p>}
+      {coverage && <Coverage category={category} />}
     </div>)}</div>
   </section>;
 }
 
-function CategoryDetails({ categories }: { categories: Category[] }) {
+function CategoryDetails({ categories, scores, coverage }: { categories: Category[] } & CategoryVisibility) {
   return <>{categories.map(category => <section data-result-block="category" data-category-id={category.id} className="rounded-2xl border border-slate-200 p-5" key={category.id}>
     <div className="flex flex-wrap justify-between gap-x-4 gap-y-2">
       <h2 className="font-semibold break-words">{category.title}</h2>
-      <span className="font-semibold text-indigo-600 tabular-nums">{category.score === null ? "Not enough information" : `${category.score}%`}</span>
+      {scores && <span className="font-semibold text-indigo-600 tabular-nums">{category.score === null ? "Not enough information" : `${category.score}%`}</span>}
     </div>
-    {category.score !== null && <div aria-hidden="true" className="h-2 bg-slate-100 rounded-full my-4"><div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${category.score}%` }} /></div>}
+    {scores && category.score !== null && <div aria-hidden="true" className="h-2 bg-slate-100 rounded-full my-4"><div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${category.score}%` }} /></div>}
     {category.description && <p className="text-sm text-slate-600 mt-3 whitespace-pre-line">{category.description}</p>}
-    {category.bandTitle && <h3 className="font-semibold mt-4">{category.bandTitle}</h3>}
+    {(scores || category.advice) && category.bandTitle && <h3 className="font-semibold mt-4">{category.bandTitle}</h3>}
     {category.advice && <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">{category.advice}</p>}
-    <Coverage category={category} />
+    {coverage && <Coverage category={category} />}
   </section>)}</>;
 }
 
@@ -95,7 +97,9 @@ function ResultSections({ result, onOfferClick }: { result: MarketingResult; onO
   })}</>;
 }
 
-export default function MarketingResultCard({ result, onOfferClick }: { result: MarketingResult; onOfferClick?: () => void }) {
+export default function MarketingResultCard({ result, onOfferClick, creatorView = false }: {
+  result: MarketingResult; onOfferClick?: () => void; creatorView?: boolean;
+}) {
   // Historical results without a presentation keep the original order. A newly
   // selected layout cannot restyle a prior submission through a changed draft.
   const layout = result.presentation?.layout ?? "stacked";
@@ -108,7 +112,12 @@ export default function MarketingResultCard({ result, onOfferClick }: { result: 
     </header>
     {layout === "action_plan" ? <><Advice result={result}/><PrimaryAction result={result} onOfferClick={onOfferClick}/><Reasons result={result}/><ResultSections result={result} onOfferClick={onOfferClick}/></> : <><Reasons result={result}/><Advice result={result}/><ResultSections result={result} onOfferClick={onOfferClick}/><PrimaryAction result={result} onOfferClick={onOfferClick}/></>}
   </div>;
-  const hasEvidence = result.overallScore !== undefined || result.categories.length > 0 || result.reasons.length > 0;
+  const display = result.kind === "scorecard" && !creatorView ? result.presentation : undefined;
+  const overall = display?.showOverallScore !== false && result.overallScore !== undefined;
+  const scores = display?.showCategoryScores !== false;
+  const coverage = display?.showScoringCoverage !== false;
+  const details = scores || coverage ? result.categories : result.categories.filter(category => category.advice?.trim());
+  const hasEvidence = overall || details.length > 0 || result.reasons.length > 0;
   return <div data-result-layout={layout} className="text-left space-y-6 break-words">
     <header className="space-y-4">
       <p className="text-xs uppercase tracking-widest text-indigo-600 font-semibold">{result.kind === "product_finder" ? "Your recommendation" : result.kind === "segmentation" ? "Your next step" : "Your assessment"}</p>
@@ -121,26 +130,26 @@ export default function MarketingResultCard({ result, onOfferClick }: { result: 
       <PrimaryAction result={result} onOfferClick={onOfferClick} />
       {hasEvidence && <section data-result-block="evidence" className="space-y-5 border-t border-slate-200 pt-6">
         <div><h2 className="text-lg font-semibold">How your answers shaped this</h2><p className="mt-2 text-sm text-slate-600">Review the supporting details, including any areas that need more information.</p></div>
-        <OverallScore result={result} />
+        {overall && <OverallScore result={result} />}
         <Reasons result={result} />
-        <CategoryDetails categories={result.categories} />
+        <CategoryDetails categories={details} scores={scores} coverage={coverage} />
       </section>}
       <ResultSections result={result} onOfferClick={onOfferClick} />
     </> : layout === "score_overview" ? <>
-      <OverallScore result={result} />
-      <CategoryOverview categories={result.categories} />
+      {overall && <OverallScore result={result} />}
+      <CategoryOverview categories={result.categories} scores={scores} coverage={coverage} />
       <Reasons result={result} />
       <Priorities result={result} />
       <Advice result={result} />
-      {Boolean(result.categories.length) && <section data-result-block="category-details" className="space-y-4 border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold">A closer look at each area</h2><CategoryDetails categories={result.categories} /></section>}
+      {Boolean(details.length) && <section data-result-block="category-details" className="space-y-4 border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold">A closer look at each area</h2><CategoryDetails categories={details} scores={scores} coverage={coverage} /></section>}
       <ResultSections result={result} onOfferClick={onOfferClick} />
       <PrimaryAction result={result} onOfferClick={onOfferClick} />
     </> : <>
-      <OverallScore result={result} />
+      {overall && <OverallScore result={result} />}
       <Priorities result={result} />
       <Reasons result={result} />
       <Advice result={result} />
-      <CategoryDetails categories={result.categories} />
+      <CategoryDetails categories={details} scores={scores} coverage={coverage} />
       <ResultSections result={result} onOfferClick={onOfferClick} />
       <PrimaryAction result={result} onOfferClick={onOfferClick} />
     </>}
