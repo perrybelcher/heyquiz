@@ -24,6 +24,8 @@ export const MarketingBriefSchema = z.object({
   targets: z.array(z.object({
     title: z.string().trim().min(2).max(120),
     description: z.string().trim().min(5).max(1200),
+    resultDescription: z.string().trim().max(1200).optional(),
+    ctaLabel: z.string().trim().max(100).optional(),
     ctaUrl: destination.default(""),
   })).min(2).max(5),
 }).superRefine((b, ctx) => {
@@ -81,7 +83,7 @@ export function compileMarketingDraft(input: unknown, output: unknown) {
   if (brief.kind === "scorecard") {
     m.categories = targets.map((t, i) => ({id: t.id, title: t.title, description: t.description, minAnswers: 1, bands: bands(draft.results[i].bands ?? [])}));
     m.scorecard = {title: "Your personal scorecard", message: "A starting point based on the answers you shared, not a validated benchmark.", bands: bands(draft.overallBands ?? [], brief.ctaUrl)};
-  } else m.outcomes = targets.map((t, i) => ({id:t.id,title:t.title,description:t.description,advice:draft.results[i].advice,ctaLabel:brief.ctaLabel,ctaUrl:t.ctaUrl || brief.ctaUrl,minPoints:1}));
+  } else m.outcomes = targets.map((t, i) => ({id:t.id,title:t.title,description:brief.persuasive && brief.kind === "product_finder" ? t.resultDescription || "" : t.resultDescription || t.description,advice:draft.results[i].advice,ctaLabel:t.ctaLabel || brief.ctaLabel,ctaUrl:t.ctaUrl || brief.ctaUrl,minPoints:1}));
   const questions = draft.questions.map((q, qi) => {
     if (new Set(q.options.map(o=>o.label.toLowerCase())).size !== q.options.length) throw Error("The draft repeats an answer. Please try again.");
     if (brief.kind !== "qualification" && !q.options.some(o => !o.weights.length)) throw Error("The draft needs a neutral answer for every question. Please try again.");

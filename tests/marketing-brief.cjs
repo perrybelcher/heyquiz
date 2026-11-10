@@ -29,3 +29,28 @@ assert.equal(compileMarketingDraft({...brief,numQuestions:19,persuasive:true},lo
 assert.equal(persuasiveDraft.form.capture.placement,"after_results");
 assert.equal(persuasiveDraft.form.capture.required,false);
 assert.equal(MarketingBriefSchema.safeParse({...brief,numQuestions:31}).success,false);
+
+const recommendation = compileMarketingDraft({
+  ...brief,
+  persuasive: true,
+  quizType: 'product_finder',
+  kind: 'product_finder',
+  targets: brief.targets.map((target, index) => ({
+    ...target,
+    description: 'Private matching criteria for offer ' + index,
+    resultDescription: 'Visitor description for offer ' + index,
+    ctaLabel: index ? 'Book a consultation' : 'View the package',
+    ctaUrl: 'https://example.com/offer-' + index,
+  })),
+}, fixture).form;
+for (const [index, label] of ['View the package', 'Book a consultation'].entries()) {
+  const outcome = recommendation.marketing.outcomes[index];
+  assert.equal(outcome.description, 'Visitor description for offer ' + index);
+  assert.equal(outcome.ctaLabel, label);
+  assert.equal(outcome.ctaUrl, 'https://example.com/offer-' + index);
+}
+const recommended = evaluateMarketing(recommendation, {'question-0':'answer-0'});
+assert.equal(recommended.ctaLabel, 'View the package');
+assert.equal(recommended.ctaUrl, 'https://example.com/offer-0');
+assert.equal(evaluateMarketing(recommendation, {}).status, 'no_match');
+assert.equal(evaluateMarketing(recommendation, {}).ctaUrl, undefined);

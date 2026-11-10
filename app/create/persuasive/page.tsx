@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
 
 export default async function PersuasiveCreatePage() {
   await requirePageUser("/create/persuasive");
-  return <MarketingBriefBuilder initialQuizType="diagnostic" persuasive aiAvailable={Boolean(process.env.GEMINI_API_KEY)} />;
+  return <MarketingBriefBuilder initialQuizType="product_finder" persuasive aiAvailable={Boolean(process.env.GEMINI_API_KEY)} />;
 }

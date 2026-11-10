@@ -11,6 +11,9 @@ export async function generateMarketingQuiz(input: unknown) {
   const brief = MarketingBriefSchema.parse(input);
   if (!process.env.GEMINI_API_KEY) throw new HttpError(503, "AI creation is not connected yet. Your brief is still here. You can use a quiz starter while the AI connection is configured.");
   const schema = z.toJSONSchema(marketingDraftSchema(brief.kind));
+  const recommendationPrompt = brief.persuasive && brief.kind === "product_finder"
+    ? "\nTreat each supplied target as a specific product or service. Ask questions that distinguish fit for those exact offers. Explain why the matched offer fits and what to do next. Give a useful fallback when evidence is insufficient. Never invent an offer or use internal fit notes as public copy."
+    : "";
   const deadline = Date.now() + 75000;
   let repair = "";
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -20,7 +23,7 @@ export async function generateMarketingQuiz(input: unknown) {
         method: "POST",
         headers: {"Content-Type":"application/json", "x-goog-api-key":process.env.GEMINI_API_KEY},
         body: JSON.stringify({
-          systemInstruction:{parts:[{text:marketingSystemPrompt + (brief.persuasive ? "\n" + persuasiveQuizPrompt : "") + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema) + repair}]},
+          systemInstruction:{parts:[{text:marketingSystemPrompt + (brief.persuasive && brief.kind !== "product_finder" ? "\n" + persuasiveQuizPrompt : "") + recommendationPrompt + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema) + repair}]},
           contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],
           generationConfig:{responseMimeType:"application/json",temperature:0.4,maxOutputTokens:16384},
         }),
