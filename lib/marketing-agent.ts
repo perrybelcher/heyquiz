@@ -17,9 +17,15 @@ export async function generateMarketingQuiz(input: unknown) {
         results: draftSchema.shape.results.length(brief.targets.length),
       }), {
         io: "input",
-        override: ({ jsonSchema }) => {
-          // Gemini's response schema supports array bounds and numeric bounds.
-          // String lengths and defaults are handled by the draft compiler.
+        override: ({ jsonSchema, path }) => {
+          // Nested bounds can make a long draft's schema too complex for Gemini.
+          // Constrain the top-level counts here and validate all values in the compiler.
+          if (path.length > 2) {
+            delete jsonSchema.minItems;
+            delete jsonSchema.maxItems;
+          }
+          delete jsonSchema.minimum;
+          delete jsonSchema.maximum;
           delete jsonSchema.minLength;
           delete jsonSchema.maxLength;
           delete jsonSchema.default;
@@ -31,7 +37,7 @@ export async function generateMarketingQuiz(input: unknown) {
     ? ""
     : "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(z.toJSONSchema(draftSchema));
   const recommendationPrompt = brief.persuasive && brief.kind === "product_finder"
-    ? "\nTreat each supplied target as a specific product or service. Ask questions that distinguish fit for those exact offers. Explain why the matched offer fits and what to do next. Give a useful fallback when evidence is insufficient. Never invent an offer or use internal fit notes as public copy."
+    ? "\nTreat each supplied target as a specific product or service. Ask questions that distinguish fit for those exact offers. Use three or four concise answer options and one short sentence of purpose per question. Explain why the matched offer fits and what to do next. Give a useful fallback when evidence is insufficient. Never invent an offer or use internal fit notes as public copy."
     : "";
   const deadline = Date.now() + 75000;
   let repair = "";
