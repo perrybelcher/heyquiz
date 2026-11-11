@@ -2,6 +2,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useSyncExternalStore,
@@ -28,6 +29,7 @@ import {
   validationError,
   displayTypes,
   singleTypes,
+  multiTypes,
   formatAnswer,
   type Answers,
 } from "@/lib/engine";
@@ -105,7 +107,14 @@ export default function QuizPlayer({
   const screenIndex = Math.max(0, screens.findIndex(items => items.some(item => item.id === q?.id)));
   const screenQuestions = screens[screenIndex] || [];
   const grouped = active.settings.presentation === "page";
+  const multiSelectQuestion = !grouped && q && multiTypes.has(q.type);
   const lastScreen = screenIndex === screens.length - 1;
+  const questionScreenId = session && !capturing && !result && !review
+    ? screenQuestions[0]?.id
+    : undefined;
+  useLayoutEffect(() => {
+    if (questionScreenId) window.scrollTo({ top: 0, behavior: "instant" });
+  }, [questionScreenId]);
   const progressMode = active.settings.progressBarMode ?? "percentage";
   const answerable = screens.map(screen => screen.filter(field => !displayTypes.has(field.type)).length);
   const questionTotal = answerable.reduce((sum, count) => sum + count, 0);
@@ -629,12 +638,12 @@ export default function QuizPlayer({
                           ? lastScreen ? active.settings.showReviewBeforeSubmit ? "Review answers" : "Finish" : "Continue"
                         : !grouped && active.settings.feedbackMode === "immediate" &&
                             !feedback
-                          ? "Check answer"
+                          ? multiSelectQuestion ? "Continue" : "Check answer"
                           : lastScreen
                             ? active.settings.showReviewBeforeSubmit
                               ? "Review answers"
                               : finishLabel
-                            : "Next"}
+                            : multiSelectQuestion ? "Continue" : "Next"}
                       {lastScreen ? (
                         <Check size={17} />
                       ) : (
