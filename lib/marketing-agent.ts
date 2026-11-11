@@ -1,16 +1,35 @@
 import { marketingSystemPrompt, persuasiveQuizPrompt } from "./marketing-system-prompt";
 import { aiProviderError } from "./ai-provider-error";
 import { z } from "zod";
-import { HttpError } from "./auth";
-import { ValidationError } from "./errors";
+import { HttpError, PublicHttpError, ValidationError } from "./errors";
 import { MarketingBriefSchema, marketingDraftSchema, compileMarketingDraft } from "./marketing-brief";
 
 // One fresh retry for malformed/invalid drafts; never retry configuration or quota errors.
 // Both attempts share a deadline below the route's 90-second execution limit.
 export async function generateMarketingQuiz(input: unknown) {
   const brief = MarketingBriefSchema.parse(input);
-  if (!process.env.GEMINI_API_KEY) throw new HttpError(503, "AI creation is not connected yet. Your brief is still here. You can use a quiz starter while the AI connection is configured.");
-  const schema = z.toJSONSchema(marketingDraftSchema(brief.kind));
+  if (!process.env.GEMINI_API_KEY) throw new PublicHttpError(503, "AI creation is not connected yet. Your brief is still here. You can use a quiz starter while the AI connection is configured.");
+  const draftSchema = marketingDraftSchema(brief.kind);
+  const counts = `Return exactly ${brief.numQuestions} questions and exactly ${brief.targets.length} results, in target order.`;
+  const responseJsonSchema = brief.kind === "product_finder"
+    ? z.toJSONSchema(draftSchema.extend({
+        questions: draftSchema.shape.questions.length(brief.numQuestions),
+        results: draftSchema.shape.results.length(brief.targets.length),
+      }), {
+        io: "input",
+        override: ({ jsonSchema }) => {
+          // Gemini's response schema supports array bounds and numeric bounds.
+          // String lengths and defaults are handled by the draft compiler.
+          delete jsonSchema.minLength;
+          delete jsonSchema.maxLength;
+          delete jsonSchema.default;
+        },
+      })
+    : undefined;
+  if (responseJsonSchema) delete responseJsonSchema.$schema;
+  const formatInstruction = responseJsonSchema
+    ? ""
+    : "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(z.toJSONSchema(draftSchema));
   const recommendationPrompt = brief.persuasive && brief.kind === "product_finder"
     ? "\nTreat each supplied target as a specific product or service. Ask questions that distinguish fit for those exact offers. Explain why the matched offer fits and what to do next. Give a useful fallback when evidence is insufficient. Never invent an offer or use internal fit notes as public copy."
     : "";
@@ -23,16 +42,16 @@ export async function generateMarketingQuiz(input: unknown) {
         method: "POST",
         headers: {"Content-Type":"application/json", "x-goog-api-key":process.env.GEMINI_API_KEY},
         body: JSON.stringify({
-          systemInstruction:{parts:[{text:marketingSystemPrompt + (brief.persuasive && brief.kind !== "product_finder" ? "\n" + persuasiveQuizPrompt : "") + recommendationPrompt + "\nReturn one JSON object matching this schema exactly: " + JSON.stringify(schema) + repair}]},
+          systemInstruction:{parts:[{text:marketingSystemPrompt + (brief.persuasive && brief.kind !== "product_finder" ? "\n" + persuasiveQuizPrompt : "") + recommendationPrompt + "\n" + counts + formatInstruction + repair}]},
           contents:[{role:"user",parts:[{text:JSON.stringify(brief)}]}],
-          generationConfig:{responseMimeType:"application/json",temperature:0.4,maxOutputTokens:16384},
+          generationConfig:{responseMimeType:"application/json",responseJsonSchema,temperature:0.4,maxOutputTokens:16384},
         }),
         signal: AbortSignal.timeout(Math.max(1, Math.min(40000, deadline - Date.now()))),
       });
     } catch (error) {
       if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
-        throw new HttpError(504, "The AI service took too long. Your brief is still here. Try again or create a starter without AI.");
-      throw new HttpError(502, "We could not reach the AI service. Your brief is still here. Try again or create a starter without AI.");
+        throw new PublicHttpError(504, "The AI service took too long. Your brief is still here. Try again or create a starter without AI.");
+      throw new PublicHttpError(502, "We could not reach the AI service. Your brief is still here. Try again or create a starter without AI.");
     }
     if (!res.ok) throw await aiProviderError(res);
     try {
@@ -53,8 +72,8 @@ export async function generateMarketingQuiz(input: unknown) {
       console.warn("AI draft rejected", {attempt:attempt + 1,category,issues});
       repair = "\nValidation errors to correct: " + JSON.stringify(issues) + "\nA previous attempt failed validation. Generate a fresh complete draft. Return valid JSON only, with all required fields. Recheck exact question/result counts, unique answers, neutral options with empty weights, and zero-based target indexes. Every result must have a clear answer path that selects it; avoid scoring every option equally across results. Scorecard questions must measure one category each with a zero and a positive score.";
       if (attempt === 1 || Date.now() >= deadline)
-        throw new HttpError(502, "The AI draft still did not pass our scoring and structure checks after one automatic retry. Nothing was saved. Your brief is still here. Try again or create a starter without AI.");
+        throw new PublicHttpError(502, "The AI draft did not match the requested question count, results, or scoring rules. Your brief is still here. Try again or create a starter without AI.");
     }
   }
-  throw new HttpError(502, "Could not generate a validated draft. Your brief is still here.");
+  throw new PublicHttpError(502, "Could not generate a validated draft. Your brief is still here.");
 }

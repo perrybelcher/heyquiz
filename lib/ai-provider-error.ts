@@ -1,6 +1,6 @@
-import { HttpError } from "./auth";
+import { PublicHttpError } from "./errors";
 /** Never return provider bodies: they may echo submitted content or credentials. */
-export async function aiProviderError(response: Response): Promise<HttpError> {
+export async function aiProviderError(response: Response): Promise<PublicHttpError> {
   const body = await response.json().catch(() => null);
   const message = typeof body?.error?.message === "string" ? body.error.message : "";
   const reasons: string[] = Array.isArray(body?.error?.details)
@@ -20,5 +20,5 @@ export async function aiProviderError(response: Response): Promise<HttpError> {
     advice = category === "request_schema" ? "The AI provider rejected the quiz format. The application needs a generation-format update." : "The AI provider rejected the request configuration. The workspace administrator needs to check the AI setup.";
   }
   console.error("AI provider rejection", { status: response.status, category });
-  return new HttpError(response.status === 429 ? 503 : 502, `${advice} Your brief is safe; you can create a starter without AI.`);
+  return new PublicHttpError(response.status === 429 ? 503 : 502, `${advice} Your brief is safe; you can create a starter without AI.`);
 }

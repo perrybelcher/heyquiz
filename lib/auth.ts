@@ -2,7 +2,7 @@ import { recordFailure } from "./diagnostics";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { HttpError, ServiceUnavailableError } from "./errors";
+import { HttpError, PublicHttpError, ServiceUnavailableError } from "./errors";
 import { ACCOUNT_SESSION_COOKIE, accountKeyForUser, resolveAccountSession } from "./account-session";
 import { safeAuthReturn } from "./auth-return-path";
 export { HttpError } from "./errors";
@@ -86,7 +86,7 @@ export function apiError(e: unknown) {
     e instanceof HttpError
       ? e.status
       : validation ? 400 : 500;
-  const message = status >= 500
+  const message = status >= 500 && !(e instanceof PublicHttpError)
     ? (status === 503 ? "Service is temporarily unavailable. Your changes have not been confirmed saved. Please retry." : "Something interrupted this request. Please retry or contact support with the reference.")
     : e instanceof Error ? e.message : "Request failed.";
   // Expected validation/auth failures stay quiet. Record unexpected failures and
