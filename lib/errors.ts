@@ -10,6 +10,9 @@ export class HttpError extends Error {
   }
 }
 
+/** Use only for messages written by the application and safe to display to the user. */
+export class PublicHttpError extends HttpError {}
+
 export class ValidationError extends HttpError {
   constructor(message: string, status = 400) {
     super(status, message);

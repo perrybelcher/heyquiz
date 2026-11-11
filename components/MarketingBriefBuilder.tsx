@@ -58,8 +58,31 @@ export default function MarketingBriefBuilder({aiAvailable,initialQuizType,persu
     setError("");setAuthError(false);const parsed=MarketingBriefSchema.safeParse({...brief,persuasive,...(recommendation ? {ctaUrl:""} : {})});
     if(!parsed.success){setError(parsed.error.issues.map(i=>`${i.path.join(" → ")}: ${i.message}`).join(" · "));return;}
     setBusy(true);
-    try{const res=await fetch("/api/agent/marketing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(parsed.data)});const data=await res.json();if(!res.ok){setAuthError(res.status===401);throw Error(data.error || "Could not generate the draft.");}setQuestionsApproved(false);setPreviewOfferId("");setPreview(data);setResultsReviewed(!brief.quizType);setAnswers({});}
-    catch(e){setError(e instanceof Error?e.message:"Could not generate the draft.");}finally{setBusy(false);}
+    const fallback = "Could not generate the draft. Your brief is still here.";
+    try {
+      const res = await fetch("/api/agent/marketing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (!res.ok) {
+        setAuthError(res.status === 401);
+        const data = await res.json().catch(() => null);
+        const message = typeof data?.error === "string" ? data.error : fallback;
+        const reference = res.headers.get("X-Pippi-Reference");
+        setError(reference ? `${message} (Support reference ${reference})` : message);
+        return;
+      }
+      setPreview(await res.json());
+      setQuestionsApproved(false);
+      setPreviewOfferId("");
+      setResultsReviewed(!brief.quizType);
+      setAnswers({});
+    } catch {
+      setError(fallback);
+    } finally {
+      setBusy(false);
+    }
   }
   async function save(){
     if(!preview)return;
